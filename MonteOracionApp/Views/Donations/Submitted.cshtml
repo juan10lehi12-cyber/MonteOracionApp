@@ -1,0 +1,5 @@
+@model string
+@{ ViewData["Title"] = "Donación registrada"; }
+<section class="panel narrow"><div class="eyebrow">GRACIAS POR TU GENEROSIDAD</div><h1>Donación registrada</h1><p>Tu donación está <strong>pendiente de revisión</strong>. El administrador confirmará que el dinero llegó a la iglesia.</p><p>Guarda este código para cualquier consulta:</p><code class="tracking-code">@Model</code>
+@if(User.IsInRole(Roles.Congregant)) { <a class="btn btn-primary mt-4" asp-controller="Portal" asp-action="Index">Ver mis donaciones</a> } else { <p class="mt-4">Puedes consultar el resultado con la administración de la iglesia usando este código.</p> }
+</section>

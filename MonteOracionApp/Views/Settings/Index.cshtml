@@ -1,0 +1,5 @@
+@model ChurchSettings
+@{ ViewData["Title"] = "Configuración"; }
+<div class="section-heading"><h1>Información de la iglesia</h1><a class="btn btn-outline-primary" asp-action="Payments">Medios de pago</a></div>
+<section class="panel form-panel"><form asp-action="Index" method="post"><div asp-validation-summary="All" class="text-danger"></div>
+<div class="mb-3"><label asp-for="Name"></label><input asp-for="Name" class="form-control" /></div><div class="mb-3"><label asp-for="About"></label><textarea asp-for="About" rows="5" class="form-control"></textarea></div><div class="mb-3"><label asp-for="Address"></label><input asp-for="Address" class="form-control" /></div><div class="mb-3"><label asp-for="Contact"></label><input asp-for="Contact" class="form-control" /></div><button class="btn btn-primary">Guardar información</button></form></section>

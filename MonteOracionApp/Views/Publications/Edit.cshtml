@@ -1,0 +1,8 @@
+@model Publication
+@{ ViewData["Title"] = Model.Id == 0 ? "Crear publicación" : "Editar publicación"; }
+<section class="panel form-panel"><h1>@ViewData["Title"]</h1><form method="post" asp-action="Edit" asp-route-id="@Model.Id"><div asp-validation-summary="All" class="text-danger"></div>
+<div class="mb-3"><label asp-for="Kind"></label><select asp-for="Kind" asp-items="Html.GetEnumSelectList<PublicationKind>()" class="form-select"></select></div>
+<div class="mb-3"><label asp-for="Title"></label><input asp-for="Title" class="form-control" /></div><div class="mb-3"><label asp-for="Body"></label><textarea asp-for="Body" class="form-control" rows="7"></textarea></div>
+<p class="text-secondary">Para eventos, completa fecha, hora y lugar. Los avisos no requieren estos datos.</p>
+<div class="mb-3"><label asp-for="EventAt"></label><input asp-for="EventAt" type="datetime-local" class="form-control" /></div><div class="mb-3"><label asp-for="Location"></label><input asp-for="Location" class="form-control" /></div>
+<div class="form-check mb-4"><input asp-for="IsPublished" class="form-check-input" /><label asp-for="IsPublished" class="form-check-label"></label></div><p class="small">Desmarca «Publicado» para guardar como borrador o retirar una publicación.</p><button class="btn btn-primary">Guardar publicación</button> <a asp-action="Index" class="btn btn-link">Volver</a></form></section>

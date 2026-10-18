@@ -1,0 +1,7 @@
+@model Congregant
+@{ ViewData["Title"] = Model.Id == 0 ? "Nuevo congregante" : "Editar congregante"; }
+<section class="panel narrow"><h1>@ViewData["Title"]</h1><form method="post" asp-action="Edit" asp-route-id="@Model.Id"><div asp-validation-summary="All" class="text-danger"></div>
+<div class="mb-3"><label asp-for="FirstName"></label><input asp-for="FirstName" class="form-control" /></div>
+<div class="mb-3"><label asp-for="LastName"></label><input asp-for="LastName" class="form-control" /></div>
+<div class="mb-3"><label asp-for="Phone"></label><input asp-for="Phone" class="form-control" /></div>
+<button class="btn btn-primary">Guardar</button> <a asp-action="Index" class="btn btn-link">Volver</a></form></section>

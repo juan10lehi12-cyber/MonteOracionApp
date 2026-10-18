@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="MonteOracionApp.Checks/MonteOracionApp.Checks.csproj" />
+  <Project Path="MonteOracionApp/MonteOracionApp.csproj" />
+</Solution>

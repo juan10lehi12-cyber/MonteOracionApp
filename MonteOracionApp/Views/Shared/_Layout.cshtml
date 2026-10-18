@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] · Monte de Oración</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+<header class="site-header">
+    <nav class="navbar navbar-expand-lg container" aria-label="Navegación principal">
+        <a class="navbar-brand" asp-controller="Home" asp-action="Index">Monte de Oración<span>Comunidad · Comas, Lima</span></a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navigation" aria-controls="navigation" aria-expanded="false" aria-label="Abrir menú"><span class="navbar-toggler-icon"></span></button>
+        <div class="collapse navbar-collapse" id="navigation">
+            <div class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
+                <a class="nav-link" asp-controller="Home" asp-action="Index">La iglesia</a>
+                @if (User.IsInRole(Roles.Administrator)) {
+                    <a class="nav-link" asp-controller="Dashboard" asp-action="Index">Administración</a>
+                } else {
+                    <a class="nav-link" asp-controller="Home" asp-action="Index" asp-fragment="donar">Donar</a>
+                }
+                @if (User.IsInRole(Roles.Congregant)) { <a class="nav-link" asp-controller="Portal" asp-action="Index">Mi cuenta</a> }
+                <partial name="_LoginPartial" />
+            </div>
+        </div>
+    </nav>
+</header>
+@if (User.IsInRole(Roles.Administrator)) {
+    <div class="admin-nav"><nav class="container d-flex gap-3 flex-wrap py-2" aria-label="Administración">
+        <a asp-controller="Donations" asp-action="Index">Donaciones</a>
+        <a asp-controller="Donations" asp-action="Receive">Registrar recepción</a>
+        <a asp-controller="Congregants" asp-action="Index">Congregantes</a>
+        <a asp-controller="Publications" asp-action="Index">Publicaciones</a>
+        <a asp-controller="Settings" asp-action="Index">Configuración</a>
+    </nav></div>
+}
+<main class="container py-4" id="main">
+    @if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+    @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
+    @RenderBody()
+</main>
+<footer class="container py-4 mt-auto"><span>Monte de Oración · Comas, Lima</span><a asp-controller="Home" asp-action="Privacy">Privacidad</a></footer>
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,14 @@
+@model ReceivedDonationForm
+@{ ViewData["Title"] = "Registrar recepción"; var congregants = (List<Congregant>)ViewBag.Congregants; }
+<section class="panel form-panel"><h1>Registrar donación recibida</h1><p>Registra los bienes o el efectivo que recibiste físicamente en la iglesia.</p>
+<form asp-action="Receive" method="post" enctype="multipart/form-data"><div asp-validation-summary="All" class="text-danger" role="alert"></div>
+<div class="row"><div class="col-md-6 mb-3"><label asp-for="Kind"></label><select asp-for="Kind" asp-items="Html.GetEnumSelectList<DonationKind>()" class="form-select" data-donation-kind></select></div><div class="col-md-6 mb-3"><label asp-for="ReceivedOn"></label><input asp-for="ReceivedOn" class="form-control" /></div></div>
+<div class="mb-3"><label asp-for="DonorKind"></label><select asp-for="DonorKind" asp-items="Html.GetEnumSelectList<DonorKind>()" class="form-select" data-donor-kind></select></div>
+<div class="mb-3" data-donor="0"><label asp-for="CongregantId"></label><select asp-for="CongregantId" class="form-select"><option value="">Seleccionar congregante</option>@foreach(var c in congregants) { <option value="@c.Id">@c.FullName (#@c.Id)</option> }</select></div>
+<div data-donor="1"><div class="mb-3"><label asp-for="ExternalName"></label><input asp-for="ExternalName" class="form-control" /></div><div class="mb-3"><label asp-for="ExternalContact"></label><input asp-for="ExternalContact" class="form-control" /></div></div>
+<div class="mb-3" data-kind="0"><label asp-for="Amount"></label><input asp-for="Amount" type="number" min="0.01" step="0.01" class="form-control" /></div>
+<div data-kind="1"><h2>Bienes recibidos</h2><div id="goods-items">
+@for(var i = 0; i < Model.Items.Count; i++) { <div class="row g-2 mb-3 goods-row"><div class="col-md-6"><label for="Items_@(i)__Description">Descripción</label><input asp-for="Items[i].Description" class="form-control" /></div><div class="col-md-3"><label for="Items_@(i)__Quantity">Cantidad</label><input asp-for="Items[i].Quantity" type="number" step="0.01" min="0.01" class="form-control" /></div><div class="col-md-3"><label for="Items_@(i)__Unit">Unidad</label><input asp-for="Items[i].Unit" class="form-control" placeholder="kg, unidad…" /></div></div> }
+</div><button type="button" class="btn btn-outline-secondary mb-3" id="add-item">Agregar otro bien</button><div class="mb-3"><label asp-for="ItemPhoto"></label><input asp-for="ItemPhoto" type="file" accept=".jpg,.jpeg,.png" class="form-control" /><small>La foto permite dejar constancia del bien recibido.</small></div></div>
+<div class="form-check my-4"><input asp-for="ConfirmReceived" class="form-check-input" /><label asp-for="ConfirmReceived" class="form-check-label"></label></div>
+<button class="btn btn-primary">Guardar y aprobar recepción</button> <a asp-action="Index" class="btn btn-link">Volver</a></form></section>

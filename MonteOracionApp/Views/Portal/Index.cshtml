@@ -1,0 +1,4 @@
+@model List<Donation>
+@{ ViewData["Title"] = "Mi cuenta"; var congregant = (Congregant)ViewBag.Congregant; }
+<div class="section-heading"><div><div class="eyebrow">MI CUENTA</div><h1>Hola, @congregant.FirstName</h1><p>@congregant.FullName · @congregant.Phone</p></div><a class="btn btn-primary" asp-controller="Donations" asp-action="Create">Registrar donación</a></div>
+<h2 class="mb-3">Mis donaciones</h2><p>Incluye las donaciones digitales y las entregas de bienes o efectivo que la iglesia registró a tu nombre.</p><partial name="_DonationTable" model="Model" /><partial name="_Pagination" />

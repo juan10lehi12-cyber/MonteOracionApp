@@ -1,0 +1,10 @@
+@{ int page = ViewBag.Page ?? 1; int total = ViewBag.Total ?? 0; int size = ViewBag.PageSize ?? 30;
+   var query = Context.Request.Query.ToDictionary(x => x.Key, x => x.Value.ToString()); }
+@if (total > size) {
+    <nav class="d-flex gap-3 align-items-center mt-4" aria-label="Paginación">
+    @if (page > 1) { query["page"] = (page - 1).ToString(); <a class="btn btn-outline-secondary" href="@Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(Context.Request.Path, query!)">Anterior</a> }
+    <span>Página @(page) · @total registros</span>
+    @if (page * size < total) { query["page"] = (page + 1).ToString(); <a class="btn btn-outline-secondary" href="@Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(Context.Request.Path, query!)">Siguiente</a> }
+    </nav>
+}
+

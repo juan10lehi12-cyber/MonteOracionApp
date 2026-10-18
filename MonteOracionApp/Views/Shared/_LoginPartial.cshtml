@@ -1,0 +1,4 @@
+@if (User.Identity?.IsAuthenticated == true) {
+    <a class="nav-link" asp-controller="Account" asp-action="Password">Contraseña</a>
+    <form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-outline-secondary btn-sm" type="submit">Salir</button></form>
+} else { <a class="btn btn-primary btn-sm" asp-controller="Account" asp-action="Login">Ingresar</a> }

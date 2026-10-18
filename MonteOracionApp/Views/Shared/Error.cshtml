@@ -1,0 +1,3 @@
+@model ErrorViewModel
+@{ ViewData["Title"] = "No se pudo completar la operación"; }
+<section class="panel narrow"><h1>No se pudo completar la operación</h1><p>Inténtalo nuevamente. Si el problema continúa, comunica este código al administrador para revisar el registro de errores.</p><p class="text-break"><strong>Código:</strong> @Model.RequestId</p><a asp-controller="Home" asp-action="Index">Volver al inicio</a></section>

@@ -1,0 +1,9 @@
+@{ ViewData["Title"] = "Administración"; }
+<div class="section-heading"><div><div class="eyebrow">ADMINISTRACIÓN</div><h1>Resumen de la iglesia</h1></div><a class="btn btn-primary" asp-controller="Donations" asp-action="Receive">Registrar recepción</a></div>
+<div class="row g-3 mb-4">
+<div class="col-sm-6 col-lg-3"><div class="panel metric"><span>Por revisar</span><strong>@ViewBag.Pending</strong><a asp-controller="Donations" asp-action="Index" asp-route-status="Pendiente">Revisar donaciones →</a></div></div>
+<div class="col-sm-6 col-lg-3"><div class="panel metric"><span>Dinero confirmado · histórico</span><strong>S/ @(((decimal)ViewBag.Money).ToString("N2"))</strong></div></div>
+<div class="col-sm-6 col-lg-3"><div class="panel metric"><span>Donaciones de bienes aprobadas</span><strong>@ViewBag.Goods</strong></div></div>
+<div class="col-sm-6 col-lg-3"><div class="panel metric"><span>Congregantes activos</span><strong>@ViewBag.Congregants</strong></div></div>
+</div>
+<div class="panel"><h2>Gestiona tu comunidad</h2><p>Revisa las donaciones digitales, registra las entregas recibidas en la iglesia y comparte las próximas actividades.</p><div class="d-flex flex-wrap gap-2"><a class="btn btn-outline-primary" asp-controller="Congregants" asp-action="Edit">Nuevo congregante</a><a class="btn btn-outline-primary" asp-controller="Publications" asp-action="Edit">Crear publicación</a><a class="btn btn-outline-primary" asp-controller="Settings" asp-action="Payments">Medios de pago</a></div></div>
