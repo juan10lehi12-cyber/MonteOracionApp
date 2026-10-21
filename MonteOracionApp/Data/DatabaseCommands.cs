@@ -11,7 +11,7 @@ public static class DatabaseCommands
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.Database.MigrateAsync();
         var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        foreach (var name in new[] { Roles.Administrator, Roles.Congregant })
+        foreach (var name in new[] { Roles.Administrator, Roles.Treasurer, Roles.Warehouse })
             if (!await roles.RoleExistsAsync(name)) Ensure(await roles.CreateAsync(new IdentityRole(name)));
         if (args.Contains("--create-admin"))
         {
@@ -24,6 +24,8 @@ public static class DatabaseCommands
             await using var transaction = await db.Database.BeginTransactionAsync();
             var user = new IdentityUser { UserName = email, Email = email, EmailConfirmed = true };
             Ensure(await users.CreateAsync(user, password)); Ensure(await users.AddToRoleAsync(user, Roles.Administrator));
+            db.StaffProfiles.Add(new Modules.Staff.StaffProfile { UserId = user.Id, FullName = email[..Math.Min(160,email.Length)] });
+            await db.SaveChangesAsync();
             await transaction.CommitAsync(); Console.WriteLine("Administrador creado.");
         }
         Console.WriteLine("Base de datos y roles listos."); return true;

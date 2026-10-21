@@ -17,6 +17,9 @@ public class Donation
     [StringLength(180)] public string? ExternalName { get; set; }
     [StringLength(150)] public string? ExternalContact { get; set; }
     public decimal? Amount { get; set; }
+    [MaxLength(80)] public string? OperationNumber { get; set; }
+    public int FundId { get; set; } = 1;
+    public Treasury.Fund Fund { get; set; } = null!;
     public int? PaymentMethodId { get; set; }
     public PaymentMethod? PaymentMethod { get; set; }
     [StringLength(100)] public string? PaymentMethodName { get; set; }
@@ -34,6 +37,10 @@ public class DonationItem
 {
     public int Id { get; set; }
     public int DonationId { get; set; }
+    public int? ProductId { get; set; }
+    public Inventory.Product? Product { get; set; }
+    public DateTime? ExpiresOn { get; set; }
+    [MaxLength(160)] public string? StorageLocation { get; set; }
     [Required, StringLength(250)] public string Description { get; set; } = "";
     public decimal Quantity { get; set; }
     [Required, StringLength(40)] public string Unit { get; set; } = "";

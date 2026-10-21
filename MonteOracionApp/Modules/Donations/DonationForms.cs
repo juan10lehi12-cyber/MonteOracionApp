@@ -2,6 +2,9 @@ using System.ComponentModel.DataAnnotations;
 namespace MonteOracionApp.Modules.Donations;
 public class OnlineDonationForm
 {
+    [RegularExpression("^[0-9]{8}$"), Display(Name = "DNI del congregante (opcional)")] public string? Dni { get; set; }
+    [Required, StringLength(80), Display(Name = "Número de operación")] public string OperationNumber { get; set; } = "";
+    [Range(1,int.MaxValue), Display(Name = "Destino / fondo")] public int FundId { get; set; } = 1;
     [Display(Name = "Donar de forma anónima")] public bool Anonymous { get; set; }
     [StringLength(180), Display(Name = "Nombre completo")] public string? Name { get; set; }
     [StringLength(150), Display(Name = "Teléfono o correo (opcional)")] public string? Contact { get; set; }
@@ -12,6 +15,7 @@ public class OnlineDonationForm
 }
 public class ReceivedDonationForm
 {
+    [Range(1,int.MaxValue), Display(Name = "Fondo del efectivo")] public int FundId { get; set; } = 1;
     [Display(Name = "Tipo de donación")] public DonationKind Kind { get; set; }
     [Display(Name = "Tipo de donante")] public DonorKind DonorKind { get; set; }
     [Display(Name = "Congregante")] public int? CongregantId { get; set; }
@@ -25,6 +29,9 @@ public class ReceivedDonationForm
 }
 public class ReceivedItemForm
 {
+    public int? ProductId { get; set; }
+    public DateTime? ExpiresOn { get; set; }
+    [StringLength(160)] public string? StorageLocation { get; set; }
     [StringLength(250)] public string? Description { get; set; }
     public decimal? Quantity { get; set; }
     [StringLength(40)] public string? Unit { get; set; }

@@ -224,6 +224,44 @@ namespace MonteOracionApp.Data.Migrations
                     b.ToTable("tb_usuario_token", (string)null);
                 });
 
+            modelBuilder.Entity("MonteOracionApp.Modules.Audit.AuditEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Detail")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("At");
+
+                    b.ToTable("tb_auditoria", (string)null);
+                });
+
             modelBuilder.Entity("MonteOracionApp.Modules.Congregants.Congregant", b =>
                 {
                     b.Property<int>("Id")
@@ -231,6 +269,10 @@ namespace MonteOracionApp.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Dni")
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -253,6 +295,10 @@ namespace MonteOracionApp.Data.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Dni")
+                        .IsUnique()
+                        .HasFilter("[Dni] IS NOT NULL");
 
                     b.HasIndex("UserId")
                         .IsUnique()
@@ -290,8 +336,15 @@ namespace MonteOracionApp.Data.Migrations
                         .HasMaxLength(180)
                         .HasColumnType("nvarchar(180)");
 
+                    b.Property<int>("FundId")
+                        .HasColumnType("int");
+
                     b.Property<int>("Kind")
                         .HasColumnType("int");
+
+                    b.Property<string>("OperationNumber")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
 
                     b.Property<int?>("PaymentMethodId")
                         .HasColumnType("int");
@@ -328,12 +381,16 @@ namespace MonteOracionApp.Data.Migrations
 
                     b.HasIndex("CongregantId");
 
-                    b.HasIndex("PaymentMethodId");
+                    b.HasIndex("FundId");
 
                     b.HasIndex("TrackingCode")
                         .IsUnique();
 
                     b.HasIndex("Status", "CreatedAt");
+
+                    b.HasIndex("PaymentMethodId", "ReceivedOrPaidOn", "OperationNumber")
+                        .IsUnique()
+                        .HasFilter("[OperationNumber] IS NOT NULL");
 
                     b.ToTable("tb_donacion", null, t =>
                         {
@@ -393,9 +450,19 @@ namespace MonteOracionApp.Data.Migrations
                     b.Property<int>("DonationId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("ExpiresOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("Quantity")
                         .HasPrecision(12, 2)
                         .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("StorageLocation")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
 
                     b.Property<string>("Unit")
                         .IsRequired()
@@ -406,10 +473,377 @@ namespace MonteOracionApp.Data.Migrations
 
                     b.HasIndex("DonationId");
 
+                    b.HasIndex("ProductId");
+
                     b.ToTable("tb_donacion_bien", null, t =>
                         {
                             t.HasCheckConstraint("CK_DonationItem_Quantity", "[Quantity] > 0");
                         });
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Inventory.Beneficiary", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Contact")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("tb_beneficiario", (string)null);
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Inventory.Product", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<bool>("RequiresExpiry")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name", "Unit")
+                        .IsUnique();
+
+                    b.ToTable("tb_producto", (string)null);
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Inventory.StockLot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("DonationItemId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ExpiresOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<decimal>("OnHand")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Reserved")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DonationItemId")
+                        .IsUnique()
+                        .HasFilter("[DonationItemId] IS NOT NULL");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("tb_lote", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Lote_Saldos", "[OnHand] >= 0 AND [Reserved] >= 0 AND [Reserved] <= [OnHand]");
+                        });
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Inventory.StockMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CommandId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EvidenceKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EvidenceType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Receiver")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<decimal>("ReservedChange")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<int>("StockLotId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("StockRequestLineId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessDate");
+
+                    b.HasIndex("CommandId")
+                        .IsUnique()
+                        .HasFilter("[CommandId] IS NOT NULL");
+
+                    b.HasIndex("StockLotId");
+
+                    b.HasIndex("StockRequestLineId");
+
+                    b.ToTable("tb_movimiento_almacen", (string)null);
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Inventory.StockRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("BeneficiaryAddress")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("BeneficiaryContact")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<int>("BeneficiaryId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BeneficiaryName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("NeededOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("ReturnDueOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BeneficiaryId");
+
+                    b.ToTable("tb_solicitud_bienes", (string)null);
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Inventory.StockRequestLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Delivered")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("Returned")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<int>("StockLotId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StockRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("WrittenOff")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StockLotId");
+
+                    b.HasIndex("StockRequestId", "StockLotId")
+                        .IsUnique();
+
+                    b.ToTable("tb_solicitud_bien", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SolicitudBien_Saldos", "[Quantity] > 0 AND [Delivered] >= 0 AND [Delivered] <= [Quantity] AND [Returned] >= 0 AND [WrittenOff] >= 0 AND [Returned] + [WrittenOff] <= [Delivered]");
+                        });
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Publications.EventParticipant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Attendance")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CongregantId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("InternalNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("PublicationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RecordedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("RemovalReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CongregantId");
+
+                    b.HasIndex("PublicationId", "CongregantId")
+                        .IsUnique();
+
+                    b.ToTable("tb_participante_evento", (string)null);
                 });
 
             modelBuilder.Entity("MonteOracionApp.Modules.Publications.Publication", b =>
@@ -430,6 +864,15 @@ namespace MonteOracionApp.Data.Migrations
 
                     b.Property<DateTime?>("EventAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EventEndsAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImageKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageType")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsCancelled")
                         .HasColumnType("bit");
@@ -517,6 +960,279 @@ namespace MonteOracionApp.Data.Migrations
                     b.ToTable("tb_medio_pago", (string)null);
                 });
 
+            modelBuilder.Entity("MonteOracionApp.Modules.Staff.StaffProfile", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Position")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("tb_personal", (string)null);
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Treasury.CashClosing", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Counted")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTime>("Day")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EvidenceKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EvidenceType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Expected")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("Income")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal>("Opening")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("Outgoing")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("PreparedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ReviewedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Day", "Channel")
+                        .IsUnique();
+
+                    b.ToTable("tb_cierre_caja", (string)null);
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Treasury.FinanceRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("ActualSpent")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("DueOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EvidenceKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EvidenceType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("FundId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PaidBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("PaidOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Payee")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("RequestedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("SettledOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SettlementKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SettlementType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FundId", "Channel", "Status");
+
+                    b.ToTable("tb_solicitud_dinero", (string)null);
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Treasury.Fund", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("tb_fondo", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            IsActive = true,
+                            Name = "General",
+                            Purpose = "Obra y necesidades de la iglesia"
+                        });
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Treasury.MoneyMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Detail")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("DonationId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FinanceRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FundId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinanceRequestId");
+
+                    b.HasIndex("DonationId", "Kind")
+                        .IsUnique()
+                        .HasFilter("[DonationId] IS NOT NULL");
+
+                    b.HasIndex("FundId", "Channel", "BusinessDate");
+
+                    b.ToTable("tb_movimiento_dinero", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -585,12 +1301,20 @@ namespace MonteOracionApp.Data.Migrations
                         .HasForeignKey("CongregantId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("MonteOracionApp.Modules.Treasury.Fund", "Fund")
+                        .WithMany()
+                        .HasForeignKey("FundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("MonteOracionApp.Modules.Settings.PaymentMethod", "PaymentMethod")
                         .WithMany()
                         .HasForeignKey("PaymentMethodId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Congregant");
+
+                    b.Navigation("Fund");
 
                     b.Navigation("PaymentMethod");
                 });
@@ -617,6 +1341,144 @@ namespace MonteOracionApp.Data.Migrations
                         .HasForeignKey("DonationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("MonteOracionApp.Modules.Inventory.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId");
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Inventory.StockLot", b =>
+                {
+                    b.HasOne("MonteOracionApp.Modules.Donations.DonationItem", "DonationItem")
+                        .WithMany()
+                        .HasForeignKey("DonationItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("MonteOracionApp.Modules.Inventory.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DonationItem");
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Inventory.StockMovement", b =>
+                {
+                    b.HasOne("MonteOracionApp.Modules.Inventory.StockLot", "StockLot")
+                        .WithMany()
+                        .HasForeignKey("StockLotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MonteOracionApp.Modules.Inventory.StockRequestLine", "StockRequestLine")
+                        .WithMany()
+                        .HasForeignKey("StockRequestLineId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("StockLot");
+
+                    b.Navigation("StockRequestLine");
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Inventory.StockRequest", b =>
+                {
+                    b.HasOne("MonteOracionApp.Modules.Inventory.Beneficiary", "Beneficiary")
+                        .WithMany()
+                        .HasForeignKey("BeneficiaryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Beneficiary");
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Inventory.StockRequestLine", b =>
+                {
+                    b.HasOne("MonteOracionApp.Modules.Inventory.StockLot", "StockLot")
+                        .WithMany()
+                        .HasForeignKey("StockLotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MonteOracionApp.Modules.Inventory.StockRequest", "StockRequest")
+                        .WithMany("Lines")
+                        .HasForeignKey("StockRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("StockLot");
+
+                    b.Navigation("StockRequest");
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Publications.EventParticipant", b =>
+                {
+                    b.HasOne("MonteOracionApp.Modules.Congregants.Congregant", "Congregant")
+                        .WithMany()
+                        .HasForeignKey("CongregantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MonteOracionApp.Modules.Publications.Publication", "Publication")
+                        .WithMany()
+                        .HasForeignKey("PublicationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Congregant");
+
+                    b.Navigation("Publication");
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Staff.StaffProfile", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
+                        .WithOne()
+                        .HasForeignKey("MonteOracionApp.Modules.Staff.StaffProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Treasury.FinanceRequest", b =>
+                {
+                    b.HasOne("MonteOracionApp.Modules.Treasury.Fund", "Fund")
+                        .WithMany()
+                        .HasForeignKey("FundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Fund");
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Treasury.MoneyMovement", b =>
+                {
+                    b.HasOne("MonteOracionApp.Modules.Donations.Donation", "Donation")
+                        .WithMany()
+                        .HasForeignKey("DonationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("MonteOracionApp.Modules.Treasury.FinanceRequest", "FinanceRequest")
+                        .WithMany()
+                        .HasForeignKey("FinanceRequestId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("MonteOracionApp.Modules.Treasury.Fund", "Fund")
+                        .WithMany()
+                        .HasForeignKey("FundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Donation");
+
+                    b.Navigation("FinanceRequest");
+
+                    b.Navigation("Fund");
                 });
 
             modelBuilder.Entity("MonteOracionApp.Modules.Donations.Donation", b =>
@@ -624,6 +1486,11 @@ namespace MonteOracionApp.Data.Migrations
                     b.Navigation("Decisions");
 
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("MonteOracionApp.Modules.Inventory.StockRequest", b =>
+                {
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }

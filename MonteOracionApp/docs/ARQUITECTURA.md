@@ -1,47 +1,23 @@
-# Arquitectura y reglas
+# Arquitectura
 
-## Flujo de una solicitud
+Versión de gestión integral, 18 de octubre de 2026.
 
-Navegador → controlador (acceso y validación del formulario) → servicio (reglas y operación) → ApplicationDbContext / almacenamiento → vista.
+ASP.NET Core MVC organiza cada módulo en entidades, formularios, controladores y servicios cuando hay operaciones de varios pasos. Las vistas siguen las convenciones MVC y utilizan un menú por módulos para el personal. La portada y la consulta por DNI tienen navegación pública.
 
-La aplicación usa un único proyecto organizado por módulos para mantener sencillo el primer despliegue. Cada módulo agrupa su entidad y controlador, sus formularios y su servicio cuando la operación requiere reglas o varios pasos. Los CRUD simples de publicaciones y configuración usan el contexto desde su controlador; no necesitan una capa adicional sin lógica. Las vistas siguen la convención MVC por nombre de controlador.
+Flujo: navegador → autorización y validación MVC → servicio → transacción de SQL Server / almacenamiento privado → vista o PDF.
 
-## Identidad
+Los servicios InventoryService y TreasuryService concentran las reglas de recursos. DonationService integra la recepción con sus movimientos para evitar donaciones aprobadas sin entrada contable o de stock. La recepción, decisión y movimiento correspondiente se guardan atómicamente.
 
-- Dos roles con cuenta: Administrador y Congregante. Externo es una condición del donante, no un rol autenticado.
-- No hay registro público. El administrador vincula una cuenta a un congregante existente.
-- Congregante y cuenta tienen una relación opcional uno a uno, protegida por un índice único.
-- Desactivar un congregante invalida las sesiones de su cuenta y bloquea nuevos ingresos. Se conserva su historial.
-- Las sesiones duran 30 minutos con renovación por actividad. El sello de seguridad se comprueba en cada solicitud autenticada.
-- Cinco contraseñas fallidas bloquean temporalmente la cuenta durante 15 minutos.
-- Todos los POST MVC requieren token antifalsificación. El inicio de sesión y la recepción del formulario público tienen límite por IP.
-- Identity cifra mediante hash las contraseñas. No se guardan contraseñas en texto plano.
+Las reservas y salidas utilizan transacciones serializables y versiones de fila. SQL restringe los saldos del lote, cantidades entregadas/devueltas y claves únicas de operaciones. Los conflictos concurrentes se informan para que el usuario revise y vuelva a intentar. Las entregas y reposiciones tienen claves de formulario para evitar duplicación.
 
-## Donaciones
+Las cuentas pertenecen al personal activo. Los roles autorizan cada acción en servidor y determinan los módulos visibles. Congregantes conserva UserId únicamente como vínculo histórico de la versión anterior; la consulta actual usa DNI y no permite el inicio de sesión de esos usuarios.
 
-- Digital: solo dinero por QR/billetera o transferencia; JPG/PNG obligatorio; medio activo; cualquier visitante puede enviarla sin cuenta; comienza Pendiente. Un pago enviado sin iniciar sesión puede vincularse a un congregante durante la revisión.
-- Presencial: el administrador registra bienes recibidos, su detalle y una foto obligatoria; identifica al donante como congregante, externo o anónimo; requiere confirmación del administrador y comienza Aprobada. El portal muestra las donaciones económicas y los bienes vinculados al congregante.
-- Miembro autenticado: siempre vinculado al congregante de la cuenta, nunca al ID enviado por el navegador.
-- Externo: nombre obligatorio salvo que seleccione Anónimo; contacto opcional.
-- Anónimo: no se guarda nombre ni contacto. El comprobante puede contener datos personales y permanece restringido.
-- Transiciones: Pendiente → Aprobada / Rechazada / Anulada; Aprobada → Anulada. Rechazada y Anulada son finales.
-- Rechazo y anulación requieren motivo. No existe borrado ni edición de una donación aprobada; se anula y se registra la corrección.
-- Una columna rowversion evita que una pantalla antigua sobrescriba una decisión concurrente. Estado e historial se guardan en una sola transacción de SaveChanges.
-- Solo Aprobada integra los totales. Bienes y dinero se muestran por separado.
-- La fecha de pago/recepción es fecha local de Lima; las fechas de auditoría son UTC y se muestran con UTC-5.
-- Al registrar el pago se conserva el nombre del medio utilizado aunque posteriormente se renombre.
+La auditoría registra persona, acción, referencia, motivo y fecha. Las correcciones de inventario y dinero son nuevos movimientos. Los eventos conservan asignaciones retiradas y una versión de fila para cambios de asistencia.
 
-## Archivos
+Los archivos se guardan fuera de wwwroot. Se validan tamaño, extensión y firmas básicas; esa comprobación no es un escaneo antivirus. Las descargas de comprobantes verifican rol. Las imágenes de eventos y QR solo se sirven públicamente cuando corresponde a una publicación o medio activo.
 
-Los nombres se generan con UUID y se almacenan fuera de wwwroot. Se comprueban tamaño (máximo 5 MB), extensión y firmas básicas del formato. No se usa el nombre del cliente como ruta. El comprobante se entrega como descarga luego de verificar el rol o propietario. El QR se publica solamente si el medio está activo y admite JPG/PNG.
+PdfReport genera documentos paginados con fuentes estándar y texto español; no requiere un ejecutable externo en el servidor. Los filtros se aplican en SQL y los PDF distinguen fecha declarada, movimiento real y stock actual.
 
-Esta validación no equivale a un antivirus ni a un análisis completo de PDF. Si se añade un escáner, integrarlo detrás de IFileStorage antes de persistir archivos. No publicar App_Data mediante el servidor web. La base guarda la referencia del archivo; respaldar ambos.
+Las migraciones versionan tablas con prefijo tb_. Se generan scripts idempotentes y no se aplican automáticamente al abrir el sitio. El comando --initialize aplica las pendientes y crea los roles.
 
-## Publicaciones
-
-Eventos y avisos comparten entidad con un discriminador. El evento requiere fecha, hora y lugar. Las publicaciones no publicadas quedan fuera de la portada. Un evento publicado y luego cancelado conserva su contenido y aparece como Cancelado. Los textos se muestran codificados por Razor; no se acepta HTML arbitrario.
-
-## Evolución
-
-Añadir módulos sin trasladar las reglas de donaciones a vistas o JavaScript. Las validaciones del navegador ayudan a la interacción; el servidor mantiene la decisión final. Para incorporar medios de pago automáticos, introducir una integración independiente que invoque servicios de dominio y conserve auditoría e idempotencia.
-
+Consultar DISENO_MODULAR.md para campos, permisos y estados; GUIA_PRUEBAS.md para los recorridos del usuario.

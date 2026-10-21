@@ -5,3 +5,6 @@ App_Data/
 *.suo
 *.log
 appsettings.Local.json
+
+artifacts/
+.vs/

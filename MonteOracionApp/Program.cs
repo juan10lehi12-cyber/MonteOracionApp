@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MonteOracionApp.Data;
-using MonteOracionApp.Modules.Congregants;
+using MonteOracionApp.Modules.Inventory;
+using MonteOracionApp.Modules.Treasury;
 using MonteOracionApp.Modules.Donations;
 using MonteOracionApp.Shared;
 
@@ -27,12 +28,14 @@ builder.Services.ConfigureApplicationCookie(o => {
     o.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
 });
 builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero);
-builder.Services.AddControllersWithViews(o => o.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
+builder.Services.AddControllersWithViews(o => { o.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()); o.Filters.Add<ConcurrentOperationFilter>(); });
 builder.Services.AddScoped<IDonationService, DonationService>();
-builder.Services.AddScoped<CongregantService>();
+builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<TreasuryService>();
 builder.Services.AddSingleton<IFileStorage, FileStorage>();
 builder.Services.AddRateLimiter(o => {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy("consulta", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(5), QueueLimit = 0, AutoReplenishment = true }));
     o.AddPolicy("forms", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions {
         PermitLimit = 15, Window = TimeSpan.FromMinutes(5), QueueLimit = 0, AutoReplenishment = true
     }));
@@ -56,6 +59,19 @@ app.Use(async (context, next) => {
 app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
+app.Use(async (context, next) => {
+    if (context.User.Identity?.IsAuthenticated == true)
+    {
+        var uid = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var database = context.RequestServices.GetRequiredService<ApplicationDbContext>();
+        if (!await database.StaffProfiles.AnyAsync(x => x.UserId == uid && x.IsActive) || !new[] { Roles.Administrator, Roles.Treasurer, Roles.Warehouse }.Any(context.User.IsInRole))
+        {
+            await Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions.SignOutAsync(context, IdentityConstants.ApplicationScheme);
+            context.Response.Redirect("/Account/Login"); return;
+        }
+    }
+    await next();
+});
 app.UseAuthorization();
 app.MapStaticAssets();
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}").WithStaticAssets();

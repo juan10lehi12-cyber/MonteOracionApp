@@ -1,53 +1,44 @@
-# Verificación de la primera versión
+# Verificación de Gestión Integral
 
-Fecha: 11 de octubre de 2026.
+Fecha: 18 de octubre de 2026.
 
-## Comprobado
+## Resultados
 
-- Compilación de la aplicación .NET 10: sin errores ni advertencias.
-- Migración EF Core generada y revisada: mantiene las claves de Identity en 128 caracteres e incorpora los módulos nuevos. Script SQL idempotente generado sin conectar al servidor.
-- 28 comprobaciones de reglas y almacenamiento: montos, fechas, cuatro transiciones válidas, estados finales, motivos obligatorios, precisión SQL, extensión/firma, tamaño, PNG truncado, QR sin PDF y protección de rutas.
-- Servidor local iniciado correctamente.
-- HTTP: login y privacidad responden 200; administración, congregantes, recepción y comprobantes sin sesión redirigen al acceso (302); registro público antiguo devuelve 404; POST sin token antifalsificación devuelve 400.
+- Compilación principal: cero errores y cero advertencias.
+- Modelo EF y migraciones: sin cambios pendientes.
+- 28 comprobaciones originales de reglas de donación y almacenamiento privado: aprobadas.
+- 20 comprobaciones integradas en SQL Server: aprobadas.
+- 74 comprobaciones HTTP de páginas, permisos, formularios, consulta y PDF: aprobadas.
+- Total: 122 comprobaciones.
+- Modal de evento revisado en navegador con horario y lugar.
+- PDF de dinero y documento largo renderizados; acentos españoles y paginación comprobados.
 
-Las comprobaciones están en el proyecto hermano MonteOracionApp.Checks, incluido en la solución. Se ejecutan normalmente desde la carpeta de la solución:
+## Integración SQL
 
-```powershell
-dotnet run --project MonteOracionApp.Checks
-```
+Se creó una base independiente con nombre aleatorio MonteOracionApp_Verification_…. Se aplicó primero el esquema anterior, se insertó una donación/ficha de prueba y después se aplicó la actualización. Se comprobó conservación del registro, creación de perfil de administrador y traslado del saldo al libro.
 
-En esta sesión, NuGet no pudo leer su archivo de configuración del usuario incluso después de conceder acceso. Las 28 comprobaciones se compilaron y ejecutaron con el compilador Roslyn del SDK, los ensamblados de referencia y la aplicación ya compilada, sin descargar paquetes. El proyecto de comprobaciones no agrega librerías externas de pruebas.
+Las pruebas cubrieron recepción y vencimiento de bienes, autoaprobación rechazada, reservas insuficientes, entregas parciales, doble envío, cancelación, préstamos, reposiciones, condonación, ajustes que afectan reservas, reservas de dinero, pago único, rendición de anticipos, dos aprobaciones concurrentes, operación digital duplicada, anulación, caja, conciliación digital y copia histórica del destinatario.
 
-## Actualización del flujo de donaciones (11 de octubre de 2026)
+Las bases de prueba se eliminaron al terminar la revisión. No se insertaron datos de demostración en la base real.
 
-- Portada y formulario público: muestran únicamente medios activos y un aviso cuando no hay ninguno.
-- La revisión permite vincular un aporte pendiente sin congregante (externo o anónimo) al aprobarlo o rechazarlo, conservando el motivo de la decisión. El aporte se incluye en el historial privado del congregante.
-- El administrador puede reemplazar la foto de bienes aprobados desde el detalle. Se valida JPG/PNG y 5 MB, se usa almacenamiento privado, se registra el cambio en el historial y se controla la concurrencia. Si falla el guardado, se elimina la nueva imagen; tras guardar se elimina la anterior.
-- Compilación verificada en `artifacts/verification`, sin errores ni advertencias. El ejecutable habitual estaba en uso por una aplicación abierta.
-- Las 28 comprobaciones existentes de reglas de donaciones y almacenamiento privado pasaron con el ensamblado actualizado; no cubren las nuevas operaciones de vinculación y reemplazo de foto contra la base.
-- `--initialize` ejecutado con acceso al SQL Server configurado: EF confirmó que no hay migraciones pendientes y pudo consultar `tb_rol`. La migración de renombrado ya estaba aplicada.
+## HTTP y formularios
 
-Queda pendiente probar en navegador el flujo completo con pagos reales, dos cuentas y decisiones simultáneas, incluyendo la sustitución de fotos y la vinculación al rechazar.
+Se recorrieron páginas públicas y administrativas, tres roles, consulta por DNI sin notas/archivos privados, antifalsificación, PDF, creación y desactivación de personal, solicitud/aprobación/entrega parcial con constancia, repetición de una entrega, retiro/restablecimiento de participantes, imagen pública, cambio de horario y asistencia privada.
 
-## Limitaciones de la verificación inicial
+La pantalla antigua de asistencia se rechaza con su versión previa; el evento realizado no publica las notas internas. Las pantallas de producto y beneficiario se comprobaron después de incorporar las opciones de corrección.
 
-En la verificación inicial, LocalDB falló al acceder a la configuración de la instancia y SQL Server respondió con un error de contexto SSPI. La comprobación posterior descrita arriba sí pudo conectar y confirmar el estado de las migraciones. No se insertaron donaciones de demostración en la base del usuario.
+## Actualización local
 
-Después de resolver la conexión e inicializar, comprobar en este orden:
+Antes de aplicar se creó un respaldo COPY_ONLY con CHECKSUM y RESTORE VERIFYONLY confirmó su validez:
 
-1. Crear administrador e iniciar sesión.
-2. Guardar información institucional y un medio de pago con QR válido.
-3. Registrar dos congregantes y sus cuentas; verificar creación y cambio de contraseña.
-4. Publicar un evento y un aviso, y comprobar que el borrador no aparece en la portada.
-5. Registrar una donación pública con comprobante y localizarla por su código desde administración.
-6. Registrar una donación desde el primer congregante; comprobar que el segundo no puede ver el detalle ni descargar el comprobante, incluso con la URL directa.
-7. Aprobar tras verificar recepción y comprobar su estado en el historial del congregante.
-8. Rechazar otra con motivo; comprobar que no incrementa los totales.
-9. Recibir bienes con varias líneas y efectivo, vinculados al congregante; comprobar su aparición en su cuenta.
-10. Anular un registro aprobado, comprobar su historial y la reducción del total confirmado.
-11. Abrir una pendiente en dos sesiones administrativas, decidir en una y verificar que la otra no sobrescribe el cambio.
-12. Desactivar el congregante y comprobar que pierde la sesión y no puede volver a ingresar; su historial debe conservarse.
-13. Cancelar el evento y comprobar el estado Cancelado en la portada.
-14. Probar respaldo y restauración de SQL y archivos en una ubicación de prueba.
+`C:\Program Files\Microsoft SQL Server\MSSQL17.MSSQLSERVER\MSSQL\Backup\MonteOracionApp_antes_integral_20261018_1854.bak`
 
-No se han medido aún carga de 20 usuarios, tiempos de respuesta, disponibilidad mensual ni recuperación. Tampoco se ha realizado una revisión visual completa de todas las pantallas con datos reales.
+Se aplicaron GestionIntegral y HistorialParticipacionYDestinos mediante --initialize. Se conservaron una donación y dos congregantes, y se habilitaron los tres roles del personal. No se cambiaron contraseñas existentes.
+
+## Alcance y límites
+
+Las pruebas cubren la primera versión funcional; no constituyen auditoría bancaria, prueba de carga ni aprobación de despliegue público. Se necesita completar DNI reales, catálogo, beneficiarios y conciliación de saldos antes del uso operativo.
+
+La consulta por DNI funciona por el identificador conocido; no autentica a la persona. Las operaciones digitales se verifican manualmente. Las imágenes se validan por extensión y firmas básicas, sin escaneo antivirus.
+
+NuGet no pudo consultar su fuente de auditoría de vulnerabilidades desde este entorno (NU1900 en los proyectos de comprobaciones). Se utilizaron paquetes ya disponibles; el proyecto principal compila sin advertencias.
