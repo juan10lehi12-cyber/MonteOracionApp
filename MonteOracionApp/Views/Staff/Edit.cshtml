@@ -1,0 +1,14 @@
+@model MonteOracionApp.Modules.Staff.StaffForm
+@{ ViewData["Title"] = "Cuenta del personal"; }
+<section class="panel form-panel"><h1>Cuenta del personal</h1><p>Cada persona utiliza su propia cuenta. El cargo es descriptivo; los roles determinan sus permisos.</p>
+<form method="post"><div asp-validation-summary="All" class="text-danger"></div><input asp-for="UserId" type="hidden" />
+<div class="mb-3"><label asp-for="FullName"></label><input asp-for="FullName" class="form-control" /></div>
+<div class="mb-3"><label asp-for="Position"></label><input asp-for="Position" class="form-control" /></div>
+<div class="mb-3"><label asp-for="Email"></label><input asp-for="Email" class="form-control" /></div>
+<div class="mb-3"><label asp-for="Password"></label><input asp-for="Password" class="form-control" autocomplete="new-password" /></div>
+<fieldset class="panel mb-3"><legend class="h5">Roles</legend>
+<div class="form-check"><input asp-for="Administrator" class="form-check-input" /><label asp-for="Administrator" class="form-check-label">Administrador — autoriza y gestiona permisos</label></div>
+<div class="form-check"><input asp-for="Treasurer" class="form-check-input" /><label asp-for="Treasurer" class="form-check-label">Tesorero — verifica dinero, paga y cierra caja</label></div>
+<div class="form-check"><input asp-for="Warehouse" class="form-check-input" /><label asp-for="Warehouse" class="form-check-label">Almacenero — recibe y entrega bienes</label></div></fieldset>
+<div class="form-check mb-3"><input asp-for="IsActive" class="form-check-input" /><label asp-for="IsActive" class="form-check-label"></label></div>
+<button class="btn btn-primary">Guardar</button></form></section>

@@ -1,49 +1,7 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@ViewData["Title"] · Monte de Oración</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-</head>
-<body>
-<header class="site-header">
-    <nav class="navbar navbar-expand-lg container" aria-label="Navegación principal">
-        <a class="navbar-brand" asp-controller="Home" asp-action="Index">Monte de Oración<span>Comunidad · Comas, Lima</span></a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navigation" aria-controls="navigation" aria-expanded="false" aria-label="Abrir menú"><span class="navbar-toggler-icon"></span></button>
-        <div class="collapse navbar-collapse" id="navigation">
-            <div class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
-                <a class="nav-link" asp-controller="Home" asp-action="Index">La iglesia</a>
-                @if (User.IsInRole(Roles.Administrator)) {
-                    <a class="nav-link" asp-controller="Dashboard" asp-action="Index">Administración</a>
-                } else {
-                    <a class="nav-link" asp-controller="Home" asp-action="Index" asp-fragment="donar">Donar</a>
-                }
-                @if (User.IsInRole(Roles.Congregant)) { <a class="nav-link" asp-controller="Portal" asp-action="Index">Mi cuenta</a> }
-                <partial name="_LoginPartial" />
-            </div>
-        </div>
-    </nav>
-</header>
-@if (User.IsInRole(Roles.Administrator)) {
-    <div class="admin-nav"><nav class="container d-flex gap-3 flex-wrap py-2" aria-label="Administración">
-        <a asp-controller="Donations" asp-action="Index">Donaciones</a>
-        <a asp-controller="Donations" asp-action="Receive">Registrar recepción</a>
-        <a asp-controller="Congregants" asp-action="Index">Congregantes</a>
-        <a asp-controller="Publications" asp-action="Index">Publicaciones</a>
-        <a asp-controller="Settings" asp-action="Index">Configuración</a>
-    </nav></div>
-}
-<main class="container py-4" id="main">
-    @if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
-    @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
-    @RenderBody()
-</main>
-<footer class="container py-4 mt-auto"><span>Monte de Oración · Comas, Lima</span><a asp-controller="Home" asp-action="Privacy">Privacidad</a></footer>
-<script src="~/lib/jquery/dist/jquery.min.js"></script>
-<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-<script src="~/js/site.js" asp-append-version="true"></script>
-@await RenderSectionAsync("Scripts", required: false)
-</body>
-</html>
+@{var staff=User.IsInRole(Roles.Administrator)||User.IsInRole(Roles.Treasurer)||User.IsInRole(Roles.Warehouse);var controller=ViewContext.RouteData.Values["controller"]?.ToString();var action=ViewContext.RouteData.Values["action"]?.ToString();var workspace=staff&&controller!="Home"&&controller!="Portal"&&!(controller=="Donations"&&(action=="Create"||action=="Submitted"));}
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>@ViewData["Title"] · Monte de Oración</title><link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" /><link rel="stylesheet" href="~/css/site.css" asp-append-version="true" /></head>
+<body><a class="visually-hidden-focusable" href="#main">Ir al contenido</a><header class="site-header"><nav class="navbar navbar-expand-lg container-fluid px-4" aria-label="Principal"><a class="navbar-brand" asp-controller="Home" asp-action="Index">Monte de Oración<span>Comunidad · Comas, Lima</span></a><button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navigation" aria-label="Abrir menú"><span class="navbar-toggler-icon"></span></button><div class="collapse navbar-collapse" id="navigation"><div class="navbar-nav ms-auto align-items-lg-center gap-lg-2"><a class="nav-link" asp-controller="Home" asp-action="Index" asp-fragment="donar">Donar</a><a class="nav-link" asp-controller="Portal" asp-action="Index">Consulta por DNI</a>@if(staff){<a class="nav-link" asp-controller="Dashboard" asp-action="Index">Mi panel</a>}<partial name="_LoginPartial" /></div></div></nav></header>
+<div class="@(workspace?"workspace-shell":"")">
+@if(workspace){<aside class="workspace-sidebar"><button class="btn btn-outline-light d-lg-none w-100" type="button" data-bs-toggle="collapse" data-bs-target="#staff-navigation" aria-controls="staff-navigation" aria-expanded="false">Módulos del personal</button><nav id="staff-navigation" class="collapse d-lg-block" aria-label="Módulos del personal"><a class="sidebar-home" asp-controller="Dashboard" asp-action="Index">Inicio del personal</a><details open><summary>Donaciones</summary><a asp-controller="Donations" asp-action="Index">Registros y verificación</a><a asp-controller="Donations" asp-action="Receive">Registrar recepción</a></details><details open><summary>Almacén y distribución</summary><a asp-controller="Inventory" asp-action="Index">Existencias</a><a asp-controller="Inventory" asp-action="Products">Productos</a><a asp-controller="Inventory" asp-action="Requests">Solicitudes y entregas</a><a asp-controller="Inventory" asp-action="Beneficiaries">Beneficiarios</a></details><details open><summary>Dinero</summary><a asp-controller="Treasury" asp-action="Requests">Solicitudes de dinero</a>@if(User.IsInRole(Roles.Administrator)||User.IsInRole(Roles.Treasurer)){<a asp-controller="Treasury" asp-action="Index">Fondos y saldos</a><a asp-controller="Treasury" asp-action="Closings">Cierres de caja</a>}</details>@if(User.IsInRole(Roles.Administrator)){<details open><summary>Comunidad</summary><a asp-controller="Congregants" asp-action="Index">Congregantes</a><a asp-controller="Publications" asp-action="Index">Eventos y publicaciones</a><a asp-controller="Publications" asp-action="History">Asistencia privada</a></details><details><summary>Administración</summary><a asp-controller="Staff" asp-action="Index">Personal y permisos</a><a asp-controller="Settings" asp-action="Index">Datos de la iglesia</a><a asp-controller="Settings" asp-action="Payments">Medios de pago</a></details>}<a class="sidebar-home" asp-controller="Reports" asp-action="Index">Reportes y PDF</a></nav></aside>}
+<main class="@(workspace?"workspace-content":"container py-4")" id="main">@if(TempData["Success"] is string success){<div class="alert alert-success" role="status">@success</div>}@if(TempData["Error"] is string error){<div class="alert alert-danger" role="alert">@error</div>}@RenderBody()</main></div>
+<footer class="container py-4 mt-auto"><span>Monte de Oración · Comas, Lima</span><a asp-controller="Home" asp-action="Privacy">Privacidad</a></footer><script src="~/lib/jquery/dist/jquery.min.js"></script><script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script><script src="~/js/site.js" asp-append-version="true"></script>@await RenderSectionAsync("Scripts",required:false)</body></html>

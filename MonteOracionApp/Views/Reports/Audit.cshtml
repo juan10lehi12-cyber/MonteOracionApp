@@ -1,0 +1,3 @@
+@model List<MonteOracionApp.Modules.Audit.AuditEntry>
+@{ViewData["Title"]="Auditoría";var names=(Dictionary<string,string>)ViewBag.Names;}
+<h1>Historial de operaciones</h1><div class="panel">@foreach(var a in Model){<div class="decision"><strong>@a.Action</strong> · @a.At.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm") · @names.GetValueOrDefault(a.ActorId,a.ActorId)<p>@a.Reference · @a.Detail</p></div>}</div><partial name="_Pagination" />

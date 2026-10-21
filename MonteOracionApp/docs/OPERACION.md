@@ -1,42 +1,48 @@
-# Operación
+# Operación de la gestión integral
 
-## SQL Server
+## Base y acceso inicial
 
-El proyecto conserva la cadena LocalDB original para no cambiar silenciosamente el servidor del usuario. Para SQL Server normal, usar secretos locales en Development o `ConnectionStrings__DefaultConnection` en el entorno del servidor.
+La conexión configurada en appsettings.json puede reemplazarse con secretos en Development o ConnectionStrings__DefaultConnection. El usuario de SQL debe poder aplicar el esquema durante mantenimiento; la aplicación diaria requiere permisos de datos.
 
-`dotnet run -- --initialize` aplica las migraciones y crea los dos roles sin agregar personas ni donaciones de ejemplo. `dotnet run -- --create-admin` también inicializa y solicita las credenciales del primer administrador. No usar contraseñas compartidas.
+Antes de actualizar, respaldar la base y el almacenamiento de archivos. --initialize aplica las migraciones pendientes y crea Administrador, Tesorero y Almacenero. --create-admin solicita credenciales y crea una cuenta nueva; no modifica una existente.
 
-Las migraciones no se ejecutan automáticamente cada vez que arranca el sitio. Aplicarlas durante una ventana de mantenimiento, con una copia de seguridad previa. El SQL de `Data/Scripts/InitialChurchModules.sql` es idempotente según la tabla de historial de EF. Revisarlo y ejecutarlo sobre la base elegida si se prefiere administración manual; la creación de roles/cuenta sigue realizándose con los comandos anteriores.
+Tras migrar una instalación anterior:
+- Los administradores existentes reciben perfil de personal y mantienen su contraseña.
+- Los usuarios antiguos de congregantes se conservan por referencias históricas, pero no pueden entrar al sistema.
+- Completar el DNI real de las fichas para habilitar consulta. No se inventan DNI.
+- Las donaciones económicas aprobadas se incorporan al libro como saldo histórico. Compararlo con caja y bancos; registrar gastos anteriores ausentes mediante el procedimiento de ajuste autorizado, sin duplicar donaciones.
+- Incorporar bienes anteriores después de verificar físicamente el inventario; cada recepción se incorpora una sola vez.
+- Completar nombre/cargo del administrador y crear cuentas de personas diferentes para autorización.
 
-## Publicación
+## Publicación y almacenamiento
 
-1. Configurar SQL Server y HTTPS en el alojamiento compatible con .NET 10.
-2. Aplicar migraciones y crear administrador en un entorno de confianza.
-3. Configurar `ASPNETCORE_ENVIRONMENT=Production`, conexión y rutas persistentes.
-4. `dotnet publish -c Release` y desplegar el resultado.
-5. Dar acceso de escritura a la identidad de la aplicación sobre el almacenamiento de archivos. `Storage__Path` puede apuntar a una carpeta persistente absoluta fuera de wwwroot.
-6. Conservar y proteger las claves de ASP.NET Data Protection del host; múltiples instancias deben compartirlas. No perderlas al reemplazar el despliegue.
-7. Configurar límites de carga de al menos 6 MB en el proxy/IIS; cada archivo admitido seguirá limitado a 5 MB por la aplicación.
-8. Si hay proxy inverso, configurar encabezados reenviados únicamente para proxies de confianza. El limitador utiliza la IP remota recibida; detrás de un proxy sin esta configuración, varios visitantes comparten la cuota.
-9. Revisar logs de ASP.NET y del servidor. Los errores de producción muestran un identificador de solicitud y no exponen la excepción al visitante.
+Configurar Production, SQL, HTTPS y una carpeta persistente Storage__Path fuera de wwwroot. El valor predeterminado es App_Data/attachments. Respaldar SQL y archivos juntos. Las claves de Data Protection deben conservarse entre despliegues; varias instancias necesitan claves compartidas.
 
-## Copias de seguridad
+Los archivos tienen máximo 5 MB y los formularios admiten 6 MB; configurar también esos límites en IIS/proxy. Si existe proxy, configurar IP reenviada solo desde proxies confiables: los límites de consultas e inicio de sesión dependen de la IP remota.
 
-Plan inicial: diario, retención de siete días. Debe configurarse en el equipo que aloje SQL y los archivos; esta entrega no crea tareas programadas.
+No se integra banca ni se envían mensajes. Tesorería verifica manualmente las operaciones y adjunta sustento de pagos, anticipos y conciliaciones.
 
-- Respaldar la base con BACKUP DATABASE mediante las herramientas de SQL Server.
-- Copiar la carpeta definida por Storage:Path junto al respaldo. Coordinarlo en mantenimiento para evitar referencias a archivos que aún no estén en la copia.
-- Guardar copias en una ubicación distinta y con acceso restringido.
-- Probar la restauración en otra base y carpeta antes de depender del procedimiento.
-- Conservar secretos y claves de Data Protection por separado con controles adecuados.
+## Fechas y cierres
 
-Objetivo inicial propuesto: pérdida máxima de un día de información, recuperación en cuatro horas; validar con la infraestructura real. Los objetivos de tres segundos/20 usuarios y 99 % mensual requieren medición y monitoreo después del despliegue.
+Las fechas operativas usan Lima y la auditoría almacena UTC. La donación conserva la fecha declarada del pago/recepción; el movimiento real se registra al confirmarlo. No se cambia retrospectivamente un cierre: ajustes y anulaciones monetarias requieren fecha abierta.
 
-## Problemas frecuentes
+Efectivo y digital cierran por separado. La conciliación digital compara el total registrado de cuentas/billeteras con su saldo agregado verificado y requiere constancia. No sustituye la revisión de cada operación bancaria.
 
-- Tablas inexistentes: aplicar `--initialize` a la misma base que utiliza el sitio.
-- LocalDB no inicia: comprobar `SqlLocalDB info MSSQLLocalDB` desde la sesión de Windows del usuario. Alternativamente configurar la instancia SQL Server instalada.
-- Error SSPI: la autenticación de Windows no pudo crear el contexto de seguridad. Verificar la sesión, servidor y permisos con SSMS. No reemplazarlo por credenciales incrustadas en código.
-- No se pueden subir archivos: revisar permisos y espacio del almacenamiento, límite de tamaño y formato.
-- No se puede registrar una donación digital: configurar al menos un medio de pago activo.
-- Congregante sin historial: verificar que la recepción se vinculó a su registro de congregante y que su cuenta está asociada a ese mismo registro.
+Una diferencia de cierre queda visible; solicitar ajuste con motivo, aprobación de otra persona y comprobante para corregir el saldo en fecha abierta. Un cierre conserva su número y puede descargarse/revisarse.
+
+## Respaldo y recuperación
+
+Programar respaldos diarios con retención según las necesidades de la iglesia. Esta versión no instala tareas programadas. Mantener copias en otra ubicación, proteger secretos y probar una restauración separada.
+
+Para una actualización, usar BACKUP DATABASE con COPY_ONLY y CHECKSUM y validar con RESTORE VERIFYONLY. Una verificación del archivo no reemplaza una prueba completa de restauración. Conservar adjuntos y claves de protección junto al plan de recuperación.
+
+## Diagnóstico
+
+- Tablas/campos inexistentes: ejecutar --initialize sobre la misma base configurada.
+- No ingresa un administrador antiguo: confirmar que se aplicó GestionIntegral y existe su perfil activo.
+- No aparecen resultados por DNI: completar la ficha y verificar que la donación esté vinculada al congregante correcto.
+- No se puede aprobar una solicitud: revisar persona solicitante, saldo disponible, reservas y actividad del beneficiario.
+- No se registra dinero: comprobar que la fecha no esté cerrada para ese medio.
+- No hay medios para donar: activar uno desde configuración.
+- Producto vencido: queda visible pero no puede reservarse ni entregarse; documentar su tratamiento mediante merma autorizada.
+- Error de conexión Windows/SSPI: revisar permisos y conexión SQL desde la sesión Windows; no incrustar contraseñas en el código.

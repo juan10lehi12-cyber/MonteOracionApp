@@ -1,20 +1,15 @@
 @model OnlineDonationForm
-@{ ViewData["Title"] = "Realizar una donación"; var payments = (List<PaymentMethod>)ViewBag.Payments; }
-<div class="section-heading"><div><div class="eyebrow">GENEROSIDAD QUE NOS UNE</div><h1>Realizar una donación</h1><p>Realiza el pago y registra tu comprobante. La iglesia confirmará su recepción.</p></div></div>
-@if (payments.Count == 0) {
-<div class="panel narrow"><h2>Aún no hay medios de pago disponibles</h2><p>La iglesia publicará aquí los QR de Yape o Plin y sus datos de transferencia. Podrás enviar el comprobante cuando el administrador los configure.</p><a class="btn btn-outline-primary" asp-controller="Home" asp-action="Index">Volver a la portada</a></div>
-} else {
-<div class="row g-4"><section class="col-lg-5"><div class="panel"><h2>Medios de pago</h2>
-@foreach (var p in payments) { <div class="payment"><h3>@p.Name</h3><p class="preserve-lines">@p.Instructions</p>@if(p.QrStorageKey != null) { <img src="@Url.Action("Qr", "Settings", new { id = p.Id })" alt="Código QR para @p.Name" class="payment-qr" /> }</div> }
-<p class="small text-secondary mt-3">Las donaciones de bienes se reciben en la iglesia y las registra el administrador.</p></div></section>
-<section class="col-lg-7"><div class="panel"><h2>2. Registra tu donación</h2><form method="post" asp-action="Create" enctype="multipart/form-data"><div asp-validation-summary="All" class="text-danger" role="alert"></div>
-@if(User.Identity?.IsAuthenticated != true) {
+@using MonteOracionApp.Modules.Treasury
+@{ViewData["Title"]="Registrar donación";var payments=(List<PaymentMethod>)ViewBag.Payments;}
+<div class="section-heading"><div><div class="eyebrow">GENEROSIDAD QUE NOS UNE</div><h1>Registrar donación digital</h1><p>Realiza el pago y adjunta el comprobante. Tesorería comprobará el ingreso.</p></div></div>
+@if(payments.Count==0){<div class="empty-state">Todavía no hay medios de pago activos. Consulta con la iglesia.</div>}else{
+<div class="row g-4"><section class="col-lg-4"><div class="panel"><h2>Medios de pago</h2>@foreach(var p in payments){<div class="payment"><h3>@p.Name</h3><p>@p.Instructions</p>@if(p.QrStorageKey!=null){<img src="@Url.Action("Qr","Settings",new{id=p.Id})" alt="QR de @p.Name" class="payment-qr" />}</div>}</div></section>
+<section class="col-lg-8"><div class="panel"><form method="post" enctype="multipart/form-data" data-confirm="¿El monto, fecha y número de operación coinciden con tu comprobante?"><div asp-validation-summary="All" class="text-danger"></div>
 <div class="form-check mb-3"><input asp-for="Anonymous" class="form-check-input" /><label asp-for="Anonymous" class="form-check-label"></label></div>
-<div class="mb-3"><label asp-for="Name"></label><input asp-for="Name" class="form-control" /></div><div class="mb-3"><label asp-for="Contact"></label><input asp-for="Contact" class="form-control" /></div>
-} else { <p class="alert alert-light">La donación quedará asociada a tu cuenta.</p> }
-<div class="row"><div class="col-sm-6 mb-3"><label asp-for="Amount"></label><input asp-for="Amount" type="number" min="0.01" step="0.01" class="form-control" /></div><div class="col-sm-6 mb-3"><label asp-for="PaidOn"></label><input asp-for="PaidOn" class="form-control" /></div></div>
-<div class="mb-3"><label asp-for="PaymentMethodId"></label><select asp-for="PaymentMethodId" class="form-select"><option value="">Seleccionar</option>@foreach(var p in payments) { <option value="@p.Id">@p.Name</option> }</select></div>
-<div class="mb-3"><label asp-for="Receipt"></label><input asp-for="Receipt" type="file" accept=".jpg,.jpeg,.png" class="form-control" /></div>
-<p class="small text-secondary">El registro quedará pendiente hasta que el administrador verifique el ingreso. <a asp-controller="Home" asp-action="Privacy">Uso de tus datos</a>.</p>
-<button class="btn btn-primary">Enviar para revisión</button></form></div></section></div>
-}
+<div class="mb-3"><label asp-for="Dni"></label><input asp-for="Dni" inputmode="numeric" maxlength="8" class="form-control" /><small>Si donas de forma anónima, no se guarda ni se vincula tu identidad.</small></div>
+<div class="mb-3"><label asp-for="Name"></label><input asp-for="Name" class="form-control" /><small>Necesario para donantes externos sin DNI registrado.</small></div><div class="mb-3"><label asp-for="Contact"></label><input asp-for="Contact" class="form-control" /></div>
+<div class="row"><div class="col-md-6 mb-3"><label asp-for="Amount"></label><input asp-for="Amount" type="number" min="0.01" step="0.01" class="form-control" /></div><div class="col-md-6 mb-3"><label asp-for="PaidOn"></label><input asp-for="PaidOn" class="form-control" /></div></div>
+<div class="mb-3"><label asp-for="PaymentMethodId"></label><select asp-for="PaymentMethodId" class="form-select"><option value="">Seleccionar</option>@foreach(var p in payments){<option value="@p.Id">@p.Name</option>}</select></div>
+<div class="mb-3"><label asp-for="OperationNumber"></label><input asp-for="OperationNumber" class="form-control" /></div>
+<div class="mb-3"><label asp-for="FundId"></label><select asp-for="FundId" class="form-select">@foreach(var f in (List<Fund>)ViewBag.Funds){<option value="@f.Id">@f.Name · @f.Purpose</option>}</select></div>
+<div class="mb-3"><label asp-for="Receipt"></label><input asp-for="Receipt" type="file" accept=".jpg,.jpeg,.png" class="form-control" /></div><p>El registro queda pendiente hasta verificar el dinero recibido. <a asp-controller="Home" asp-action="Privacy">Uso de tus datos</a>.</p><button class="btn btn-primary">Enviar para revisión</button></form></div></section></div>}

@@ -1,85 +1,65 @@
-# Monte de Oración — primera versión
+# Monte de Oración
 
-Aplicación web ASP.NET Core MVC (.NET 10), ASP.NET Identity, Entity Framework Core y SQL Server. Interfaz adaptable en español.
+Aplicación ASP.NET Core MVC (.NET 10), Identity, EF Core y SQL Server para donaciones, distribución, tesorería y eventos. Las funciones se agrupan por módulos; los permisos pertenecen a cuentas personales del equipo.
 
-## Arranque
+## Ejecutar
 
-1. Abrir `MonteOracionApp.slnx` en Visual Studio compatible con .NET 10.
-2. Verificar SQL Server. `appsettings.json` conserva la conexión LocalDB original. Si usas la instancia local normal, configurar desde la carpeta del proyecto:
+Abrir la solución `../MonteOracionApp.slnx` o este proyecto. Se necesita SQL Server y .NET 10. La conexión local está en `appsettings.json`; se puede reemplazar con secretos de desarrollo o `ConnectionStrings__DefaultConnection`.
 
+Desde esta carpeta, con Development:
 ```powershell
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=.;Database=MonteOracionApp;Trusted_Connection=True;TrustServerCertificate=True"
-dotnet restore
+$env:ASPNETCORE_ENVIRONMENT = "Development"
 dotnet run -- --initialize
 dotnet run -- --create-admin
 dotnet run
 ```
 
-Los comandos de inicialización terminan después de preparar la base. `--create-admin` solicita correo y contraseña por consola (la contraseña no se muestra). Requiere 10 caracteres. No hay una contraseña predeterminada ni registro público de cuentas. No ejecutar mientras otra instancia de la aplicación esté bloqueando la compilación. Para usar secretos locales, ejecutar en entorno Development; Visual Studio y los perfiles de lanzamiento existentes lo establecen.
+`--initialize` aplica migraciones y crea Administrador, Tesorero y Almacenero. `--create-admin` solicita correo y contraseña sin mostrarla; no reemplaza cuentas existentes. No hay credenciales predeterminadas. Si ya hay administrador, inicia sesión con su acceso anterior.
 
-La conexión del ejemplo es para desarrollo en el mismo equipo. En producción usar un servidor y certificado válidos, configuración externa de secretos y un usuario SQL con los permisos necesarios. La cuenta que aplica migraciones necesita permisos de esquema; no exponer el comando de inicialización por HTTP.
+Antes de actualizar una instalación existente, respalda SQL Server y `App_Data/attachments`. Las migraciones conservan donaciones y usuarios. Los congregantes anteriores quedan sin DNI hasta que el administrador lo complete; sus antiguas cuentas dejan de servir para acceder al sistema.
 
-Después de iniciar sesión como administrador:
+## Primer uso
 
-1. Configuración → completar información de la iglesia.
-2. Medios de pago → agregar datos reales y QR de Yape o transferencia.
-3. Congregantes → registrar personas y crear sus cuentas cuando corresponda.
-4. Publicaciones → publicar eventos y avisos.
-5. Donaciones → revisar pagos digitales o registrar entregas presenciales.
+1. Administración → Personal y permisos: completar el nombre del administrador y crear las cuentas del equipo. Se necesitan dos personas distintas para solicitar y aprobar una operación.
+2. Configurar iglesia, medios de pago y fondos. Yape y transferencias se verifican manualmente.
+3. Completar DNI de congregantes. La consulta pública muestra donaciones y próximos eventos asignados; omite comprobantes, datos de contacto y asistencia.
+4. Almacén → Productos: definir presentación y unidad base. Registrar beneficiarios.
+5. Registrar recepciones de efectivo/bienes. Las recepciones de bienes crean lotes y entradas de inventario.
+6. Incorporar bienes históricos únicamente después de comprobar su existencia física.
+7. Solicitar y autorizar bienes/dinero; registrar entrega o pago efectivo; rendir anticipos y reponer préstamos.
+8. Cerrar caja y conciliar el saldo digital agregado. Descargar PDF por día, mes, año o rango.
 
-## Árbol y responsabilidades
+## Módulos
 
-```text
-MonteOracionApp/
-├── Program.cs                  Registro de servicios y seguridad HTTP
-├── Controllers/HomeController.cs  Portada pública
-├── Data/
-│   ├── ApplicationDbContext.cs Modelo SQL, relaciones y restricciones
-│   ├── DatabaseCommands.cs     Migraciones, roles y alta inicial del administrador
-│   ├── Migrations/             Historial versionado del esquema
-│   └── Scripts/                SQL generado para revisar/aplicar las migraciones
-├── Modules/
-│   ├── Accounts/               Inicio de sesión y contraseñas
-│   ├── Congregants/            Personas, cuentas, activación y restablecimiento
-│   ├── Donations/              Entidades, formularios, reglas, servicio y controlador
-│   ├── Publications/           Eventos y avisos
-│   ├── Settings/               Información institucional y medios de pago
-│   ├── Portal/                 Datos e historial del congregante
-│   └── Dashboard/              Resumen administrativo
-├── Shared/                     Roles y almacenamiento privado de archivos
-├── Views/                      Pantallas agrupadas por controlador
-├── wwwroot/                    CSS, JavaScript y librerías públicas
-├── App_Data/attachments/       Comprobantes y QR (se crea al usar archivos)
-└── docs/                       Arquitectura, reglas, pruebas y operación
+- Accounts / Staff: acceso personal, nombres, cargos, múltiples roles y desactivación.
+- Congregants / Portal: fichas, DNI único y consulta sin cuenta.
+- Donations: recepción, revisión, comprobantes privados y operaciones digitales sin duplicación.
+- Inventory: productos, beneficiarios, lotes, solicitudes, prioridades, reservas, entregas parciales, préstamos, reposiciones, condonaciones y ajustes auditados.
+- Treasury: fondos, gastos, anticipos, reservas de dinero, pagos, rendiciones, cierres y conciliación.
+- Publications: eventos/avisos, imágenes, modal público, asignaciones y asistencia privada.
+- Reports / Audit: PDF paginado y trazabilidad del personal.
+- Dashboard: acciones y avisos según los roles.
+
+## Reglas principales
+
+Una aprobación reserva recursos. Una entrega o pago confirmado cambia el saldo real. Una persona no aprueba su propia solicitud aunque tenga varios roles. Los bienes reservados no pueden salir por otro propósito. Las correcciones agregan movimientos y motivos; no se borran las operaciones. Los cierres bloquean las fechas de ese medio; una diferencia se ajusta en fecha abierta tras autorización.
+
+La migración incorpora las donaciones monetarias aprobadas anteriores al libro de movimientos. Ese saldo histórico debe compararse con el dinero real: no conoce gastos previos que nunca se registraron. Los fondos específicos conservan su destino; una donación al fondo general se rinde por fondo, sin atribuir arbitrariamente un gasto a un donante.
+
+## Verificación
+
+`Verification/Checks.csproj` contiene comprobaciones de migración, reservas, concurrencia, entregas repetidas, préstamos, gastos, anticipos, cierres y PDF en una base SQL temporal. Nunca utiliza la base real para insertar pruebas. Requiere permiso para crear y eliminar una base con prefijo `MonteOracionApp_Verification_`.
+
+```powershell
+dotnet run --project Verification/Checks.csproj
 ```
 
-## Dónde corregir o ampliar
+Las comprobaciones originales del proyecto hermano `MonteOracionApp.Checks` siguen disponibles. Las salidas de compilación, adjuntos y credenciales temporales de prueba se excluyen de Git.
 
-- Texto, tabla o formulario: `Views/<módulo>/`.
-- Estilo o interacción del formulario: `wwwroot/css/site.css` o `wwwroot/js/site.js`.
-- Datos que acepta una pantalla: clases `*Form` del módulo. No enlazar directamente todos los campos sensibles de una entidad.
-- Aprobación, rechazo, anulación: `Modules/Donations/DonationRules.cs` y `DonationService.cs`.
-- Permisos y rutas: controlador del módulo. Mantener los filtros `Authorize` y el filtro por propietario del comprobante.
-- Archivos: `Shared/FileStorage.cs` y la autorización en `DonationsController.Receipt`.
-- Nuevos campos SQL: entidad + `ApplicationDbContext` + nueva migración. No editar migraciones ya aplicadas.
+Consulta `docs/GUIA_PRUEBAS.md`, `docs/DISENO_MODULAR.md`, `docs/OPERACION.md` y `docs/VERIFICACION.md`.
 
-Para una migración nueva, usar `Add-Migration NombreDescriptivo` en la consola del Administrador de paquetes de Visual Studio, con MonteOracionApp como proyecto predeterminado. También se puede usar `dotnet ef` si instalas la herramienta correspondiente a EF Core 10.0.12. Luego revisar el cambio y ejecutar `dotnet run -- --initialize`.
+## Límites de esta versión
 
-## Alcance
+La consulta por DNI reproduce el flujo solicitado para el proyecto: conocer un DNI permite consultar los resultados asociados. El límite por IP y la reducción de datos no verifican la identidad del visitante.
 
-Incluye acceso por roles, gestión de congregantes y cuentas, donaciones digitales pendientes, recepción presencial de bienes y efectivo, decisiones administrativas con historial y control de concurrencia, comprobantes privados, consulta del congregante, publicaciones y configuración de medios de pago. Los listados principales tienen paginación.
-
-No incluye integración bancaria automática, donaciones de servicios, asistencia, reportes PDF ni notificaciones externas. La verificación del ingreso bancario es manual. El portal informa al congregante mediante su historial; no envía correos ni mensajes.
-
-Ver `docs/ARQUITECTURA.md`, `docs/OPERACION.md` y `docs/VERIFICACION.md`.
-
-
-## Renombrado de tablas y contraseñas
-
-La migración RenombrarTablasEspanol cambia las 14 tablas funcionales a nombres en español con prefijo tb_. El mapeo está centralizado en Data/TableNames.cs. __EFMigrationsHistory conserva su nombre. Las columnas y clases C# conservan sus nombres actuales.
-
-Antes de ejecutar la versión nueva, detener la aplicación en Visual Studio y ejecutar Update-Database en la Consola del Administrador de paquetes, con MonteOracionApp como proyecto predeterminado. Luego iniciar de nuevo. No hace falta Add-Migration ni volver a crear el administrador. La migración renombra tablas e índices y restablece claves; no borra tablas ni registros. El script específico está en Data/Scripts/RenombrarTablasEspanol.sql.
-
-Las contraseñas nuevas requieren al menos 10 caracteres, sin categorías obligatorias de mayúsculas, minúsculas, números o símbolos. Las contraseñas existentes siguen funcionando.
-
-Verificación: compilación en carpeta separada con cero errores y advertencias; modelo y migración coinciden; revisión de las operaciones de renombrado. Aplicación a SQL Server pendiente: la sesión de trabajo no logró autenticarse con Windows.
+No hay integración bancaria, mensajería externa, reservas automáticas por prioridad ni conversión entre unidades. La conciliación digital compara el saldo agregado de cuentas/billeteras con el registrado, no se conecta a sus proveedores. Las copias de seguridad deben programarse en la infraestructura del servidor.

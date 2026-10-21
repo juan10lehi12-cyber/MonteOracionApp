@@ -1,6 +1,19 @@
 document.querySelectorAll('form[data-confirm]').forEach(form => form.addEventListener('submit', event => {
     if (!window.confirm(form.dataset.confirm)) event.preventDefault();
 }));
+document.querySelectorAll('[data-repeat-add]').forEach(button => button.addEventListener('click', () => {
+    const container = button.previousElementSibling;
+    const rows = container.querySelectorAll('[data-repeat-row]');
+    if (!rows.length || rows.length >= 50) return;
+    const row = rows[0].cloneNode(true);
+    row.querySelectorAll('input,select,textarea').forEach(field => {
+        field.name = field.name.replace(/\[\d+\]/, `[${rows.length}]`);
+        field.removeAttribute('id');
+        if (field.tagName === 'SELECT') field.selectedIndex = 0; else field.value = '';
+    });
+    row.querySelectorAll('[data-valmsg-for]').forEach(field => field.remove());
+    container.append(row);
+}));
 const kind = document.querySelector('[data-donation-kind]');
 const donor = document.querySelector('[data-donor-kind]');
 function toggleFields(select, attribute) {
@@ -27,3 +40,5 @@ document.getElementById('add-item')?.addEventListener('click', () => {
     });
     container.append(row);
 });
+
+document.querySelectorAll(".workspace-sidebar a").forEach(link => { if (new URL(link.href).pathname === location.pathname) { link.classList.add("is-active"); link.setAttribute("aria-current", "page"); } });

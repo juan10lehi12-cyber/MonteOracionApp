@@ -1,7 +1,0 @@
-@model CreateAccountForm
-@{ ViewData["Title"] = "Crear cuenta"; }
-<section class="panel narrow"><h1>Crear cuenta del congregante</h1><p>La contraseña necesita al menos 10 caracteres. Entrégala de forma privada y solicita que la cambie al ingresar.</p>
-<form method="post" asp-action="CreateAccount"><div asp-validation-summary="All" class="text-danger"></div><input asp-for="CongregantId" type="hidden" />
-<div class="mb-3"><label asp-for="Email"></label><input asp-for="Email" class="form-control" /></div><div class="mb-3"><label asp-for="Password"></label><input asp-for="Password" class="form-control" autocomplete="new-password" /></div>
-<button class="btn btn-primary">Crear cuenta</button> <a asp-action="Index" class="btn btn-link">Volver</a></form></section>
-

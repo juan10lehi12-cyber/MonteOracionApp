@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aspnet-MonteOracionApp-261d3865-9283-497b-85fa-37d6b9176cfb</UserSecretsId>
+    <DefaultItemExcludes>$(DefaultItemExcludes);artifacts/**;Verification/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
