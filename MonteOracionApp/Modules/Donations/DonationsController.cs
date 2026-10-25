@@ -1,20 +1,30 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MonteOracionApp.Data;
 using MonteOracionApp.Shared;
+using MonteOracionApp.Modules.Publications;
 namespace MonteOracionApp.Modules.Donations;
 public class DonationsController(ApplicationDbContext db, IDonationService service, IFileStorage storage) : Controller
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-    private async Task LoadPayments() { ViewBag.Payments = await db.PaymentMethods.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync(); ViewBag.Funds = await db.Funds.Where(x => x.IsActive).ToListAsync(); }
-    private async Task LoadCongregants() { ViewBag.Congregants = await db.Congregants.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.LastName).ToListAsync(); ViewBag.Products = await db.Products.Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync(); ViewBag.Funds = await db.Funds.Where(x => x.IsActive).ToListAsync(); }
-    [HttpGet] public async Task<IActionResult> Create() { await LoadPayments(); return View(new OnlineDonationForm()); }
+    private async Task LoadPayments()
+    {
+        ViewBag.Payments = await db.PaymentMethods.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync();
+        var hoyLima = DateTime.UtcNow.AddHours(-5).Date;
+        ViewBag.Events = await db.Publications.AsNoTracking()
+            .Where(x => x.Kind == PublicationKind.Evento && x.IsPublished && !x.IsCancelled && x.EventAt != null && x.EventAt.Value.Date >= hoyLima)
+            .OrderBy(x => x.EventAt).ToListAsync();
+    }
+    private async Task LoadCongregants() { ViewBag.Congregants = await db.Congregants.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.LastName).ToListAsync(); ViewBag.Products = await db.Products.Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync(); }
+    [HttpGet] public async Task<IActionResult> Create(int? evento) { await LoadPayments(); var form = new OnlineDonationForm(); if (evento.HasValue) form.EventId = evento; return View(form); }
     [HttpPost, EnableRateLimiting("forms"), RequestSizeLimit(6 * 1024 * 1024)]
     public async Task<IActionResult> Create(OnlineDonationForm form)
     {
+        if (!form.Anonymous && string.IsNullOrWhiteSpace(form.Dni))
+            ModelState.AddModelError("Dni", "Ingresa tu DNI o marca la casilla de donación anónima.");
         if (!ModelState.IsValid) { await LoadPayments(); return View(form); }
         try
         {
@@ -32,6 +42,8 @@ public class DonationsController(ApplicationDbContext db, IDonationService servi
         if (!User.IsInRole(Roles.Administrator)) q = q.Where(x => (x.Kind == DonationKind.Dinero && User.IsInRole(Roles.Treasurer)) || (x.Kind == DonationKind.Bienes && User.IsInRole(Roles.Warehouse)));
         if (filter.Status.HasValue) q = q.Where(x => x.Status == filter.Status);
         if (filter.Kind.HasValue) q = q.Where(x => x.Kind == filter.Kind);
+        if (filter.DonorType.HasValue) q = q.Where(x => x.DonorKind == filter.DonorType);
+        if (filter.Origin.HasValue) q = q.Where(x => x.Digital == (filter.Origin == DonationOrigin.Digital));
         if (filter.From.HasValue) q = q.Where(x => x.ReceivedOrPaidOn >= filter.From.Value.Date);
         if (filter.To.HasValue) q = q.Where(x => x.ReceivedOrPaidOn <= filter.To.Value.Date);
         if (!string.IsNullOrWhiteSpace(filter.Donor))
@@ -60,7 +72,7 @@ public class DonationsController(ApplicationDbContext db, IDonationService servi
     }
     [Authorize(Roles = Roles.Staff)] public async Task<IActionResult> Details(int id)
     {
-        var d = await VisibleDonations().Include(x => x.Congregant).Include(x => x.Items).Include(x => x.Decisions).AsSplitQuery().AsNoTracking().SingleOrDefaultAsync(x => x.Id == id);
+        var d = await VisibleDonations().Include(x => x.Congregant).Include(x => x.Event).Include(x => x.Items).Include(x => x.Decisions).AsSplitQuery().AsNoTracking().SingleOrDefaultAsync(x => x.Id == id);
         if (d != null && (User.IsInRole(Roles.Administrator) || User.IsInRole(Roles.Treasurer)) && d.Status == DonationStatus.Pendiente && d.CongregantId == null)
             await LoadCongregants();
         return d == null ? NotFound() : View(d);

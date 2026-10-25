@@ -60,7 +60,7 @@ public class ReportsController(ApplicationDbContext db):Controller
             case "inventario":
                 if(!stock)return Forbid();title="Inventario actual y movimientos";
                 rows.Add($"EXISTENCIAS ACTUALES A {ChurchTime.Now:dd/MM/yyyy HH:mm} (no históricas)");
-                foreach(var lot in await db.StockLots.Include(x=>x.Product).AsNoTracking().OrderBy(x=>x.Product.Name).ToListAsync())rows.Add($"Lote #{lot.Id} | {lot.Product.Name} | {lot.Location} | {lot.Product.Unit}\n  Físico {lot.OnHand:0.##}; reservado {lot.Reserved:0.##}; disponible {lot.OnHand-lot.Reserved:0.##}; vence {lot.ExpiresOn:dd/MM/yyyy}");
+                foreach(var lot in await db.StockLots.Include(x=>x.Product).AsNoTracking().Where(x=>!x.PendingReview).OrderBy(x=>x.Product.Name).ToListAsync())rows.Add($"Lote #{lot.Id} | {lot.Product.Name} | {lot.Location} | {lot.Product.Unit}\n  Físico {lot.OnHand:0.##}; reservado {lot.Reserved:0.##}; disponible {lot.OnHand-lot.Reserved:0.##}; vence {lot.ExpiresOn:dd/MM/yyyy}");
                 rows.Add("");rows.Add("MOVIMIENTOS DEL PERÍODO");
                 foreach(var m in await db.StockMovements.Include(x=>x.StockLot).ThenInclude(x=>x.Product).AsNoTracking().Where(x=>x.BusinessDate>=start&&x.BusinessDate<exclusive).OrderBy(x=>x.Id).ToListAsync())rows.Add($"#{m.Id} | {m.BusinessDate:dd/MM/yyyy} | {m.StockLot.Product.Name} | {m.Kind}\n  Cambio físico {m.Quantity:0.##}; reserva {m.ReservedChange:0.##}; {m.Reason}; {Person(m.ActorId)}");
                 break;

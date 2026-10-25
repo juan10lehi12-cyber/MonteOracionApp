@@ -1,8 +1,10 @@
 @model Congregant
-@{ ViewData["Title"] = Model.Id == 0 ? "Nuevo congregante" : "Editar congregante"; }
+@{ ViewData["Title"] = Model.Id == 0 ? "Nuevo miembro" : "Editar miembro"; }
 <section class="panel narrow"><h1>@ViewData["Title"]</h1><form method="post" asp-action="Edit" asp-route-id="@Model.Id"><div asp-validation-summary="All" class="text-danger"></div>
-<div class="mb-3"><label asp-for="FirstName"></label><input asp-for="FirstName" class="form-control" /></div>
-<div class="mb-3"><label asp-for="LastName"></label><input asp-for="LastName" class="form-control" /></div>
-<div class="mb-3"><label asp-for="Phone"></label><input asp-for="Phone" class="form-control" /></div>
-<div class="mb-3"><label asp-for="Dni"></label><input asp-for="Dni" class="form-control" maxlength="8" inputmode="numeric" required /></div>
+<div class="row"><div class="col-md-6 mb-3"><label asp-for="FirstName"></label><input asp-for="FirstName" class="form-control" autocomplete="off" /></div>
+<div class="col-md-6 mb-3"><label asp-for="LastName"></label><input asp-for="LastName" class="form-control" autocomplete="off" /></div></div>
+<div class="row"><div class="col-md-6 mb-3"><label asp-for="Dni"></label><input asp-for="Dni" class="form-control" maxlength="8" inputmode="numeric" pattern="[0-9]{8}" autocomplete="off" title="Ocho dígitos" /><small>Solo números; el sistema no acepta letras.</small></div>
+<div class="col-md-6 mb-3"><label asp-for="Phone"></label><input asp-for="Phone" class="form-control" inputmode="numeric" maxlength="9" autocomplete="off" /><small>Celular de 9 dígitos que empiece en 9 (opcional).</small></div></div>
+<div class="row"><div class="col-md-6 mb-3"><label asp-for="BirthDate"></label><input asp-for="BirthDate" class="form-control" type="date" max="@DateTime.Today.ToString("yyyy-MM-dd")" /></div>
+<div class="col-md-6 mb-3"><label asp-for="Address"></label><input asp-for="Address" class="form-control" autocomplete="off" /></div></div>
 <button class="btn btn-primary">Guardar</button> <a asp-action="Index" class="btn btn-link">Volver</a></form></section>

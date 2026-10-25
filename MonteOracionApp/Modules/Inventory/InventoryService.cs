@@ -14,13 +14,32 @@ public class InventoryService(ApplicationDbContext db, IFileStorage storage)
             var product = await db.Products.SingleOrDefaultAsync(x => x.Id == item.ProductId && x.IsActive)
                 ?? throw new InvalidOperationException("Selecciona un producto del catálogo para cada bien.");
             ValidateExpiry(product, item.ExpiresOn);
-            if (string.IsNullOrWhiteSpace(item.StorageLocation)) throw new InvalidOperationException("Indica la ubicación de cada bien.");
             item.Description = product.Name; item.Unit = product.Unit;
+            // La entrada queda pendiente: el almacenista distinto la confirma ("visto bueno") con su ubicación física.
             var lot = new StockLot { ProductId = product.Id, DonationItem = item, OnHand = item.Quantity,
-                ExpiresOn = item.ExpiresOn?.Date, Location = item.StorageLocation.Trim(), Origin = "Donación recibida" };
+                ExpiresOn = item.ExpiresOn?.Date, Location = "", Origin = "Donación recibida",
+                PendingReview = true, PendingActorId = actor, PendingAt = DateTimeOffset.UtcNow };
             db.StockLots.Add(lot);
-            AddMovement(lot, StockMovementKind.Donacion, item.Quantity, 0, actor, "Ingreso de donación recibida");
+            AddMovement(lot, StockMovementKind.Donacion, item.Quantity, 0, actor, "Ingreso de donación recibida; pendiente de visto bueno");
         }
+    }
+    public async Task ConfirmEntryAsync(int lotId, string location, string actor, Guid commandId)
+    {
+        await CheckCommand(commandId);
+        OperationRules.Reason(location);
+        if (location.Length > 160) throw new InvalidOperationException("Ubicación demasiado larga.");
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        var lot = await db.StockLots.Include(x => x.Product).SingleOrDefaultAsync(x => x.Id == lotId) ?? throw new InvalidOperationException("Lote inexistente.");
+        if (!lot.PendingReview) throw new InvalidOperationException("Este lote ya fue confirmado.");
+        OperationRules.OtherApprover(lot.PendingActorId ?? "", actor);
+        if (lot.Product.RequiresExpiry && !lot.ExpiresOn.HasValue) throw new InvalidOperationException("Indica o ajusta el vencimiento antes de confirmar.");
+        lot.Location = location.Trim();
+        lot.PendingReview = false;
+        lot.PendingActorId = null; lot.PendingAt = null;
+        lot.ConfirmedBy = actor; lot.ConfirmedAt = DateTimeOffset.UtcNow;
+        AddMovement(lot, StockMovementKind.VistoBueno, 0, 0, actor, $"Visto bueno; ubicación: {location.Trim()}").CommandId = commandId;
+        db.Audit(actor, "Visto bueno de entrada", $"Lote #{lot.Id}", $"Producto {lot.Product.Name}; cantidad {lot.OnHand} {lot.Product.Unit}; ubicación: {location.Trim()}");
+        await db.SaveOperationAsync(); await tx.CommitAsync();
     }
     public async Task<int> RequestAsync(StockRequestForm form, string actor)
     {
@@ -149,6 +168,7 @@ public class InventoryService(ApplicationDbContext db, IFileStorage storage)
         OperationRules.Reason(reason); OperationRules.Quantity(Math.Abs(change));
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         var lot = await db.StockLots.SingleOrDefaultAsync(x => x.Id == lotId) ?? throw new InvalidOperationException("Lote inexistente.");
+        if (lot.PendingReview) throw new InvalidOperationException("El lote está pendiente del visto bueno del almacén; confírmalo antes de ajustar.");
         if (loss && change >= 0) throw new InvalidOperationException("Una merma debe ser una baja.");
         if (lot.OnHand + change < lot.Reserved) throw new InvalidOperationException("El ajuste afectaría bienes comprometidos. Cancela o reasigna primero la reserva.");
         if (lot.OnHand + change > 9999999999.99m) throw new InvalidOperationException("El saldo del lote supera la capacidad admitida; registra un lote separado.");
@@ -173,6 +193,21 @@ public class InventoryService(ApplicationDbContext db, IFileStorage storage)
         db.Audit(actor, "Bien histórico incorporado", $"Donación #{donation.Id}");
         await db.SaveOperationAsync(); await tx.CommitAsync();
     }
+    public async Task UnifyProductAsync(int duplicateId, int targetId, string actor)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        if (duplicateId == targetId) throw new InvalidOperationException("Elige dos productos distintos: el duplicado y el correcto.");
+        var from = await db.Products.FindAsync(duplicateId) ?? throw new InvalidOperationException("Producto duplicado inexistente.");
+        var to = await db.Products.FindAsync(targetId) ?? throw new InvalidOperationException("Producto correcto inexistente.");
+        if (!from.IsActive || !to.IsActive) throw new InvalidOperationException("Ambos productos deben estar activos para unificar.");
+        var lots = await db.StockLots.Where(x => x.ProductId == duplicateId).ExecuteUpdateAsync(s => s.SetProperty(x => x.ProductId, targetId));
+        var items = await db.Set<DonationItem>().Where(x => x.ProductId == duplicateId).ExecuteUpdateAsync(s => s.SetProperty(x => x.ProductId, targetId));
+        from.IsActive = false;
+        from.Name = $"{from.Name.Trim()} (unificado)";
+        db.Audit(actor, "Productos unificados", $"Producto #{duplicateId} -> Producto #{targetId}",
+            $"{from.Name}: {lots} lote(s) y {items} bien(es) de donación movidos al producto '{to.Name.Trim()}'; quedó desactivado.");
+        await db.SaveOperationAsync(); await tx.CommitAsync();
+    }
     private async Task CheckCommand(Guid commandId)
     {
         if (commandId == Guid.Empty) throw new InvalidOperationException("Actualiza el formulario antes de registrar la operación.");
@@ -181,7 +216,7 @@ public class InventoryService(ApplicationDbContext db, IFileStorage storage)
     private async Task<StockRequest> Load(int id) => await db.StockRequests.Include(x => x.Lines).ThenInclude(x => x.StockLot).ThenInclude(x => x.Product).SingleOrDefaultAsync(x => x.Id == id)
         ?? throw new InvalidOperationException("Solicitud no encontrada.");
     private static void Usable(StockLot lot)
-    { if (!lot.Product.IsActive || lot.ExpiresOn?.Date < ChurchTime.Today) throw new InvalidOperationException("El producto está inactivo o el lote vencido."); }
+    { if (lot.PendingReview || !lot.Product.IsActive || lot.ExpiresOn?.Date < ChurchTime.Today) throw new InvalidOperationException(lot.PendingReview ? "El lote todavía no tiene visto bueno del almacén." : "El producto está inactivo o el lote vencido."); }
     public static void ValidateExpiry(Product product, DateTime? expiry)
     { if (product.RequiresExpiry && !expiry.HasValue || expiry?.Date < ChurchTime.Today) throw new InvalidOperationException("Indica un vencimiento válido para el producto."); }
     private StockMovement AddMovement(StockLot lot, StockMovementKind kind, decimal quantity, decimal reserved, string actor, string reason, StockRequestLine? line = null)

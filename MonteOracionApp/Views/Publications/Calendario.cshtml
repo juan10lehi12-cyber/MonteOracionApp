@@ -1,0 +1,36 @@
+@{ ViewData["Title"] = "Calendario de eventos";
+    var month = (DateTime)ViewBag.Month;
+    var byDay = (System.Collections.Generic.Dictionary<DateTime, List<MonteOracionApp.Modules.Publications.Publication>>)ViewBag.Events;
+    var first = new DateTime(month.Year, month.Month, 1);
+    var offset = (int)first.DayOfWeek;
+    var days = DateTime.DaysInMonth(month.Year, month.Month);
+    var culture = new System.Globalization.CultureInfo("es-PE"); }
+<div class="section-heading"><div><div class="eyebrow">ADMINISTRACIÓN · EVENTOS</div><h1>Calendario de eventos</h1><p>@month.ToString("MMMM yyyy", culture)</p></div><a class="btn btn-primary" asp-controller="Publications" asp-action="Edit">Crear evento</a></div>
+<div class="d-flex justify-content-between mb-3"><a class="btn btn-outline-primary btn-sm" asp-action="Calendario" asp-route-month="@((int)((DateTime)ViewBag.Prev).Month)" asp-route-year="@(((DateTime)ViewBag.Prev).Year)">‹ @((DateTime)ViewBag.Prev).ToString("MMMM yyyy", culture)</a><a class="btn btn-outline-primary btn-sm" asp-action="Calendario">Mes actual</a><a class="btn btn-outline-primary btn-sm" asp-action="Calendario" asp-route-month="@((int)((DateTime)ViewBag.Next).Month)" asp-route-year="@(((DateTime)ViewBag.Next).Year)">@((DateTime)ViewBag.Next).ToString("MMMM yyyy", culture) ›</a></div>
+<div class="panel calendar-panel"><table class="table calendar-grid"><thead><tr>@{ var dias = culture.DateTimeFormat.ShortestDayNames; }@foreach (var d in dias){<th class="text-center">@d</th>}</tr></thead><tbody>
+@{ var cell = 0; }
+@while (cell <= days + offset - 1)
+{
+<tr>
+    @for (var dow = 0; dow < 7; dow++, cell++)
+    {
+        var day = cell - offset + 1;
+        <td class="@(day >= 1 && day <= days ? "" : "calendar-off")">
+            @if (day >= 1 && day <= days)
+            {
+                var date = new DateTime(month.Year, month.Month, day);
+                <div class="fw-bold small">@day</div>
+                @if (byDay.TryGetValue(date, out var list))
+                {
+                    @foreach (var e in list)
+                    {
+                        <a class="d-block calendar-event @if(e.IsCancelled){<text>cancelled</text>} else if (!e.IsPublished){<text>draft</text>}" asp-controller="Publications" asp-action="Participants" asp-route-id="@e.Id" title="@e.Title">@e.Title</a>
+                    }
+                }
+            }
+        </td>
+    }
+</tr>
+}
+</tbody></table></div>
+<p class="small text-secondary mt-2">Los eventos dirigidos a participantes abren su lista de asistencia. Los borradores aparecen atenuados y los cancelados en rojo.</p>

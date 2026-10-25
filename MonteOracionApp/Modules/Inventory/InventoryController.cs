@@ -11,11 +11,26 @@ public class InventoryController(ApplicationDbContext db, InventoryService servi
     private string Actor => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     public async Task<IActionResult> Index(string? search, bool availableOnly = false)
     {
-        var q = db.StockLots.Include(x => x.Product).AsNoTracking();
+        var q = db.StockLots.Include(x => x.Product).AsNoTracking().Where(x => !x.PendingReview);
         if (!string.IsNullOrWhiteSpace(search)) q = q.Where(x => x.Product.Name.Contains(search) || x.Location.Contains(search));
         if (availableOnly) q = q.Where(x => x.OnHand > x.Reserved && (x.ExpiresOn == null || x.ExpiresOn >= ChurchTime.Today));
         ViewBag.Search = search; ViewBag.AvailableOnly = availableOnly;
+        ViewBag.PendingCount = await db.StockLots.CountAsync(x => x.PendingReview);
         return View(await q.OrderBy(x => x.ExpiresOn ?? DateTime.MaxValue).ThenBy(x => x.Id).ToListAsync());
+    }
+    [Authorize(Roles = Roles.Stock)] public async Task<IActionResult> Pending()
+    {
+        var lots = await db.StockLots.Include(x => x.Product).IgnoreQueryFilters()
+            .Where(x => x.PendingReview).OrderBy(x => x.PendingAt).ToListAsync();
+        ViewBag.Names = await db.StaffProfiles.AsNoTracking().ToDictionaryAsync(x => x.UserId, x => x.FullName);
+        return View(lots);
+    }
+    [HttpPost, Authorize(Roles = Roles.Stock)] public async Task<IActionResult> Confirm(int id, string location, Guid commandId)
+    {
+        try { await service.ConfirmEntryAsync(id, location, Actor, commandId); TempData["Success"] = "Visto bueno registrado; el lote aparece en existencias."; }
+        catch (InvalidOperationException ex) { TempData["Error"] = ex.Message; }
+        catch (FormatException) { TempData["Error"] = "Actualiza el formulario antes de confirmar."; }
+        return RedirectToAction(nameof(Pending));
     }
     public async Task<IActionResult> Products() => View(await db.Products.OrderBy(x => x.Name).ToListAsync());
     [Authorize(Roles = Roles.Stock), HttpGet] public async Task<IActionResult> ProductEdit(int id) => await db.Products.FindAsync(id) is { } p ? View(p) : NotFound();
@@ -26,12 +41,19 @@ public class InventoryController(ApplicationDbContext db, InventoryService servi
         try {
             OperationRules.Reason(reason);
             if (p.IsActive!=form.IsActive && !User.IsInRole(Roles.Administrator)) return Forbid();
-            if (await db.StockLots.AnyAsync(x=>x.ProductId==id) && (p.Name!=form.Name.Trim() || p.Unit!=form.Unit.Trim() || p.RequiresExpiry!=form.RequiresExpiry)) throw new InvalidOperationException("El producto ya tiene lotes: conserva nombre, unidad y regla de vencimiento; crea otra presentación si corresponde.");
+            if (await db.StockLots.AnyAsync(x=>x.ProductId==id) || await db.Set<Donations.DonationItem>().AnyAsync(x=>x.ProductId==id))
+                if (p.Name!=form.Name.Trim() || p.Unit!=form.Unit.Trim() || p.RequiresExpiry!=form.RequiresExpiry) throw new InvalidOperationException("El producto ya tiene lotes o donaciones en su historial: no se puede renombrar. Usa 'Unificar producto' en el catálogo para mover su historial al producto correcto.");
             if (!form.IsActive && await db.StockLots.AnyAsync(x=>x.ProductId==id&&x.Reserved>0)) throw new InvalidOperationException("Primero libera las reservas del producto.");
             db.Audit(Actor,"Producto actualizado",$"Producto #{id}",$"{p.Name} / {p.Unit} -> {form.Name} / {form.Unit}; {reason}");
             p.Name=form.Name.Trim();p.Unit=form.Unit.Trim();p.Category=form.Category.Trim();p.RequiresExpiry=form.RequiresExpiry;p.IsActive=form.IsActive;
             await db.SaveOperationAsync();return RedirectToAction(nameof(Products));
         } catch(InvalidOperationException ex) { ModelState.AddModelError("",ex.Message);form.Id=id;return View(form); }
+    }
+    [HttpPost, Authorize(Roles = Roles.Administrator)] public async Task<IActionResult> ProductUnify(int fromId, int toId)
+    {
+        try { if(fromId==0||toId==0) throw new InvalidOperationException("Selecciona el producto duplicado y el producto correcto."); if(fromId==toId) throw new InvalidOperationException("Elige dos productos distintos: el duplicado y el correcto."); await service.UnifyProductAsync(fromId,toId,Actor); TempData["Success"]="Productos unificados: el historial quedó en el producto correcto."; }
+        catch(InvalidOperationException ex) { TempData["Error"]=ex.Message; }
+        return RedirectToAction(nameof(Products));
     }
     [Authorize(Roles = Roles.Administrator), HttpGet] public async Task<IActionResult> BeneficiaryEdit(int id) => await db.Beneficiaries.FindAsync(id) is { } b ? View(b) : NotFound();
     [Authorize(Roles = Roles.Administrator), HttpPost] public async Task<IActionResult> BeneficiaryEdit(int id,[Bind("Name,Address,Contact,Phone,IsActive")] Beneficiary form,string reason)
@@ -68,7 +90,7 @@ public class InventoryController(ApplicationDbContext db, InventoryService servi
     private async Task Choices()
     {
         ViewBag.Beneficiaries = await db.Beneficiaries.Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync();
-        ViewBag.Lots = await db.StockLots.Include(x => x.Product).Where(x => x.Product.IsActive && x.OnHand > x.Reserved && (x.ExpiresOn == null || x.ExpiresOn >= ChurchTime.Today)).OrderBy(x => x.ExpiresOn ?? DateTime.MaxValue).ToListAsync();
+        ViewBag.Lots = await db.StockLots.Include(x => x.Product).Where(x => !x.PendingReview && x.Product.IsActive && x.OnHand > x.Reserved && (x.ExpiresOn == null || x.ExpiresOn >= ChurchTime.Today)).OrderBy(x => x.ExpiresOn ?? DateTime.MaxValue).ToListAsync();
     }
     [HttpGet] public async Task<IActionResult> Create() { await Choices(); return View(new StockRequestForm()); }
     [HttpPost] public async Task<IActionResult> Create(StockRequestForm form)

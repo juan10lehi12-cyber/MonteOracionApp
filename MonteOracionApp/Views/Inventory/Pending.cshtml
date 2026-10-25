@@ -1,0 +1,23 @@
+@model List<MonteOracionApp.Modules.Inventory.StockLot>
+@{ ViewData["Title"] = "Visto bueno de entradas"; var names = (Dictionary<string, string>)ViewBag.Names; }
+<div class="section-heading"><div><div class="eyebrow">ALMACÉN</div><h1>Visto bueno de entradas</h1><p>Confirma que los bienes están físicamente en el almacén y asigna su ubicación. Solo la cuenta distinta de quien registró la recepción puede dar el visto bueno.</p></div></div>
+@if (Model.Count == 0)
+{
+    <div class="empty-state">No hay entradas pendientes de visto bueno.</div>
+}
+else
+{
+    <div class="panel table-responsive"><table class="table"><thead><tr><th>Lote / producto</th><th>Cantidad</th><th>Vence</th><th>Recibió</th><th>Ubicación y visto bueno</th></tr></thead><tbody>
+    @foreach (var l in Model)
+    {
+        <tr>
+            <td>#@l.Id · <strong>@l.Product.Name</strong><br /><small>@l.Product.Unit @(l.Product.RequiresExpiry ? "(requiere vencimiento)" : "")</small></td>
+            <td>@l.OnHand.ToString("0.##")</td>
+            <td>@(l.ExpiresOn?.ToString("dd/MM/yyyy") ?? "—")</td>
+            <td>@(l.PendingActorId != null && names.TryGetValue(l.PendingActorId, out var n) ? n : "—")<br /><small class="text-secondary">@l.PendingAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small></td>
+            <td><form method="post" asp-action="Confirm" asp-route-id="@l.Id" class="d-flex flex-column gap-2 align-items-stretch" style="min-width:260px"><input name="location" maxlength="160" required class="form-control form-control-sm" placeholder="Ubicación en almacén (estante, zona…)" /><button class="btn btn-success btn-sm">Dar visto bueno</button></form></td>
+        </tr>
+    }
+    </tbody></table></div>
+}
+<a class="btn btn-link" asp-action="Index">Ver existencias confirmadas</a>

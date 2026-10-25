@@ -35,7 +35,6 @@ builder.Services.AddScoped<TreasuryService>();
 builder.Services.AddSingleton<IFileStorage, FileStorage>();
 builder.Services.AddRateLimiter(o => {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    o.AddPolicy("consulta", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(5), QueueLimit = 0, AutoReplenishment = true }));
     o.AddPolicy("forms", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions {
         PermitLimit = 15, Window = TimeSpan.FromMinutes(5), QueueLimit = 0, AutoReplenishment = true
     }));

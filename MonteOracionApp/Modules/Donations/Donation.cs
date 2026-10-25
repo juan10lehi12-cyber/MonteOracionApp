@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using MonteOracionApp.Modules.Congregants;
 using MonteOracionApp.Modules.Settings;
 namespace MonteOracionApp.Modules.Donations;
@@ -20,6 +20,8 @@ public class Donation
     [MaxLength(80)] public string? OperationNumber { get; set; }
     public int FundId { get; set; } = 1;
     public Treasury.Fund Fund { get; set; } = null!;
+    [Display(Name = "Evento")] public int? EventId { get; set; }
+    public Publications.Publication? Event { get; set; }
     public int? PaymentMethodId { get; set; }
     public PaymentMethod? PaymentMethod { get; set; }
     [StringLength(100)] public string? PaymentMethodName { get; set; }
@@ -28,10 +30,12 @@ public class Donation
     public string? ReceiptStorageKey { get; set; }
     public string? ReceiptContentType { get; set; }
     public string? RecordedByUserId { get; set; }
+    /// <summary>true si la donación se registró desde la página web; false si fue presencial (recepción).</summary>
+    public bool Digital { get; set; }
     [Timestamp] public byte[] Version { get; set; } = [];
     public List<DonationItem> Items { get; set; } = [];
     public List<DonationDecision> Decisions { get; set; } = [];
-    public string DonorLabel => DonorKind switch { DonorKind.Congregante => Congregant?.FullName ?? "Congregante", DonorKind.Externo => ExternalName ?? "Externo", _ => "Anónimo" };
+    public string DonorLabel => DonorKind switch { DonorKind.Congregante => Congregant?.FullName ?? "Miembro", DonorKind.Externo => ExternalName ?? "Externo", _ => "Anónimo" };
 }
 public class DonationItem
 {

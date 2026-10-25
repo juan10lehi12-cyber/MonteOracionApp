@@ -5,9 +5,11 @@ public class Congregant
 {
     public int Id { get; set; }
     [RegularExpression("^[0-9]{8}$", ErrorMessage = "El DNI debe tener ocho dígitos."), StringLength(8), Display(Name = "DNI")] public string? Dni { get; set; }
-    [Required, StringLength(100), Display(Name = "Nombres")] public string FirstName { get; set; } = "";
-    [Required, StringLength(100), Display(Name = "Apellidos")] public string LastName { get; set; } = "";
-    [StringLength(30), Phone, Display(Name = "Teléfono")] public string? Phone { get; set; }
+    [Required, RegularExpression(@"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' \-\.]+$", ErrorMessage = "Los nombres solo admiten letras, espacios, punto, apóstrofe o guion."), StringLength(100), Display(Name = "Nombres")] public string FirstName { get; set; } = "";
+    [Required, RegularExpression(@"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' \-\.]+$", ErrorMessage = "Los apellidos solo admiten letras, espacios, punto, apóstrofe o guion."), StringLength(100), Display(Name = "Apellidos")] public string LastName { get; set; } = "";
+    [RegularExpression("^9[0-9]{8}$", ErrorMessage = "El teléfono debe ser un celular de 9 dígitos que empiece en 9."), StringLength(9), Display(Name = "Teléfono (9 dígitos)")] public string? Phone { get; set; }
+    [DataType(DataType.Date), Display(Name = "Fecha de nacimiento")] public DateTime? BirthDate { get; set; }
+    [StringLength(250), Display(Name = "Dirección (opcional)")] public string? Address { get; set; }
     public bool IsActive { get; set; } = true;
     public string? UserId { get; set; }
     public IdentityUser? User { get; set; }

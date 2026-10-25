@@ -1,7 +1,7 @@
-@model Donation
+﻿@model Donation
 @{ ViewData["Title"] = "Donación #" + Model.Id; }
 <div class="section-heading"><div><div class="eyebrow">REGISTRO DE DONACIÓN</div><h1>Donación #@Model.Id</h1></div><span class="status status-@Model.Status">@Model.Status</span></div>
-<div class="row g-4"><div class="col-lg-7"><section class="panel"><h2>@Model.DonorLabel</h2><p>Operación: @Model.OperationNumber · Fondo: @Model.FundId</p><dl class="row mt-3"><dt class="col-sm-5">Tipo</dt><dd class="col-sm-7">@Model.Kind</dd><dt class="col-sm-5">Fecha de pago / recepción</dt><dd class="col-sm-7">@Model.ReceivedOrPaidOn.ToString("dd/MM/yyyy")</dd><dt class="col-sm-5">Registrada (Lima)</dt><dd class="col-sm-7">@Model.CreatedAt.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm")</dd>
+<div class="row g-4"><div class="col-lg-7"><section class="panel"><h2>@Model.DonorLabel</h2><p>Operación: @Model.OperationNumber · Fondo: @Model.FundId@if(Model.Event != null){<text> · Dedicada al evento "</text>@Model.Event.Title<text>"</text>}</p><dl class="row mt-3"><dt class="col-sm-5">Tipo</dt><dd class="col-sm-7">@Model.Kind</dd><dt class="col-sm-5">Fecha de pago / recepción</dt><dd class="col-sm-7">@Model.ReceivedOrPaidOn.ToString("dd/MM/yyyy")</dd><dt class="col-sm-5">Registrada (Lima)</dt><dd class="col-sm-7">@Model.CreatedAt.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm")</dd>
 @if(Model.Kind == DonationKind.Dinero) { <dt class="col-sm-5">Monto</dt><dd class="col-sm-7">S/ @Model.Amount?.ToString("N2")</dd><dt class="col-sm-5">Medio</dt><dd class="col-sm-7">@Model.PaymentMethodName</dd> }
 @if(User.IsInRole(Roles.Administrator) && Model.ExternalContact != null) { <dt class="col-sm-5">Contacto</dt><dd class="col-sm-7">@Model.ExternalContact</dd> }</dl>
 <p class="small text-secondary">Código: <span class="text-break">@Model.TrackingCode.ToString("N")</span></p>
@@ -10,7 +10,7 @@
 @if((User.IsInRole(Roles.Administrator) || User.IsInRole(Roles.Warehouse)) && Model.Kind == DonationKind.Bienes && Model.Status == DonationStatus.Aprobada) {
 <form method="post" asp-action="ReplaceItemPhoto" asp-route-id="@Model.Id" enctype="multipart/form-data" class="mt-3">
     <input type="hidden" name="version" value="@Convert.ToBase64String(Model.Version)" />
-    <label for="photo">Reemplazar foto del bien (JPG o PNG, máximo 5 MB)</label>
+    <label for="photo">Foto del bien (opcional, agrégala o reemplázala; JPG o PNG, máximo 5 MB)</label>
     <input id="photo" name="photo" type="file" accept=".jpg,.jpeg,.png" required class="form-control mb-3" />
     <button class="btn btn-outline-primary">Guardar nueva foto</button>
 </form>

@@ -1,14 +1,78 @@
-@model ReceivedDonationForm
+﻿@model ReceivedDonationForm
 @using MonteOracionApp.Modules.Inventory
-@using MonteOracionApp.Modules.Treasury
-@{ViewData["Title"]="Registrar recepción";var congregants=(List<Congregant>)ViewBag.Congregants;var products=(List<Product>)ViewBag.Products;}
-<section class="panel form-panel"><h1>Registrar donación recibida</h1><p>Confirma el efectivo o los bienes recibidos físicamente. Cada bien ingresará al almacén con su unidad del catálogo.</p><form asp-action="Receive" method="post" enctype="multipart/form-data"><div asp-validation-summary="All" class="text-danger"></div>
-<div class="row g-3"><div class="col-md-6"><label asp-for="Kind"></label><select asp-for="Kind" class="form-select" data-donation-kind>@foreach(var k in Enum.GetValues<DonationKind>()){if(User.IsInRole(Roles.Administrator)||(k==DonationKind.Dinero?User.IsInRole(Roles.Treasurer):User.IsInRole(Roles.Warehouse))){<option value="@((int)k)">@k</option>}}</select></div><div class="col-md-6"><label asp-for="ReceivedOn"></label><input asp-for="ReceivedOn" class="form-control" /></div></div>
-<div class="my-3"><label asp-for="DonorKind"></label><select asp-for="DonorKind" asp-items="Html.GetEnumSelectList<DonorKind>()" class="form-select" data-donor-kind></select></div>
-<div class="mb-3" data-donor="0"><label asp-for="CongregantId"></label><select asp-for="CongregantId" class="form-select"><option value="">Seleccionar congregante</option>@foreach(var c in congregants){<option value="@c.Id">@c.FullName · @c.Dni</option>}</select></div>
-<div data-donor="1"><div class="mb-3"><label asp-for="ExternalName"></label><input asp-for="ExternalName" class="form-control" /></div><div class="mb-3"><label asp-for="ExternalContact"></label><input asp-for="ExternalContact" class="form-control" /></div></div>
-<div data-kind="0"><div class="mb-3"><label asp-for="Amount"></label><input asp-for="Amount" type="number" min="0.01" step="0.01" class="form-control" /></div><div class="mb-3"><label asp-for="FundId"></label><select asp-for="FundId" class="form-select">@foreach(var f in (List<Fund>)ViewBag.Funds){<option value="@f.Id">@f.Name</option>}</select></div></div>
-<div data-kind="1"><h2>Bienes recibidos</h2><p><a asp-controller="Inventory" asp-action="Products" target="_blank">Abrir catálogo</a> si necesitas crear un producto; luego actualiza este formulario.</p><div data-repeat-container>
-@for(var i=0;i<Model.Items.Count;i++){<div class="row g-2 mb-3 panel" data-repeat-row><div class="col-md-8"><label>Producto y unidad</label><select asp-for="Items[i].ProductId" class="form-select"><option value="">Seleccionar</option>@foreach(var p in products){<option value="@p.Id">@p.Name · @p.Unit @(p.RequiresExpiry?"(requiere vencimiento)":"")</option>}</select></div><div class="col-md-4"><label>Cantidad</label><input asp-for="Items[i].Quantity" type="number" step="0.01" min="0.01" class="form-control" /></div><div class="col-md-6"><label>Vencimiento</label><input asp-for="Items[i].ExpiresOn" type="date" class="form-control" /></div><div class="col-md-6"><label>Ubicación en almacén</label><input asp-for="Items[i].StorageLocation" maxlength="160" class="form-control" /></div></div>}
-</div><button type="button" data-repeat-add class="btn btn-outline-secondary mb-3">Agregar otro bien</button><div class="mb-3"><label asp-for="ItemPhoto"></label><input asp-for="ItemPhoto" type="file" accept=".jpg,.jpeg,.png" class="form-control" /></div></div>
-<div class="form-check my-4"><input asp-for="ConfirmReceived" class="form-check-input" /><label asp-for="ConfirmReceived" class="form-check-label"></label></div><button class="btn btn-primary">Confirmar recepción</button></form></section>
+@{ViewData["Title"]="Registrar recepción";var members=((List<Congregant>)ViewBag.Congregants).Select(c=>new{id=c.Id,dni=c.Dni??"",name=c.FullName}).ToList();var products=((List<Product>)ViewBag.Products).Select(p=>new{id=p.Id,name=p.Name,unit=p.Unit,exp=p.RequiresExpiry}).ToList();}
+<section class="panel form-panel">
+<h1>Registrar recepción</h1>
+<p>Documenta el efectivo o los bienes recibidos físicamente. Los bienes quedan pendientes del visto bueno del almacén; el efectivo entra al fondo General de la iglesia.</p>
+<form asp-action="Receive" method="post" enctype="multipart/form-data" data-receive>
+<div asp-validation-summary="All" class="text-danger"></div>
+<script type="application/json" data-receive-data>@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new { members, products }))</script>
+
+<div class="row g-3 mb-3">
+<div class="col-md-6"><span class="form-label d-block fw-semibold">¿Qué se recibió?</span>
+<div class="form-check form-check-inline ms-1"><input class="form-check-input" type="radio" asp-for="Kind" value="0" name="Kind" id="kind-0" /><label class="form-check-label" for="kind-0">Efectivo</label></div>
+<div class="form-check form-check-inline"><input class="form-check-input" type="radio" asp-for="Kind" value="1" name="Kind" id="kind-1" /><label class="form-check-label" for="kind-1">Bienes</label></div></div>
+<div class="col-md-3"><label asp-for="ReceivedOn" class="form-label"></label><input asp-for="ReceivedOn" class="form-control" /></div>
+</div>
+
+<div class="mb-3">
+<span class="form-label d-block fw-semibold">¿Quién dona?</span>
+<div class="form-check form-check-inline ms-1"><input class="form-check-input" type="radio" asp-for="DonorKind" value="0" name="DonorKind" id="donor-0" /><label class="form-check-label" for="donor-0">Miembro</label></div>
+<div class="form-check form-check-inline"><input class="form-check-input" type="radio" asp-for="DonorKind" value="1" name="DonorKind" id="donor-1" /><label class="form-check-label" for="donor-1">Externo</label></div>
+<div class="form-check form-check-inline"><input class="form-check-input" type="radio" asp-for="DonorKind" value="2" name="DonorKind" id="donor-2" /><label class="form-check-label" for="donor-2">Anónimo</label></div>
+</div>
+
+<div data-donor="0" class="mb-4 col-lg-7">
+<input type="hidden" asp-for="CongregantId" data-member-id />
+<label class="form-label" for="member-search">Miembro que dona</label>
+<div class="position-relative">
+<input type="text" id="member-search" class="form-control" data-member-search placeholder="Escribe DNI o nombre… p. ej. 71456 o Juana" autocomplete="off" />
+<div class="list-group position-absolute shadow" data-member-list hidden style="z-index:10;width:100%"></div>
+</div>
+<div class="mt-1" data-member-chip hidden>✓ <span data-member-name class="fw-semibold"></span> <button type="button" class="btn btn-sm btn-link p-0" data-member-clear>cambiar</button></div>
+<div class="mt-2" data-new-member hidden><div class="small fw-semibold mb-1">➕ Nuevo miembro</div>
+<div class="row g-2 mt-1">
+<div class="col-md-6"><input asp-for="NewMemberName" class="form-control" placeholder="Nombre completo" autocomplete="off" /></div>
+<div class="col-md-3"><input asp-for="NewMemberDni" class="form-control" maxlength="8" inputmode="numeric" placeholder="DNI (opcional)" autocomplete="off" /></div>
+<div class="col-md-3"><input asp-for="NewMemberPhone" class="form-control" maxlength="9" inputmode="numeric" placeholder="Teléfono (opcional)" autocomplete="off" /></div>
+</div></div>
+</div>
+
+<div data-donor="1" class="mb-4 col-lg-7">
+<div class="mb-3"><label asp-for="ExternalName" class="form-label"></label><input asp-for="ExternalName" class="form-control" autocomplete="off" /></div>
+<div class="mb-3"><label asp-for="ExternalContact" class="form-label"></label><input asp-for="ExternalContact" class="form-control" autocomplete="off" /></div>
+</div>
+<div data-donor="2" class="mb-4"></div>
+
+<div data-kind="0" class="mb-4 col-lg-5">
+<div class="mb-3"><label asp-for="Amount" class="form-label"></label><input asp-for="Amount" class="form-control" type="number" min="0.01" step="0.01" /></div>
+<p class="small text-secondary mb-0">El efectivo se suma al fondo General; la administración gestiona los fondos.</p>
+</div>
+
+<div data-kind="1">
+<p class="mb-2">Escribe cada bien; si no está en el catálogo, créalo en el momento con su unidad.</p>
+<div id="goods-items" data-goods-container>
+@for(var i=0;i<Model.Items.Count;i++){
+<div class="row g-2 mb-3 panel goods-row" data-goods-row>
+<input type="hidden" name="Items.Index" value="@i" />
+<div class="col-md-6 position-relative"><label class="form-label">Bien</label>
+<input type="hidden" asp-for="Items[i].ProductId" class="js-product-id" data-product-id />
+<input type="text" class="form-control" data-product-search placeholder="Escribe arroz, jabón… y elige o crea" autocomplete="off" />
+<div class="list-group position-absolute shadow" data-product-list hidden style="z-index:10;width:100%"></div>
+<div class="mt-1 small" data-product-chip hidden>✓ <span data-product-name class="fw-semibold"></span> <button type="button" class="btn btn-sm btn-link p-0" data-product-clear>cambiar</button></div>
+<div class="mt-2 small text-warning d-none" data-product-tip></div>
+<div class="mt-2 d-none" data-new-product-block>
+<div class="input-group input-group-sm mb-1"><span class="input-group-text">Nombre</span><input asp-for="Items[i].NewProductName" class="form-control form-control-sm" data-new-product-name autocomplete="off" /></div>
+<div class="d-flex gap-2 align-items-center mb-1"><select class="form-select form-select-sm" data-new-unit-select style="width:auto"><option value="">Unidad…</option><option>kg</option><option>litro</option><option>unidad</option><option value="otro">otro…</option></select><input asp-for="Items[i].NewProductUnit" class="form-control form-control-sm d-none" style="width:140px" data-new-unit-text placeholder="kg / lata / bolsa" maxlength="40" autocomplete="off" /></div>
+<label class="form-check"><input asp-for="Items[i].NewProductRequiresExpiry" class="form-check-input" data-new-exp /><label class="form-check-label" asp-for="Items[i].NewProductRequiresExpiry"></label></label>
+</div>
+</div>
+<div class="col-md-3"><label class="form-label">Cantidad</label><input asp-for="Items[i].Quantity" class="form-control" data-qty type="number" min="0.01" step="0.01" /></div>
+<div class="col-md-3 d-none js-expiry-col"><label class="form-label">Vence</label><input asp-for="Items[i].ExpiresOn" class="form-control" type="date" /></div>
+<div class="col-12 text-end"><button type="button" class="btn btn-sm btn-outline-danger" data-goods-remove>Quitar fila</button></div>
+</div>}
+</div>
+<button type="button" class="btn btn-outline-secondary mb-3" data-add-goods>Agregar otro bien</button>
+</div>
+
+<button class="btn btn-primary mt-3">Registrar recepción</button></form></section>

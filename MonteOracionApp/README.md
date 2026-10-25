@@ -22,9 +22,9 @@ Antes de actualizar una instalación existente, respalda SQL Server y `App_Data/
 
 1. Administración → Personal y permisos: completar el nombre del administrador y crear las cuentas del equipo. Se necesitan dos personas distintas para solicitar y aprobar una operación.
 2. Configurar iglesia, medios de pago y fondos. Yape y transferencias se verifican manualmente.
-3. Completar DNI de congregantes. La consulta pública muestra donaciones y próximos eventos asignados; omite comprobantes, datos de contacto y asistencia.
+3. Completar DNI de congregantes. El donante verifica su donación acercándose a la administración o llamando, con el código de la donación. La administración puede generar su reporte personal.
 4. Almacén → Productos: definir presentación y unidad base. Registrar beneficiarios.
-5. Registrar recepciones de efectivo/bienes. Las recepciones de bienes crean lotes y entradas de inventario.
+5. Registrar recepciones de efectivo/bienes. Las recepciones de bienes crean lotes pendientes; el almacén otorga el visto bueno con su ubicación física (lo confirma una persona distinta de quien registró la recepción). Solo entonces aparece en existencias.
 6. Incorporar bienes históricos únicamente después de comprobar su existencia física.
 7. Solicitar y autorizar bienes/dinero; registrar entrega o pago efectivo; rendir anticipos y reponer préstamos.
 8. Cerrar caja y conciliar el saldo digital agregado. Descargar PDF por día, mes, año o rango.
@@ -32,9 +32,9 @@ Antes de actualizar una instalación existente, respalda SQL Server y `App_Data/
 ## Módulos
 
 - Accounts / Staff: acceso personal, nombres, cargos, múltiples roles y desactivación.
-- Congregants / Portal: fichas, DNI único y consulta sin cuenta.
+- Congregants / Portal: fichas con DNI único, fecha de nacimiento y contacto; consulta presencial o telefónica con el personal.
 - Donations: recepción, revisión, comprobantes privados y operaciones digitales sin duplicación.
-- Inventory: productos, beneficiarios, lotes, solicitudes, prioridades, reservas, entregas parciales, préstamos, reposiciones, condonaciones y ajustes auditados.
+- Inventory: productos, beneficiarios, lotes con visto bueno del almacén (ubicación, entradas pendientes), solicitudes, prioridades, reservas, entregas parciales, préstamos, reposiciones, condonaciones y ajustes auditados.
 - Treasury: fondos, gastos, anticipos, reservas de dinero, pagos, rendiciones, cierres y conciliación.
 - Publications: eventos/avisos, imágenes, modal público, asignaciones y asistencia privada.
 - Reports / Audit: PDF paginado y trazabilidad del personal.
@@ -60,6 +60,6 @@ Consulta `docs/GUIA_PRUEBAS.md`, `docs/DISENO_MODULAR.md`, `docs/OPERACION.md` y
 
 ## Límites de esta versión
 
-La consulta por DNI reproduce el flujo solicitado para el proyecto: conocer un DNI permite consultar los resultados asociados. El límite por IP y la reducción de datos no verifican la identidad del visitante.
+La verificación de donaciones depende del personal: el donante entrega la captura y la administración la comprueba en el medio de pago. No hay consulta pública por DNI para proteger la privacidad de los montos. Para conocer tus donaciones, acércate o llama a la administración.
 
 No hay integración bancaria, mensajería externa, reservas automáticas por prioridad ni conversión entre unidades. La conciliación digital compara el saldo agregado de cuentas/billeteras con el registrado, no se conecta a sus proveedores. Las copias de seguridad deben programarse en la infraestructura del servidor.

@@ -270,6 +270,13 @@ namespace MonteOracionApp.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Address")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<DateTime?>("BirthDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Dni")
                         .HasMaxLength(8)
                         .HasColumnType("nvarchar(8)");
@@ -288,8 +295,8 @@ namespace MonteOracionApp.Data.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Phone")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(9)
+                        .HasColumnType("nvarchar(9)");
 
                     b.Property<string>("UserId")
                         .HasColumnType("nvarchar(450)");
@@ -325,7 +332,13 @@ namespace MonteOracionApp.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<bool>("Digital")
+                        .HasColumnType("bit");
+
                     b.Property<int>("DonorKind")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("EventId")
                         .HasColumnType("int");
 
                     b.Property<string>("ExternalContact")
@@ -380,6 +393,8 @@ namespace MonteOracionApp.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CongregantId");
+
+                    b.HasIndex("EventId");
 
                     b.HasIndex("FundId");
 
@@ -561,6 +576,13 @@ namespace MonteOracionApp.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ConfirmedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<int?>("DonationItemId")
                         .HasColumnType("int");
 
@@ -580,6 +602,16 @@ namespace MonteOracionApp.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PendingActorId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTimeOffset?>("PendingAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("PendingReview")
+                        .HasColumnType("bit");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
@@ -868,6 +900,10 @@ namespace MonteOracionApp.Data.Migrations
                     b.Property<DateTime?>("EventEndsAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal?>("Goal")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
                     b.Property<string>("ImageKey")
                         .HasColumnType("nvarchar(max)");
 
@@ -920,6 +956,10 @@ namespace MonteOracionApp.Data.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
 
+                    b.Property<string>("Schedules")
+                        .HasMaxLength(600)
+                        .HasColumnType("nvarchar(600)");
+
                     b.HasKey("Id");
 
                     b.ToTable("tb_iglesia", null, t =>
@@ -935,6 +975,10 @@ namespace MonteOracionApp.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Instructions")
                         .IsRequired()
@@ -1301,6 +1345,11 @@ namespace MonteOracionApp.Data.Migrations
                         .HasForeignKey("CongregantId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("MonteOracionApp.Modules.Publications.Publication", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("MonteOracionApp.Modules.Treasury.Fund", "Fund")
                         .WithMany()
                         .HasForeignKey("FundId")
@@ -1313,6 +1362,8 @@ namespace MonteOracionApp.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Congregant");
+
+                    b.Navigation("Event");
 
                     b.Navigation("Fund");
 

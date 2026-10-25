@@ -46,6 +46,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         b.Entity<Donation>().HasIndex(x => x.TrackingCode).IsUnique();
         b.Entity<Donation>().HasIndex(x => new { x.PaymentMethodId, x.ReceivedOrPaidOn, x.OperationNumber }).IsUnique().HasFilter("[OperationNumber] IS NOT NULL");
         b.Entity<Donation>().HasOne(x => x.Fund).WithMany().OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Donation>().HasOne(x => x.Event).WithMany().OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Donation>().HasIndex(x => x.EventId);
         b.Entity<Donation>().HasIndex(x => new { x.Status, x.CreatedAt });
         b.Entity<Donation>().HasOne(x => x.Congregant).WithMany().OnDelete(DeleteBehavior.Restrict);
         b.Entity<Donation>().HasOne(x => x.PaymentMethod).WithMany().OnDelete(DeleteBehavior.Restrict);

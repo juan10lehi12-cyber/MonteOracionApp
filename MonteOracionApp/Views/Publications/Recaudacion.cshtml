@@ -1,0 +1,28 @@
+@model List<MonteOracionApp.Modules.Publications.Publication>
+@{ ViewData["Title"] = "Recaudación";
+    var raised = (System.Collections.Generic.Dictionary<int, (decimal Total, int Count)>)ViewBag.RaisedByEvent;
+    var general = (decimal)ViewBag.General; }
+<div class="section-heading"><div><div class="eyebrow">ADMINISTRACIÓN · DONACIONES</div><h1>Recaudación</h1><p>Montos aprobados en dinero, por evento y de forma general. Las donaciones del portal caen aquí cuando el personal verifica el ingreso.</p></div><a class="btn btn-outline-primary" asp-action="Calendario">Calendario de eventos</a></div>
+<div class="row g-3 mb-4">
+    <div class="col-md-6"><div class="panel h-100"><div class="eyebrow">RECAUDACIÓN GENERAL</div><h2 class="display-6">S/ @general.ToString("N2")</h2><p class="text-secondary mb-0">Donaciones a la obra y necesidades de la iglesia.</p></div></div>
+    <div class="col-md-6"><div class="panel h-100"><div class="eyebrow">EVENTOS CON CAMPAÑA</div><h2 class="display-6">@raised.Count</h2><p class="text-secondary mb-0"><a asp-action="Index">Crear o publicar eventos con meta</a>.</p></div></div>
+</div>
+<div class="panel table-responsive"><table class="table"><thead><tr><th>Evento</th><th>Fecha</th><th>Estado</th><th>Recaudado</th><th>Avance</th></tr></thead><tbody>
+@foreach (var p in Model)
+{
+    var (total, count) = raised.TryGetValue(p.Id, out var v) ? v : (0m, 0);
+    var pct = p.Goal is > 0 ? Math.Min(100, Math.Round(total / p.Goal!.Value * 100, 1)) : 0;
+    <tr>
+        <td><a href="#" data-bs-toggle="modal" data-bs-target="#event-@p.Id">@p.Title</a></td>
+        <td>@p.EventAt?.ToString("dd/MM/yyyy")</td>
+        <td>@if (p.IsCancelled){<span class="badge text-bg-danger">Cancelado</span>} else if (!p.IsPublished){<span class="badge text-bg-secondary">Borrador</span>} else {<span class="badge text-bg-success">Publicado</span>}</td>
+        <td>@if (p.Goal is > 0)
+            {<span>S/ @total.ToString("N2") @if(count>0){<small class="text-secondary">· @count donación(es)</small>}</span><span class="small text-secondary d-block">de S/ @p.Goal!.Value.ToString("N2")</span>}
+            else {<span>S/ @total.ToString("N2")<small class="text-secondary d-block">sin meta definida</small></span>}</td>
+        <td style="min-width:140px">@if (p.Goal is > 0)
+            {<div class="progress" style="height:.5rem" role="progressbar" aria-valuenow="@pct" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar bg-success" style="width:@pct.ToString("0.0",System.Globalization.CultureInfo.InvariantCulture)%"></div></div><span class="small">@pct.ToString("0.0",System.Globalization.CultureInfo.InvariantCulture)%</span>}</td>
+    </tr>
+}
+</tbody></table>@if (Model.Count == 0){<p class="mb-0">Aún no hay eventos registrados.</p>}</div>
+@foreach (var p in Model.Where(x => x.IsPublished))
+{<partial name="_EventModal" model="p" />}

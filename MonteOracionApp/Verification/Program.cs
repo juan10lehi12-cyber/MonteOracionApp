@@ -73,15 +73,21 @@ VALUES(NEWID(),0,1,2,100,CAST(GETDATE() AS date),SYSUTCDATETIME(),'legacy-admin'
         db.PaymentMethods.Add(new MonteOracionApp.Modules.Settings.PaymentMethod{Name="Yape de prueba",Instructions="Datos de prueba",IsActive=true});
         await db.SaveChangesAsync();productId=product.Id;beneficiaryId=beneficiary.Id;
     });
-    await Check("Recepción de bienes crea lote, entrada y trazabilidad atómicamente",async()=>{
+    await Check("Recepción de bienes crea lote pendiente; el visto bueno lo confirma otra persona",async()=>{
         await Use(async db=>{
-            var d=await Donations(db).RegisterReceivedAsync(new ReceivedDonationForm{Kind=DonationKind.Bienes,DonorKind=DonorKind.Anonimo,ConfirmReceived=true,ReceivedOn=ChurchTime.Today,ItemPhoto=Photo(),Items=[new ReceivedItemForm{ProductId=productId,Quantity=10,ExpiresOn=ChurchTime.Today.AddMonths(2),StorageLocation="Estante A"}]},warehouse);
+            var d=await Donations(db).RegisterReceivedAsync(new ReceivedDonationForm{Kind=DonationKind.Bienes,DonorKind=DonorKind.Anonimo,ReceivedOn=ChurchTime.Today,Items=[new ReceivedItemForm{ProductId=productId,Quantity=10,ExpiresOn=ChurchTime.Today.AddMonths(2)}]},warehouse);
             var lot=await db.StockLots.SingleAsync(x=>x.DonationItem!.DonationId==d.Id);lotId=lot.Id;
-            Assert(lot.OnHand==10&&lot.Reserved==0&&await db.StockMovements.CountAsync(x=>x.StockLotId==lotId)==1);
+            Assert(lot.PendingReview&&lot.PendingActorId==warehouse&&await db.StockMovements.CountAsync(x=>x.StockLotId==lot.Id)==1);
+        });
+        await Use(db=>Failure(()=>Inv(db).ConfirmEntryAsync(lotId,"Estante A",warehouse,Guid.NewGuid())));
+        await Use(db=>Inv(db).ConfirmEntryAsync(lotId,"Estante A",admin,Guid.NewGuid()));
+        await Use(async db=>{
+            var lot=await db.StockLots.SingleAsync(x=>x.Id==lotId);
+            Assert(!lot.PendingReview&&lot.Location=="Estante A"&&lot.ConfirmedBy==admin&&await db.StockMovements.CountAsync(x=>x.StockLotId==lotId)==2);
         });
     });
     await Check("Alimentos sin vencimiento no entran al inventario",()=>Use(async db=>{
-        await Failure(()=>Donations(db).RegisterReceivedAsync(new ReceivedDonationForm{Kind=DonationKind.Bienes,DonorKind=DonorKind.Anonimo,ConfirmReceived=true,ReceivedOn=ChurchTime.Today,ItemPhoto=Photo(),Items=[new ReceivedItemForm{ProductId=productId,Quantity=1,StorageLocation="A"}]},warehouse));
+        await Failure(()=>Donations(db).RegisterReceivedAsync(new ReceivedDonationForm{Kind=DonationKind.Bienes,DonorKind=DonorKind.Anonimo,ReceivedOn=ChurchTime.Today,Items=[new ReceivedItemForm{ProductId=productId,Quantity=1,StorageLocation="A"}]},warehouse));
     }));
     StockRequestForm Request(decimal quantity,StockRequestKind kind=StockRequestKind.Entrega)=>new(){BeneficiaryId=beneficiaryId,Purpose="Necesidad sustentada de prueba",NeededOn=ChurchTime.Today,Kind=kind,ReturnDueOn=kind==StockRequestKind.Prestamo?ChurchTime.Today.AddDays(7):null,Lines=[new StockLineForm{StockLotId=lotId,Quantity=quantity}]};
     await Use(async db=>requestId=await Inv(db).RequestAsync(Request(6),treasury));
@@ -148,12 +154,12 @@ VALUES(NEWID(),0,1,2,100,CAST(GETDATE() AS date),SYSUTCDATETIME(),'legacy-admin'
     await Check("DNI vincula donación digital; número de operación duplicado se rechaza",async()=>{
         await Use(async db=>{
             var payment=await db.PaymentMethods.SingleAsync();
-            var form=new OnlineDonationForm{Dni="87654321",Amount=10,FundId=1,PaymentMethodId=payment.Id,OperationNumber="TEST-0001",PaidOn=ChurchTime.Today,Receipt=Photo()};
+            var form=new OnlineDonationForm{Dni="87654321",Amount=10,PaymentMethodId=payment.Id,OperationNumber="TEST-0001",PaidOn=ChurchTime.Today,Receipt=Photo()};
             var d=await Donations(db).RegisterOnlineAsync(form,null);Assert(d.Status==DonationStatus.Pendiente&&d.CongregantId!=null);
         });
         await Use(async db=>{
             var payment=await db.PaymentMethods.SingleAsync();
-            await Failure(()=>Donations(db).RegisterOnlineAsync(new OnlineDonationForm{Dni="87654321",Amount=10,FundId=1,PaymentMethodId=payment.Id,OperationNumber="test-0001",PaidOn=ChurchTime.Today,Receipt=Photo()},null));
+            await Failure(()=>Donations(db).RegisterOnlineAsync(new OnlineDonationForm{Dni="87654321",Amount=10,PaymentMethodId=payment.Id,OperationNumber="test-0001",PaidOn=ChurchTime.Today,Receipt=Photo()},null));
         });
     });
     await Check("Confirmar pago digital crea entrada; anular revierte con historial",async()=>{

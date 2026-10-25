@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MonteOracionApp.Data;
+using MonteOracionApp.Modules.Donations;
 using MonteOracionApp.Shared;
 namespace MonteOracionApp.Modules.Publications;
 [Authorize(Roles=Roles.Administrator)]
@@ -14,8 +15,36 @@ public class PublicationsController(ApplicationDbContext db,IFileStorage storage
         ViewBag.Page=Math.Clamp(page,1,100000);ViewBag.Total=await db.Publications.CountAsync();
         return View(await db.Publications.AsNoTracking().OrderByDescending(x=>x.Id).Skip((Math.Clamp(page,1,100000)-1)*30).Take(30).ToListAsync());
     }
+    public async Task<IActionResult> Recaudacion()
+    {
+        var groups = await db.Donations.AsNoTracking()
+            .Where(x => x.Status == DonationStatus.Aprobada && x.EventId != null)
+            .GroupBy(x => x.EventId!.Value)
+            .Select(g => new { EventId = g.Key, Total = g.Sum(x => x.Amount) ?? 0m, Count = g.Count() })
+            .ToListAsync();
+        ViewBag.RaisedByEvent = groups.ToDictionary(g => g.EventId, g => (g.Total, g.Count));
+        ViewBag.General = await db.Donations.AsNoTracking()
+            .Where(x => x.Status == DonationStatus.Aprobada && x.EventId == null)
+            .SumAsync(x => x.Amount) ?? 0m;
+        return View(await db.Publications.AsNoTracking()
+            .Where(x => x.Kind == PublicationKind.Evento && x.EventAt != null)
+            .OrderByDescending(x => x.EventAt).Take(60).ToListAsync());
+    }
+    public async Task<IActionResult> Calendario(int? month, int? year)
+    {
+        var now = ChurchTime.Now;
+        var m = Math.Clamp(month ?? now.Month, 1, 12);
+        var y = year is >= 2000 and <= 2100 ? year.Value : now.Year;
+        var start = new DateTime(y, m, 1);
+        ViewBag.Month = start; ViewBag.Prev = start.AddMonths(-1); ViewBag.Next = start.AddMonths(1);
+        var events = await db.Publications.AsNoTracking()
+            .Where(x => x.Kind == PublicationKind.Evento && x.EventAt != null && x.EventAt >= start && x.EventAt < start.AddMonths(1))
+            .OrderBy(x => x.EventAt).ToListAsync();
+        ViewBag.Events = events.GroupBy(x => x.EventAt!.Value.Date).ToDictionary(g => g.Key, g => g.ToList());
+        return View();
+    }
     [HttpGet]public async Task<IActionResult>Edit(int? id)=>id==null?View(new Publication()):await db.Publications.FindAsync(id) is {} p?View(p):NotFound();
-    [HttpPost,RequestSizeLimit(6*1024*1024)]public async Task<IActionResult>Edit(int id,[Bind("Kind,Title,Body,EventAt,EventEndsAt,Location,IsPublished")]Publication form,IFormFile? image)
+    [HttpPost,RequestSizeLimit(6*1024*1024)]public async Task<IActionResult>Edit(int id,[Bind("Kind,Title,Body,EventAt,EventEndsAt,Location,Goal,IsPublished")]Publication form,IFormFile? image)
     {
         if(!Enum.IsDefined(form.Kind))ModelState.AddModelError("Kind","Tipo inválido.");
         if(form.Kind==PublicationKind.Evento&&(form.EventAt==null||string.IsNullOrWhiteSpace(form.Location)||form.EventEndsAt==null||form.EventEndsAt<=form.EventAt))ModelState.AddModelError("","Los eventos requieren inicio, fin posterior y lugar.");
@@ -28,6 +57,7 @@ public class PublicationsController(ApplicationDbContext db,IFileStorage storage
         if(form.Kind==PublicationKind.Evento&&uploaded==null&&p.ImageKey==null){ModelState.AddModelError("","Adjunta la imagen del evento.");form.Id=id;return View(form);}
         p.Kind=form.Kind;p.Title=form.Title.Trim();p.Body=form.Body.Trim();p.IsPublished=form.IsPublished;
         p.EventAt=form.Kind==PublicationKind.Evento?form.EventAt:null;p.EventEndsAt=form.Kind==PublicationKind.Evento?form.EventEndsAt:null;p.Location=form.Kind==PublicationKind.Evento?form.Location?.Trim():null;
+        p.Goal=form.Kind==PublicationKind.Evento&&form.Goal>0?form.Goal:null;
         if(uploaded!=null){p.ImageKey=uploaded.Key;p.ImageType=uploaded.ContentType;}
         if(id==0)db.Publications.Add(p);
         db.Audit(Actor,"Publicación guardada",$"Publicación #{id}",p.Title);
@@ -55,17 +85,17 @@ public class PublicationsController(ApplicationDbContext db,IFileStorage storage
     {
         var p=await db.Publications.FindAsync(id);
         if(p==null||p.Kind!=PublicationKind.Evento||p.IsCancelled||p.EventAt<ChurchTime.Now){TempData["Error"]="Selecciona un evento próximo activo.";return RedirectToAction(nameof(Participants),new{id});}
-        if(!await db.Congregants.AnyAsync(x=>x.Id==congregantId&&x.IsActive)){TempData["Error"]="Congregante inválido.";return RedirectToAction(nameof(Participants),new{id});}
+        if(!await db.Congregants.AnyAsync(x=>x.Id==congregantId&&x.IsActive)){TempData["Error"]="Miembro inválido.";return RedirectToAction(nameof(Participants),new{id});}
         var existing=await db.EventParticipants.SingleOrDefaultAsync(x=>x.PublicationId==id&&x.CongregantId==congregantId);
         if(existing is { IsActive:false })
         {
             existing.IsActive=true;existing.RemovalReason=null;existing.RecordedBy=Actor;
-            db.Audit(Actor,"Participación restablecida",$"Evento #{id}",$"Congregante #{congregantId}");await db.SaveOperationAsync();
+            db.Audit(Actor,"Participación restablecida",$"Evento #{id}",$"Miembro #{congregantId}");await db.SaveOperationAsync();
         }
         if(existing==null)
         {
             db.EventParticipants.Add(new EventParticipant{PublicationId=id,CongregantId=congregantId,RecordedBy=Actor});
-            db.Audit(Actor,"Participante asignado",$"Evento #{id}",$"Congregante #{congregantId}");
+            db.Audit(Actor,"Participante asignado",$"Evento #{id}",$"Miembro #{congregantId}");
             try{await db.SaveOperationAsync();}catch(DbUpdateException){TempData["Error"]="El participante ya fue asignado.";}
         }
         return RedirectToAction(nameof(Participants),new{id});

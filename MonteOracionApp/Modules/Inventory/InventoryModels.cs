@@ -22,6 +22,11 @@ public class StockLot
     public DateTime? ExpiresOn { get; set; }
     public decimal OnHand { get; set; }
     public decimal Reserved { get; set; }
+    [Display(Name = "Pendiente de visto bueno")] public bool PendingReview { get; set; }
+    [MaxLength(450)] public string? PendingActorId { get; set; }
+    public DateTimeOffset? PendingAt { get; set; }
+    [MaxLength(450)] public string? ConfirmedBy { get; set; }
+    public DateTimeOffset? ConfirmedAt { get; set; }
     [Timestamp] public byte[] Version { get; set; } = [];
 }
 public class Beneficiary
@@ -69,7 +74,7 @@ public class StockRequestLine
     public decimal Returned { get; set; }
     public decimal WrittenOff { get; set; }
 }
-public enum StockMovementKind { Donacion, Reserva, Liberacion, Entrega, Reposicion, Merma, AjustePositivo, AjusteNegativo, Condonacion }
+public enum StockMovementKind { Donacion, Reserva, Liberacion, Entrega, Reposicion, Merma, AjustePositivo, AjusteNegativo, Condonacion, VistoBueno }
 public class StockMovement
 {
     public long Id { get; set; }

@@ -12,6 +12,7 @@ public class Publication
     public string? ImageKey { get; set; }
     public string? ImageType { get; set; }
     [StringLength(250), Display(Name = "Lugar")] public string? Location { get; set; }
+    [Display(Name = "Meta de recaudación (S/)")] public decimal? Goal { get; set; }
     [Display(Name = "Publicado")] public bool IsPublished { get; set; }
     public bool IsCancelled { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
