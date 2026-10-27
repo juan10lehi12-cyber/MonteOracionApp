@@ -1,0 +1,22 @@
+@model Congregante
+@{ ViewData["Title"] = Model.id == 0 ? "Nuevo Congregante" : "Editar Congregante"; }
+
+<h1 class="h3 mb-3">@ViewData["Title"]</h1>
+<form method="post" class="card shadow-sm" style="max-width:650px">
+    <div class="card-body">
+        <div asp-validation-summary="All" class="text-danger mb-2"></div>
+        <input type="hidden" asp-for="id" />
+        <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Nombres</label><input asp-for="nombres" class="form-control" required /></div>
+            <div class="col-md-6"><label class="form-label">Apellidos</label><input asp-for="apellidos" class="form-control" required /></div>
+            <div class="col-md-4"><label class="form-label">DNI (8 dígitos)</label><input asp-for="dni" class="form-control" maxlength="8" /></div>
+            <div class="col-md-4"><label class="form-label">Teléfono</label><input asp-for="telefono" class="form-control" /></div>
+            <div class="col-md-4"><label class="form-label">Fecha de nacimiento</label><input asp-for="fecha_nacimiento" type="date" class="form-control" /></div>
+            <div class="col-12"><label class="form-label">Dirección</label><input asp-for="direccion" class="form-control" /></div>
+        </div>
+    </div>
+    <div class="card-footer text-end">
+        <a asp-action="Index" class="btn btn-link">Cancelar</a>
+        <button class="btn btn-primary">Guardar</button>
+    </div>
+</form>

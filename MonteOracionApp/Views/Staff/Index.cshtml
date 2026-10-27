@@ -1,4 +1,0 @@
-@model List<MonteOracionApp.Modules.Staff.StaffProfile>
-@{ ViewData["Title"] = "Personal y permisos"; }
-<div class="section-heading"><h1>Personal y permisos</h1><a class="btn btn-primary" asp-action="Edit">Crear cuenta del personal</a></div>
-<div class="panel table-responsive"><table class="table"><thead><tr><th>Nombre</th><th>Cargo / permisos</th><th>Correo</th><th>Estado</th><th></th></tr></thead><tbody>@foreach(var p in Model) { <tr><td>@p.FullName</td><td>@p.Position<br />@(((Dictionary<string,string>)ViewBag.RoleNames).GetValueOrDefault(p.UserId))</td><td>@p.User.Email</td><td>@(p.IsActive ? "Activo" : "Inactivo")</td><td><a asp-action="Edit" asp-route-id="@p.UserId">Editar permisos</a></td></tr> }</tbody></table></div>

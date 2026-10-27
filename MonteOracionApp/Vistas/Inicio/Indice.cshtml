@@ -1,0 +1,29 @@
+@model List<Publicacion>
+@{ViewData["Title"]="Nuestra comunidad";var church=(ConfiguracionIglesia)ViewBag.Church;var payments=(List<MedioPago>)ViewBag.PaymentMethods;var raised=(System.Collections.Generic.Dictionary<int,decimal>?)ViewBag.RaisedByEvent;}
+<section class="hero hero-compact"><div class="eyebrow">BIENVENIDOS · COMUNIDAD Y FE</div><h1>@church.nombre</h1><p>Un lugar de encuentro, esperanza y restauración en Comas.</p><div class="d-flex flex-wrap gap-2"><a class="btn btn-light" href="#publicaciones">Ver próximos eventos</a><a class="btn btn-outline-light" href="#horarios">Nuestros horarios</a></div></section>
+<section id="publicaciones"><div class="section-heading"><div><div class="eyebrow">VIDA EN COMUNIDAD</div><h2>Próximos eventos y vida comunitaria</h2></div><div class="btn-group"><a class="btn @(ViewBag.Period=="proximos"?"btn-primary":"btn-outline-primary")" asp-action="Index" asp-route-period="proximos" asp-fragment="publicaciones">Próximos</a><a class="btn @(ViewBag.Period=="realizados"?"btn-primary":"btn-outline-primary")" asp-action="Index" asp-route-period="realizados" asp-fragment="publicaciones">Pasados</a></div></div>
+@if(Model.Count==0){<div class="empty-state">No hay publicaciones en esta sección.</div>}
+<div class="row g-4">@foreach(var p in Model){
+var esCampaña=p.tipo==TipoPublicacion.Evento&&!p.cancelado&&p.meta_recaudacion>0&&(ViewBag.Period!="realizados");
+decimal recaudado=0m,meta=0m,pct=0m;
+if(esCampaña){meta=(decimal)(p.meta_recaudacion??0);if(raised!=null&&raised.TryGetValue(p.id,out var v))recaudado=v;pct=meta==0?0:Math.Min(100,Math.Round(recaudado/meta*100,1));}
+<div class="col-md-6 col-xl-4"><article class="panel event-card h-100">@if(p.clave_imagen!=null){<img class="event-cover" src="@Url.Action("Image","Publications",new{id=p.id})" alt="@p.titulo" loading="lazy" />}
+<div class="event-badges"><span class="badge text-bg-light">@p.tipo</span>@if(p.cancelado){<span class="badge text-bg-danger">Cancelado</span>}@if(esCampaña){<span class="badge text-bg-success">Campaña de recaudación</span>}</div>
+<h3 class="mt-2">@p.titulo</h3>
+@if(p.fecha_inicio_evento.HasValue){<p class="event-meta"><span class="event-meta-item">🗓️ @p.fecha_inicio_evento.Value.ToString("dd/MM/yyyy HH:mm")</span>@if(!string.IsNullOrWhiteSpace(p.lugar)){<span class="event-meta-item">📍 @p.lugar.Split(':')[0]</span>}</p>}
+@if(esCampaña){<div class="campaign-strip"><div class="progress" style="height:.6rem" role="progressbar" aria-label="Recaudación" aria-valuenow="@pct" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar bg-success" style="width:@pct.ToString("0.0",System.Globalization.CultureInfo.InvariantCulture)%"></div></div><p class="small text-secondary mb-2">Recaudación: S/ @recaudado.ToString("N2") de S/ @meta.ToString("N2")</p><a class="btn btn-success btn-sm" asp-controller="Donations" asp-action="Create" asp-route-evento="@p.id">Apoyar actividad</a></div>}
+<button type="button" class="btn btn-outline-primary btn-view-details" data-bs-toggle="modal" data-bs-target="#event-@p.id">Ver detalles</button></article></div><partial name="_EventModal" model="p" />}</div>
+<div class="d-flex gap-3 my-3">@if((int)ViewBag.Page>1){<a asp-action="Index" asp-route-page="@((int)ViewBag.Page-1)" asp-route-period="@ViewBag.Period" asp-fragment="publicaciones">Anterior</a>}@if((int)ViewBag.Page*12<(int)ViewBag.Total){<a asp-action="Index" asp-route-page="@((int)ViewBag.Page+1)" asp-route-period="@ViewBag.Period" asp-fragment="publicaciones">Siguiente</a>}</div></section>
+<section class="donation-section" id="donar"><div class="section-heading"><div><div class="eyebrow">TU APORTE TRANSFORMA</div><h2>Aportes y donaciones</h2></div></div>
+<div class="row g-4 align-items-stretch">
+<div class="col-lg-6"><div class="panel h-100 donor-payments">@if(payments.Count==0){<div class="empty-state">La iglesia publicará aquí los medios de pago disponibles.</div>}else{<div class="donor-payment">@foreach(var payment in payments){
+<h3>@payment.nombre</h3>
+@if(!string.IsNullOrWhiteSpace(payment.numero_cuenta)){<div class="donor-number-row"><span class="donor-number" id="num-@payment.id">@payment.numero_cuenta</span><button type="button" class="btn btn-outline-primary btn-sm" data-copy="num-@payment.id">Copiar número</button></div>}
+@if(payment.clave_qr!=null){<a href="@Url.Action("Qr","Settings",new{id=payment.id})" target="_blank" rel="noopener"><img class="payment-qr donor-qr" src="@Url.Action("Qr","Settings",new{id=payment.id})" alt="Código QR de @payment.nombre" /></a>}
+<details class="donor-details"><summary>Ver datos de la cuenta e instrucciones</summary><p class="preserve-lines">@payment.instrucciones</p></details>
+}</div>}</div></div>
+<div class="col-lg-6"><div class="panel h-100 donor-register"><div class="eyebrow">CADA APORTE CUENTA</div><h3>Tu aporte permite continuar con nuestras labores sociales y eventos comunitarios.</h3>
+<a class="btn btn-primary btn-lg mt-3 mb-2" asp-controller="Donations" asp-action="Create">Registrar comprobante de donación</a>
+<p class="small text-secondary">Registra el pago, adjunta la captura y la administración la comprobará. Solo se muestran montos totales; las donaciones de cada persona permanecen privadas.</p>
+<div class="donor-goods"><p>Prefieres dar <strong>alimentos u otros bienes físicos</strong>? Coordina la entrega directamente con la iglesia; el personal registrará lo recibido en el almacén.</p>@if(!string.IsNullOrWhiteSpace(church.contacto)){<p class="mb-0">Contacto: <strong>@church.contacto</strong></p>}</div></div></div>
+</div></section>

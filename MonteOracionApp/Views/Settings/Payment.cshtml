@@ -1,7 +1,0 @@
-@model PaymentMethod
-@{ ViewData["Title"] = "Configurar medio de pago"; }
-<section class="panel narrow"><h1>Medio de pago</h1><form asp-action="Payment" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data"><div asp-validation-summary="All" class="text-danger"></div>
-<div class="mb-3"><label asp-for="Name"></label><input asp-for="Name" class="form-control" placeholder="Yape, transferencia BCP…" /></div><div class="mb-3"><label asp-for="Instructions"></label><textarea asp-for="Instructions" class="form-control" rows="4"></textarea></div>
-<div class="mb-3"><label asp-for="AccountNumber"></label><input asp-for="AccountNumber" class="form-control" /><small>Número que se muestra grande en la portada con el botón de copiar (por ejemplo, el celular del Yape).</small></div>
-@if(Model.QrStorageKey != null && Model.IsActive) { <img class="payment-qr mb-3" src="@Url.Action("Qr", new { id = Model.Id })" alt="QR actual" /> }
-<div class="mb-3"><label for="qr">QR opcional (JPG o PNG, máximo 5 MB)</label><input id="qr" name="qr" type="file" accept=".jpg,.jpeg,.png" class="form-control" /><small>Al cargar otro archivo se reemplaza el QR anterior.</small></div><div class="form-check mb-4"><input asp-for="IsActive" class="form-check-input" /><label asp-for="IsActive" class="form-check-label"></label></div><button class="btn btn-primary">Guardar</button> <a asp-action="Payments" class="btn btn-link">Volver</a></form></section>

@@ -1,0 +1,47 @@
+@model List<Publicacion>
+@{ ViewData["Title"] = "Publicaciones y Eventos"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Publicaciones y Eventos</h1>
+    <div>
+        <a asp-action="Fundraising" class="btn btn-outline-primary">Recaudaciones</a>
+        <a asp-action="Calendar" class="btn btn-outline-secondary">Calendario</a>
+        <a asp-action="Edit" class="btn btn-primary">Nueva publicación</a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th>Título</th><th>Tipo</th><th>Fecha Evento</th><th>Estado</th><th class="text-end">Acción</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model)
+                {
+                    <tr>
+                        <td class="fw-semibold">@p.titulo</td>
+                        <td><span class="badge bg-info text-dark">@p.tipo</span></td>
+                        <td>@(p.fecha_inicio_evento?.ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                        <td>
+                            @if (p.cancelado) { <span class="badge bg-danger">Cancelado</span> }
+                            else if (p.publicado) { <span class="badge bg-success">Publicado</span> }
+                            else { <span class="badge bg-secondary">Borrador</span> }
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="Edit" asp-route-id="@p.id" class="btn btn-sm btn-outline-primary">Editar</a>
+                            @if (p.tipo == TipoPublicacion.Evento && !p.cancelado)
+                            {
+                                <form asp-action="Cancel" method="post" class="d-inline">
+                                    <input type="hidden" name="id" value="@p.id" />
+                                    <input type="hidden" name="reason" value="Cancelado por administración" />
+                                    <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Cancelar evento?')">Cancelar</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

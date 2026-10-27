@@ -1,6 +1,0 @@
-@model List<MonteOracionApp.Modules.Treasury.FinanceRequest>
-@using MonteOracionApp.Modules.Treasury
-@{ViewData["Title"]="Solicitudes de dinero";}
-<div class="section-heading"><h1>Solicitudes de dinero</h1><a class="btn btn-primary" asp-action="Create">Nueva solicitud</a></div>
-<form method="get" class="d-flex gap-2 mb-3"><select name="status" class="form-select w-auto" aria-label="Estado"><option value="">Todos los estados</option>@foreach(var s in Enum.GetValues<FinanceStatus>()){<option value="@s" selected="@(ViewBag.Status!=null&&(FinanceStatus)ViewBag.Status==s)">@s</option>}</select><button class="btn btn-outline-primary">Filtrar</button></form>
-<div class="panel table-responsive"><table class="table"><thead><tr><th>Número / propósito</th><th>Fondo</th><th>Tipo / medio</th><th>Monto</th><th>Estado</th><th></th></tr></thead><tbody>@foreach(var r in Model){<tr><td>#@r.Id · @r.Purpose</td><td>@r.Fund.Name</td><td>@r.Kind · @r.Channel</td><td>S/ @r.Amount.ToString("N2")</td><td>@r.Status @if(r.Kind==FinanceKind.Anticipo&&r.Status==FinanceStatus.Pagada&&r.DueOn<ChurchTime.Today){<span class="badge text-bg-danger">Rendición vencida</span>}</td><td><a asp-action="Details" asp-route-id="@r.Id">Ver detalle</a></td></tr>}</tbody></table></div>

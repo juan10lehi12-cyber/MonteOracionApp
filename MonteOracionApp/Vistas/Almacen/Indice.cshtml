@@ -1,0 +1,66 @@
+@model List<Lote>
+@{ ViewData["Title"]="Almacén"; var products = ViewBag.Products as List<Producto> ?? []; }
+<div class="section-heading"><div><div class="eyebrow">ALMACÉN</div><h1>Existencias</h1><p class="mb-0">Todo lo que hay guardado. Se suma con cada entrada con visto bueno y se descuenta solo en cada salida.</p></div><div class="d-flex gap-2 flex-wrap"><a class="btn btn-primary" asp-action="Exit">Registrar salida</a><a class="btn btn-outline-primary" asp-controller="Donations" asp-action="Receive">Registrar recepción</a></div></div>
+@if (ViewBag.PendingCount is int pc && pc > 0)
+{<div class="alert alert-warning d-flex justify-content-between align-items-center"><span>Hay <strong>@pc entrada(s) por dar visto bueno</strong>.</span><a class="btn btn-sm btn-warning" asp-action="Pending">Revisar entradas</a></div>}
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-sm btn-outline-secondary" asp-action="Movements">Historial de entradas y salidas</a>
+    @if (User.IsInRole(Roles.Administrador) && products.Count > 0)
+    {
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#unifyModal">Unificar productos</button>
+    }
+</div>
+<form method="get" class="panel d-flex gap-3 mb-3 flex-wrap"><input name="search" value="@ViewBag.Search" class="form-control w-auto" placeholder="Producto o ubicación" aria-label="Buscar en el almacén" /><label class="d-flex gap-2 align-items-center"><input type="checkbox" name="availableOnly" value="true" checked="@ViewBag.AvailableOnly" /> Solo con existencias</label><button class="btn btn-primary">Filtrar</button><a asp-action="Index">Limpiar</a></form>
+<div class="panel table-responsive"><table class="table"><thead><tr><th>Producto</th><th>Ubicación</th><th class="text-end">Cantidad</th></tr></thead><tbody>
+@foreach(var l in Model){<tr><td><strong>@l.producto.nombre</strong></td><td>@l.ubicacion</td><td class="text-end">@l.cantidad_actual.ToString("0.##") <small>@l.producto.unidad</small></td></tr>}
+</tbody></table>@if(Model.Count==0){<p>No hay existencias para mostrar.</p>}</div>
+
+@if (User.IsInRole(Roles.Administrador) && products.Count > 0)
+{
+<div class="modal fade" id="unifyModal" tabindex="-1" aria-labelledby="unifyModalLabel" aria-hidden="true" data-unify-modal>
+  <div class="modal-dialog modal-lg">
+    <form method="post" asp-action="ProductUnify" class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5" id="unifyModalLabel">Unificar o corregir nombre de productos</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-secondary">Busca los productos mal escritos o repetidos, márcalos y escribe el nombre correcto con el que deben quedar. Sus existencias y donaciones se sumarán automáticamente.</p>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label for="unifyTarget" class="form-label fw-semibold">1. Producto base (opcional)</label>
+            <select id="unifyTarget" name="targetId" class="form-select" data-unify-target>
+              <option value="0">— Usar el primero que marque abajo —</option>
+              @foreach (var p in products)
+              {
+                  <option value="@p.id" data-name="@p.nombre">@p.nombre · @p.unidad</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="unifyCorrectName" class="form-label fw-semibold">2. Nombre correcto definitivo</label>
+            <input id="unifyCorrectName" name="correctName" maxlength="160" class="form-control" data-unify-name placeholder="Ej.: Arroz" autocomplete="off" />
+          </div>
+        </div>
+        <div class="mb-2">
+          <label for="unifySearch" class="form-label fw-semibold">3. Buscar y marcar los nombres mal escritos o repetidos</label>
+          <input id="unifySearch" type="text" class="form-control mb-2" data-unify-search placeholder="Escribe para buscar… p. ej. arros" autocomplete="off" />
+          <div class="border rounded p-2" style="max-height:240px;overflow-y:auto" data-unify-list>
+            @foreach (var p in products)
+            {
+                <label class="form-check py-1" data-unify-item="@p.nombre">
+                  <input type="checkbox" name="duplicateIds" value="@p.id" class="form-check-input" data-unify-check data-name="@p.nombre" />
+                  <span class="form-check-label">@p.nombre <small class="text-secondary">(@p.unidad)</small></span>
+                </label>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Unificar en nombre correcto</button>
+      </div>
+    </form>
+  </div>
+</div>
+}

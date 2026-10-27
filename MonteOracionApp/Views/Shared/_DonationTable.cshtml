@@ -1,4 +1,0 @@
-﻿@model List<Donation>
-<div class="panel table-responsive"><table class="table align-middle"><thead><tr><th>Registro</th><th>Fecha de pago / recepción</th>@if(User.Identity?.IsAuthenticated == true) { <th>Donante</th><th>Origen</th> }<th>Tipo / monto</th><th>Estado</th><th></th></tr></thead><tbody>
-@foreach(var d in Model) { <tr><td>#@d.Id</td><td>@d.ReceivedOrPaidOn.ToString("dd/MM/yyyy")</td>@if(User.Identity?.IsAuthenticated == true) { <td>@d.DonorLabel</td><td><span class="badge @(d.Digital ? "text-bg-info" : "text-bg-secondary")">@(d.Digital ? "Digital" : "Presencial")</span></td> }<td>@(d.Kind == DonationKind.Dinero ? "S/ " + d.Amount?.ToString("N2") : "Bienes")</td><td><span class="status status-@d.Status">@d.Status</span></td><td><a asp-controller="Donations" asp-action="Details" asp-route-id="@d.Id">Ver detalle →</a></td></tr> }
-</tbody></table>@if(Model.Count == 0) { <p class="text-secondary">Todavía no hay donaciones para mostrar.</p> }</div>

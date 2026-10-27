@@ -1,4 +1,0 @@
-@model List<MonteOracionApp.Modules.Publications.EventParticipant>
-@{ViewData["Title"]="Asistencia privada";}
-<h1>Historial de asistencia · administración</h1><form method="get" class="d-flex gap-2 mb-3"><input name="search" value="@ViewBag.Search" class="form-control" placeholder="DNI, nombre o apellido" aria-label="Buscar miembro" /><button class="btn btn-primary">Buscar</button></form>
-<div class="panel table-responsive"><table class="table"><thead><tr><th>Miembro</th><th>Evento</th><th>Fecha</th><th>Asistencia</th><th>Observación privada</th></tr></thead><tbody>@foreach(var p in Model){<tr><td>@p.Congregant.FullName</td><td>@p.Publication.Title</td><td>@p.Publication.EventAt?.ToString("dd/MM/yyyy")</td><td>@p.Attendance</td><td>@p.InternalNote</td></tr>}</tbody></table></div>

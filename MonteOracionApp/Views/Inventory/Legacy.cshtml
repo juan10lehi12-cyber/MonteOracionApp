@@ -1,6 +1,0 @@
-@model List<DonationItem>
-@using MonteOracionApp.Modules.Inventory
-@{ViewData["Title"]="Bienes anteriores";var products=(List<Product>)ViewBag.Products;}
-<h1>Incorporar recepciones anteriores</h1><p>Verifica físicamente cada bien antes de incorporarlo. No vuelvas a registrar su donación. La unidad del catálogo debe coincidir.</p>
-@foreach(var item in Model){<form method="post" asp-action="ImportLegacy" class="panel mb-3"><input name="itemId" value="@item.Id" type="hidden" /><h2>Donación #@item.DonationId · @item.Description</h2><p>@item.Quantity @item.Unit</p><label>Producto del catálogo</label><select name="productId" required class="form-select">@foreach(var p in products){<option value="@p.Id">@p.Name · @p.Unit</option>}</select><label>Ubicación</label><input name="location" maxlength="160" required class="form-control" /><label>Vencimiento (obligatorio si el producto lo requiere)</label><input name="expiry" type="date" class="form-control" /><button class="btn btn-primary mt-2">Confirmar existencia e incorporar</button></form>}
-@if(Model.Count==0){<div class="empty-state">No hay recepciones pendientes de incorporar.</div>}

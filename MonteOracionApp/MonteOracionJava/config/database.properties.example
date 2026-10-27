@@ -1,6 +1,0 @@
-# Copiar a database.properties. No subir contraseñas a Git.
-db.url=jdbc:mariadb://127.0.0.1:3306/monte_oracion_java
-db.user=monte_app
-db.password=CAMBIAR_CONTRASENA
-# Carpeta privada, fuera de htdocs y de webapps. Usar / en Windows.
-storage.path=C:/MonteOracionJava/adjuntos

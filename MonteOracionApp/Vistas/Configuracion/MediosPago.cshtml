@@ -1,0 +1,29 @@
+@model List<MedioPago>
+@{ ViewData["Title"] = "Medios de Pago"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Medios de Pago y Códigos QR</h1>
+    <a asp-action="EditPaymentMethod" class="btn btn-primary">Nuevo medio de pago</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th>Nombre</th><th>Cuenta / Número</th><th>Instrucciones</th><th>Estado</th><th class="text-end">Acción</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model)
+                {
+                    <tr>
+                        <td class="fw-semibold">@p.nombre</td>
+                        <td>@p.numero_cuenta</td>
+                        <td>@p.instrucciones</td>
+                        <td><span class="badge @(p.activo ? "bg-success" : "bg-secondary")">@(p.activo ? "Activo" : "Inactivo")</span></td>
+                        <td class="text-end"><a asp-action="EditPaymentMethod" asp-route-id="@p.id" class="btn btn-sm btn-outline-primary">Editar</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

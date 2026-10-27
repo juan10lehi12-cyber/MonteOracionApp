@@ -1,0 +1,6 @@
+@model Publicacion
+<div class="modal fade" id="event-@Model.id" tabindex="-1" aria-labelledby="event-title-@Model.id" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h2 class="modal-title h4" id="event-title-@Model.id">@Model.titulo</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div><div class="modal-body">
+@if(Model.clave_imagen!=null){<img src="@Url.Action("Image","Publications",new{id=Model.id})" alt="@Model.titulo" class="event-modal-image mb-3" />}
+@if(Model.cancelado){<div class="alert alert-warning">Este evento está cancelado.</div>}
+@if(Model.fecha_inicio_evento.HasValue){<p><strong>Inicio:</strong> @Model.fecha_inicio_evento.Value.ToString("dd/MM/yyyy HH:mm") (Lima)</p><p><strong>Fin:</strong> @Model.fecha_fin_evento?.ToString("dd/MM/yyyy HH:mm")</p><p><strong>Lugar:</strong> @Model.lugar</p>@if(!string.IsNullOrWhiteSpace(Model.lugar)){<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=@Uri.EscapeDataString(Model.lugar)">🗺️ Cómo llegar (Google Maps)</a>}}
+<p class="preserve-lines">@Model.contenido</p></div></div></div></div>

@@ -1,0 +1,11 @@
+@model List<MovimientoAlmacen>
+@{ ViewData["Title"] = "Entradas y salidas"; ViewBag.Page = (int)ViewBag.Page; var names = (Dictionary<string, string>)ViewBag.Names; }
+<div class="section-heading"><div><div class="eyebrow">ALMACÉN</div><h1>Entradas y salidas</h1></div><div class="d-flex gap-2"><a class="btn btn-primary" asp-action="Exit">Registrar salida</a><a class="btn btn-outline-secondary" asp-action="Index">Ver existencias</a></div></div>
+<form method="get" class="panel d-flex gap-3 mb-3 flex-wrap"><input name="search" value="@ViewBag.Search" class="form-control w-auto" placeholder="Producto o destino" aria-label="Buscar movimiento" /><button class="btn btn-primary">Filtrar</button><a asp-action="Movements">Limpiar</a></form>
+<div class="panel table-responsive"><table class="table"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Producto</th><th class="text-end">Cantidad</th><th>Destino / detalle</th><th>Registró</th></tr></thead><tbody>
+@foreach (var m in Model)
+{
+    <tr><td>@m.fecha_hora.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm")</td><td>@(m.tipo == TipoMovimientoAlmacen.Donacion ? "Entrada" : "Salida")</td><td>@m.lote.producto.nombre</td><td class="text-end">@m.cantidad.ToString("+0.##;-0.##;0") <small>@m.lote.producto.unidad</small></td><td>@m.destino @m.motivo</td><td>@(names.TryGetValue(m.id_usuario, out var n) ? n : "")</td></tr>
+}
+</tbody></table>@if (Model.Count == 0) { <p>Todavía no hay movimientos.</p> }</div>
+<partial name="_Pagination" />

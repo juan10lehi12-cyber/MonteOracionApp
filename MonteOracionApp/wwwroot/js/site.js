@@ -134,11 +134,9 @@ if (receive) {
 <div class="mt-2 d-none" data-new-product-block>
 <div class="input-group input-group-sm mb-1"><span class="input-group-text">Nombre</span><input name="Items[${index}].NewProductName" class="form-control form-control-sm" data-new-product-name autocomplete="off" /></div>
 <div class="d-flex gap-2 align-items-center mb-1"><select class="form-select form-select-sm" data-new-unit-select style="width:auto"><option value="">Unidad…</option>${unitOptions.map(u => `<option>${u}</option>`).join('')}<option value="otro">otro…</option></select><input name="Items[${index}].NewProductUnit" class="form-control form-control-sm d-none" style="width:140px" data-new-unit-text placeholder="kg / lata / bolsa" maxlength="40" autocomplete="off" /></div>
-<label class="form-check"><input type="checkbox" name="Items[${index}].NewProductRequiresExpiry" value="true" class="form-check-input" data-new-exp /><span class="form-check-label">El producto requiere vencimiento</span></label>
 </div>
 </div>
 <div class="col-md-3"><label class="form-label">Cantidad</label><input name="Items[${index}].Quantity" data-qty class="form-control" type="number" min="0.01" step="0.01" /></div>
-<div class="col-md-3 d-none js-expiry-col"><label class="form-label">Vence</label><input name="Items[${index}].ExpiresOn" class="form-control" type="date" /></div>
 <div class="col-12 text-end"><button type="button" class="btn btn-sm btn-outline-danger" data-goods-remove>Quitar fila</button></div>
 </div>`;
 
@@ -155,19 +153,9 @@ if (receive) {
         const nameInput = row.querySelector('[data-new-product-name]');
         const unitSelect = row.querySelector('[data-new-unit-select]');
         const unitText = row.querySelector('[data-new-unit-text]');
-        const expiryInput = row.querySelector('input[type="date"]');
-        const expCheckbox = row.querySelector('[data-new-exp]');
         const qty = row.querySelector('[data-qty]');
 
         const setTip = text => { tip.textContent = text || ''; tip.classList.toggle('d-none', !text); };
-        const refreshExpiry = () => {
-            let needs = false;
-            if (idInput.value) {
-                const product = products.find(x => String(x.id) === idInput.value);
-                needs = !!(product && product.exp);
-            } else needs = creating && expCheckbox.checked;
-            expiryInput.closest('.js-expiry-col').classList.toggle('d-none', !needs);
-        };
         const productSelect = product => {
             idInput.value = product.id;
             chipName.textContent = `${product.name} · ${product.unit}`;
@@ -175,7 +163,6 @@ if (receive) {
             search.disabled = true;
             list.hidden = true;
             hideCreate();
-            refreshExpiry();
         };
         const productClear = () => {
             idInput.value = '';
@@ -183,7 +170,6 @@ if (receive) {
             search.disabled = false;
             search.focus();
             hideCreate();
-            refreshExpiry();
         };
         const showCreate = (name, suggestion) => {
             creating = true;
@@ -193,9 +179,8 @@ if (receive) {
             createBlock.classList.remove('d-none');
             nameInput.value = nameInput.value || name;
             if (suggestion) setTip(suggestion);
-            else setTip(`Se creará «${nameInput.value.trim()}» con la unidad que elijas (categoría General).`);
+            else setTip(`Se creará «${nameInput.value.trim()}» con la unidad que elijas.`);
             unitSelect.focus();
-            refreshExpiry();
         };
         const hideCreate = () => {
             creating = false;
@@ -208,7 +193,7 @@ if (receive) {
                 && other.querySelector('.js-product-id').value !== '');
 
         search.addEventListener('input', () => {
-            if (idInput.value) { idInput.value = ''; chip.hidden = true; search.disabled = false; hideCreate(); refreshExpiry(); }
+            if (idInput.value) { idInput.value = ''; chip.hidden = true; search.disabled = false; hideCreate(); }
             typed = search.value.trim();
             if (!typed) { list.hidden = true; return; }
             const q = norm(typed);
@@ -260,16 +245,13 @@ if (receive) {
                 unitText.value = unitSelect.value;
                 unitText.classList.add('d-none');
             }
-            refreshExpiry();
             unitSelect.blur();
         });
-        expCheckbox.addEventListener('change', refreshExpiry);
         row.querySelector('[data-goods-remove]')?.addEventListener('click', () => row.remove());
         if (idInput.value) {
             const product = products.find(x => String(x.id) === idInput.value);
             if (product) productSelect(product);
         }
-        refreshExpiry();
     }
 
     receive.querySelectorAll('[data-goods-row]').forEach(setupGoodsRow);
@@ -291,3 +273,30 @@ document.querySelectorAll('[data-copy]').forEach(button => button.addEventListen
     catch { const r = document.createRange(); r.selectNode(target); window.getSelection().removeAllRanges(); window.getSelection().addRange(r); document.execCommand('copy'); button.textContent = '¡Copiado!'; }
     setTimeout(() => { button.textContent = 'Copiar número'; }, 2000);
 }));
+
+/* ===== Almacén: modal para unificar productos mal escritos ===== */
+const unifyModal = document.querySelector('[data-unify-modal]');
+if (unifyModal) {
+    const search = unifyModal.querySelector('[data-unify-search]');
+    const target = unifyModal.querySelector('[data-unify-target]');
+    const nameInput = unifyModal.querySelector('[data-unify-name]');
+    const items = Array.from(unifyModal.querySelectorAll('[data-unify-item]'));
+    const norm = text => (text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    search?.addEventListener('input', () => {
+        const q = norm(search.value.trim());
+        items.forEach(item => {
+            const match = !q || norm(item.getAttribute('data-unify-item')).includes(q);
+            item.classList.toggle('d-none', !match);
+        });
+    });
+    target?.addEventListener('change', () => {
+        const opt = target.selectedOptions[0];
+        const name = opt?.getAttribute('data-name') || '';
+        if (name && !nameInput.value.trim()) nameInput.value = name;
+    });
+    unifyModal.querySelectorAll('[data-unify-check]').forEach(chk => {
+        chk.addEventListener('change', () => {
+            if (chk.checked && !nameInput.value.trim()) nameInput.value = chk.getAttribute('data-name') || '';
+        });
+    });
+}
