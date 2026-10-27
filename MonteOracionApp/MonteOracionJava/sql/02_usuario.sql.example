@@ -1,5 +1,0 @@
--- Ejecutar como administrador en phpMyAdmin DESPUÉS de cambiar la contraseña.
-CREATE USER IF NOT EXISTS 'monte_app'@'127.0.0.1' IDENTIFIED BY 'CAMBIAR_CONTRASENA';
-GRANT SELECT, INSERT, UPDATE ON monte_oracion_java.* TO 'monte_app'@'127.0.0.1';
-GRANT DELETE ON monte_oracion_java.personal_rol TO 'monte_app'@'127.0.0.1';
--- La aplicación conserva los movimientos; no necesita DELETE ni permisos globales.

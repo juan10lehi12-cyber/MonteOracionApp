@@ -1,0 +1,63 @@
+@model List<Publicacion>
+@{
+    ViewData["Title"] = "Recaudación por Evento";
+    var raised = ViewBag.Raised as Dictionary<int, decimal> ?? new();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-0">Recaudación por Evento</h1>
+        <small class="text-muted">Seguimiento de metas e ingresos por donaciones vinculadas a eventos</small>
+    </div>
+    <div>
+        <a asp-action="Index" class="btn btn-outline-secondary">Volver a publicaciones</a>
+        <a asp-action="Edit" class="btn btn-primary">Nuevo evento / campaña</a>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No hay eventos registrados aún.</div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var p in Model)
+        {
+            var amount = raised.GetValueOrDefault(p.id);
+            var goal = p.meta_recaudacion ?? 0;
+            var pct = goal > 0 ? Math.Min(100, (int)Math.Round(amount / goal * 100)) : 0;
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h5 class="mb-0">@p.titulo</h5>
+                                <small class="text-muted">@(p.fecha_inicio_evento?.ToString("dd/MM/yyyy HH:mm") ?? "Sin fecha")</small>
+                            </div>
+                            @if (p.cancelado) { <span class="badge bg-danger">Cancelado</span> }
+                            else if (p.publicado) { <span class="badge bg-success">Publicado</span> }
+                            else { <span class="badge bg-secondary">Borrador</span> }
+                        </div>
+
+                        <div class="d-flex justify-content-between small mt-3">
+                            <span>Recaudado: <strong class="text-success">S/ @amount.ToString("N2")</strong></span>
+                            <span>Meta: <strong>@(goal > 0 ? $"S/ {goal:N2}" : "Sin meta")</strong></span>
+                        </div>
+                        @if (goal > 0)
+                        {
+                            <div class="progress mt-1" style="height:10px">
+                                <div class="progress-bar bg-success" style="width:@pct%"></div>
+                            </div>
+                            <div class="text-end small text-muted mt-1">@pct% alcanzado</div>
+                        }
+                    </div>
+                    <div class="card-footer bg-transparent d-flex justify-content-between">
+                        <a asp-controller="Donations" asp-action="Index" class="btn btn-sm btn-outline-secondary">Ver donaciones</a>
+                        <a asp-action="Edit" asp-route-id="@p.id" class="btn btn-sm btn-outline-primary">Editar meta</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

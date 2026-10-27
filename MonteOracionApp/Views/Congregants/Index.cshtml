@@ -1,6 +1,0 @@
-@model List<Congregant>
-@{ ViewData["Title"] = "Congregantes"; }
-<div class="section-heading"><h1>Congregantes</h1><a class="btn btn-primary" asp-action="Edit">Nuevo congregante</a></div>
-<form method="get" class="d-flex gap-2 mb-4"><input name="search" value="@ViewBag.Search" class="form-control" placeholder="Nombre, apellido o DNI" aria-label="Buscar" /><button class="btn btn-outline-primary">Buscar</button></form>
-<div class="panel table-responsive"><table class="table"><thead><tr><th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
-@foreach(var c in Model) { <tr><td>@c.FullName</td><td>@(c.Dni ?? "Pendiente de completar")</td><td>@c.Phone</td><td>@(c.IsActive ? "Activo" : "Inactivo")</td><td><a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@c.Id">Editar</a><form method="post" asp-action="SetActive" asp-route-id="@c.Id" class="d-inline"><input name="active" value="@((!c.IsActive).ToString())" type="hidden" /><button class="btn btn-sm btn-outline-secondary">@(c.IsActive ? "Desactivar" : "Activar")</button></form></td></tr> }</tbody></table></div><partial name="_Pagination" />

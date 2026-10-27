@@ -1,0 +1,24 @@
+@model FormularioPersonal
+@{ ViewData["Title"] = string.IsNullOrEmpty(Model.id_usuario) ? "Nuevo Usuario" : "Editar Usuario"; }
+
+<h1 class="h3 mb-3">@ViewData["Title"]</h1>
+<form method="post" class="card shadow-sm" style="max-width:600px">
+    <div class="card-body">
+        <div asp-validation-summary="All" class="text-danger mb-2"></div>
+        <input type="hidden" asp-for="id_usuario" />
+        <div class="mb-3"><label class="form-label">Nombre Completo</label><input asp-for="nombre_completo" class="form-control" required /></div>
+        <div class="mb-3"><label class="form-label">Cargo / Ministerio</label><input asp-for="cargo" class="form-control" /></div>
+        <div class="mb-3"><label class="form-label">Correo Electrónico</label><input asp-for="correo" class="form-control" required /></div>
+        <div class="mb-3"><label class="form-label">Contraseña @(string.IsNullOrEmpty(Model.id_usuario) ? "" : "(dejar en blanco para mantener)")</label><input asp-for="clave" class="form-control" /></div>
+        <div class="mb-3">
+            <label class="form-label d-block">Roles</label>
+            <div class="form-check form-check-inline"><input asp-for="administrador" class="form-check-input" /><label asp-for="administrador" class="form-check-label">Administrador</label></div>
+            <div class="form-check form-check-inline"><input asp-for="personal" class="form-check-input" /><label asp-for="personal" class="form-check-label">Staff Administrativo</label></div>
+        </div>
+        <div class="form-check"><input asp-for="activo" class="form-check-input" /><label asp-for="activo" class="form-check-label">Cuenta activa</label></div>
+    </div>
+    <div class="card-footer text-end">
+        <a asp-action="Index" class="btn btn-link">Cancelar</a>
+        <button class="btn btn-primary">Guardar</button>
+    </div>
+</form>

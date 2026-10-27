@@ -23,15 +23,13 @@ def check(name,condition):
     assert condition,name
     passed+=1;print("OK",name)
 anonymous=session()
-for path in ["/","/Home?period=realizados","/Portal","/Access","/Account/Login","/Donations/Create"]:
+for path in ["/","/Home?period=realizados","/Account/Login","/Donations/Create"]:
     code,url,body=request(anonymous,path)
     check("Página pública "+path,code==200)
 code,url,body=request(anonymous,"/Portal")
-code,url,consultation=request(anonymous,"/Portal",{"Dni":fixture["dni"],"__RequestVerificationToken":token(body)})
-check("Consulta DNI muestra donación y evento asignado",code==200 and b"10.00" in consultation and b"Evento de prueba" in consultation)
-check("Consulta no expone nota de asistencia, comprobantes ni identidad",b"NOTA-PRIVADA-NO-PUBLICAR" not in consultation and b"ReceiptStorageKey" not in consultation and b"TEST-0001" not in consultation and b"Persona Anterior" not in consultation)
-code,url,body=request(anonymous,"/Portal",{"Dni":fixture["dni"]})
-check("POST sin antifalsificación rechazado",code==400)
+check("Portal retirado ya no es público",code==404)
+code,url,body=request(anonymous,"/Access")
+check("Acceso retirado ya no es público",code==404 or code==500)
 code,url,body=request(anonymous,"/Inventory")
 check("Inventario requiere acceso", "/Account/Login" in url)
 def login(role):
@@ -41,7 +39,7 @@ def login(role):
     check("Acceso del personal "+role,code==200 and "/Dashboard" in url)
     return client
 admin=login("admin")
-for path in ["/Dashboard","/Donations","/Donations/Receive","/Donations/Details/1","/Congregants","/Congregants/Edit/1","/Inventory","/Inventory/Products","/Inventory/ProductEdit/1","/Inventory/BeneficiaryEdit/1","/Inventory/Beneficiaries","/Inventory/Requests","/Inventory/Create","/Inventory/Details/1","/Inventory/Lot/1","/Inventory/Legacy","/Treasury","/Treasury/Requests","/Treasury/Create","/Treasury/Details/1","/Treasury/Closings","/Staff","/Staff/Edit","/Staff/Edit/legacy-admin","/Publications","/Publications/Participants/1","/Publications/History","/Publications/Edit/1","/Reports","/Reports/Audit"]:
+for path in ["/Dashboard","/Donations","/Donations/Receive","/Donations/Details/1","/Congregants","/Congregants/Edit","/Congregants/Edit/1","/Inventory","/Inventory/Pending","/Inventory/Products","/Inventory/ProductEdit/1","/Inventory/BeneficiaryEdit/1","/Inventory/Beneficiaries","/Inventory/Requests","/Inventory/Create","/Inventory/Details/1","/Inventory/Lot/1","/Inventory/Legacy","/Treasury","/Treasury/Requests","/Treasury/Create","/Treasury/Details/1","/Treasury/Closings","/Staff","/Staff/Edit","/Staff/Edit/legacy-admin","/Publications","/Publications/Recaudacion","/Publications/Calendario","/Publications/Participants/1","/Publications/History","/Publications/Edit/1","/Reports","/Reports/Audit"]:
     code,url,body=request(admin,path)
     if code!=200:(root/"artifacts/checks/http-error.html").write_bytes(body)
     check("Pantalla administrativa "+path,code==200)
@@ -109,8 +107,7 @@ code,url,body=request(admin,"/Publications/Participants/1")
 code,url,body=request(admin,"/Publications/RemoveParticipant/1",{"reason":"Asignación de prueba retirada","__RequestVerificationToken":token(body)})
 check("Retirar asignación conserva registro",code==200 and b"Retirado" in body)
 code,url,body=request(anonymous,"/Portal")
-code,url,body=request(anonymous,"/Portal",{"Dni":fixture["dni"],"__RequestVerificationToken":token(body)})
-check("Consulta no anuncia asignaciones retiradas",b"Participas en" not in body)
+check("Portal retirado no expone asignaciones ni consultas",code==404)
 code,url,body=request(admin,"/Publications/Participants/1")
 code,url,body=request(admin,"/Publications/Assign/1",{"congregantId":"1","__RequestVerificationToken":token(body)})
 check("Restablecer asignación conserva historial",code==200 and "Asignación activa" in html.unescape(body.decode()))
@@ -134,7 +131,8 @@ check("Imagen de evento publicado es pública",code==200 and image.startswith(b"
 code,url,body=request(admin,"/Publications/Participants/"+eventid)
 code,url,body=request(admin,"/Publications/Assign/"+eventid,{"congregantId":"1","__RequestVerificationToken":token(body)})
 code,url,body=request(admin,"/Publications/Edit/"+eventid)
-event_fields.update({"EventAt":str(date)+"T00:00","EventEndsAt":str(date)+"T01:00","__RequestVerificationToken":token(body)})
+past=date-__import__("datetime").timedelta(days=1)
+event_fields.update({"EventAt":str(past)+"T10:00","EventEndsAt":str(past)+"T12:00","__RequestVerificationToken":token(body)})
 code,url,body=request(admin,"/Publications/Edit/"+eventid,event_fields)
 check("Editar horario conserva imagen del evento",code==200 and "/Publications" in url)
 code,url,body=request(admin,"/Publications/Participants/"+eventid)

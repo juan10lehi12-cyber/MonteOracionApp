@@ -1,0 +1,33 @@
+@model Publicacion
+@{ ViewData["Title"] = Model.id == 0 ? "Nueva Publicación" : "Editar Publicación"; }
+
+<h1 class="h3 mb-3">@ViewData["Title"]</h1>
+<form method="post" enctype="multipart/form-data" class="card shadow-sm" style="max-width:750px">
+    <div class="card-body">
+        <div asp-validation-summary="All" class="text-danger mb-2"></div>
+        <input type="hidden" asp-for="id" />
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Tipo</label>
+                <select asp-for="tipo" asp-items="Html.GetEnumSelectList<TipoPublicacion>()" class="form-select"></select>
+            </div>
+            <div class="col-md-8"><label class="form-label">Título</label><input asp-for="titulo" class="form-control" required /></div>
+            <div class="col-12"><label class="form-label">Contenido</label><textarea asp-for="contenido" class="form-control" rows="4" required></textarea></div>
+            <div class="col-md-6"><label class="form-label">Inicio de Evento (si aplica)</label><input asp-for="fecha_inicio_evento" type="datetime-local" class="form-control" /></div>
+            <div class="col-md-6"><label class="form-label">Fin de Evento</label><input asp-for="fecha_fin_evento" type="datetime-local" class="form-control" /></div>
+            <div class="col-md-6"><label class="form-label">Lugar</label><input asp-for="lugar" class="form-control" /></div>
+            <div class="col-md-6"><label class="form-label">Meta de Recaudación (S/)</label><input asp-for="meta_recaudacion" type="number" step="0.01" class="form-control" /></div>
+            <div class="col-md-6"><label class="form-label">Imagen</label><input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png" /></div>
+            <div class="col-md-6 d-flex align-items-end">
+                <div class="form-check">
+                    <input asp-for="publicado" class="form-check-input" />
+                    <label asp-for="publicado" class="form-check-label">Publicar en portal web</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer text-end">
+        <a asp-action="Index" class="btn btn-link">Cancelar</a>
+        <button class="btn btn-primary">Guardar</button>
+    </div>
+</form>

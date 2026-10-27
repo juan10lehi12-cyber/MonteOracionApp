@@ -1,0 +1,20 @@
+@model ConfiguracionIglesia
+@{ ViewData["Title"] = "Configuración Institucional"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Configuración Institucional</h1>
+    <a asp-action="PaymentMethods" class="btn btn-outline-primary">Medios de pago y QR</a>
+</div>
+
+<form method="post" class="card shadow-sm" style="max-width:750px">
+    <div class="card-body">
+        <div class="mb-3"><label class="form-label">Nombre de la Iglesia</label><input asp-for="nombre" class="form-control" required /></div>
+        <div class="mb-3"><label class="form-label">Quiénes Somos / Reseña</label><textarea asp-for="informacion" class="form-control" rows="4"></textarea></div>
+        <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Dirección</label><input asp-for="direccion" class="form-control" /></div>
+            <div class="col-md-6"><label class="form-label">Teléfono / Contacto</label><input asp-for="contacto" class="form-control" /></div>
+            <div class="col-12"><label class="form-label">Horarios de Cultos</label><input asp-for="horarios" class="form-control" /></div>
+        </div>
+    </div>
+    <div class="card-footer text-end"><button class="btn btn-primary">Guardar configuración</button></div>
+</form>

@@ -1,0 +1,50 @@
+@model List<Congregante>
+@{ ViewData["Title"] = "Padrón de Congregantes"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Padrón de Congregantes</h1>
+    <a asp-action="Edit" class="btn btn-primary">Nuevo congregante</a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-5"><input name="q" value="@ViewBag.Query" class="form-control" placeholder="Buscar por DNI, nombres o apellidos..." /></div>
+    <div class="col-md-3">
+        <select name="active" class="form-select">
+            <option value="">Todos</option>
+            <option value="true" selected="@(ViewBag.Active == true)">Activos</option>
+            <option value="false" selected="@(ViewBag.Active == false)">Inactivos</option>
+        </select>
+    </div>
+    <div class="col-auto"><button class="btn btn-outline-primary">Filtrar</button></div>
+</form>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr><th>Congregante</th><th>DNI</th><th>Cumpleaños</th><th>Teléfono</th><th>Estado</th><th class="text-end">Acciones</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model)
+                {
+                    <tr>
+                        <td class="fw-semibold">
+                            @c.nombre_completo
+                            @if (!string.IsNullOrEmpty(c.direccion)) { <div class="small text-muted fw-normal">@c.direccion</div> }
+                        </td>
+                        <td>@(c.dni ?? "—")</td>
+                        <td>@(c.fecha_nacimiento?.ToString("dd/MM") ?? "—")</td>
+                        <td>@(c.telefono ?? "—")</td>
+                        <td><span class="badge @(c.activo ? "bg-success" : "bg-secondary")">@(c.activo ? "Activo" : "Inactivo")</span></td>
+                        <td class="text-end">
+                            <a asp-action="Edit" asp-route-id="@c.id" class="btn btn-sm btn-outline-primary">Editar</a>
+                            <form asp-action="Toggle" asp-route-id="@c.id" method="post" class="d-inline">
+                                <button class="btn btn-sm btn-outline-secondary">@(c.activo ? "Desactivar" : "Reactivar")</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

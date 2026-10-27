@@ -1,0 +1,28 @@
+@model Donacion
+@{ ViewData["Title"] = "Donación #" + Model.id; }
+<div class="section-heading"><div><div class="eyebrow">REGISTRO DE DONACIÓN</div><h1>Donación #@Model.id</h1></div><span class="status status-@Model.estado">@Model.estado</span></div>
+<div class="row g-4"><div class="col-lg-7"><section class="panel"><h2>@Model.etiqueta_donante</h2><p>Operación: @Model.numero_operacion@if(Model.evento != null){<text> · Dedicada al evento "</text>@Model.evento.titulo<text>"</text>}</p><dl class="row mt-3"><dt class="col-sm-5">Tipo</dt><dd class="col-sm-7">@Model.tipo</dd><dt class="col-sm-5">Fecha de pago / recepción</dt><dd class="col-sm-7">@Model.fecha_recepcion_pago.ToString("dd/MM/yyyy")</dd><dt class="col-sm-5">Registrada (Lima)</dt><dd class="col-sm-7">@Model.fecha_creacion.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm")</dd>
+@if(Model.tipo == TipoDonacion.Dinero) { <dt class="col-sm-5">Monto</dt><dd class="col-sm-7">S/ @Model.monto?.ToString("N2")</dd><dt class="col-sm-5">Medio</dt><dd class="col-sm-7">@Model.nombre_medio_pago</dd> }
+@if(User.IsInRole(Roles.Administrador) && Model.contacto_externo != null) { <dt class="col-sm-5">Contacto</dt><dd class="col-sm-7">@Model.contacto_externo</dd> }</dl>
+<p class="small text-secondary">Código: <span class="text-break">@Model.codigo_seguimiento.ToString("N")</span></p>
+@if(Model.clave_comprobante != null) { <div class="my-3"><p><strong>@(Model.tipo == TipoDonacion.Bienes ? "Foto del bien recibido" : "Captura del comprobante")</strong></p><a asp-action="Receipt" asp-route-id="@Model.id" target="_blank" rel="noopener"><img src="@Url.Action("Receipt", new { id = Model.id })" alt="@(Model.tipo == TipoDonacion.Bienes ? "Foto del bien donado" : "Captura del pago")" class="donation-evidence" /></a></div> }
+@if(Model.bienes.Count > 0) { <h3>Bienes recibidos</h3><ul>@foreach(var item in Model.bienes) { <li>@item.descripcion · @item.cantidad.ToString("0.##") @item.unidad</li> }</ul> }
+@if((User.IsInRole(Roles.Administrador) || User.IsInRole(Roles.Personal)) && Model.tipo == TipoDonacion.Bienes && Model.estado == EstadoDonacion.Aprobada) {
+<form method="post" asp-action="ReplaceItemPhoto" asp-route-id="@Model.id" enctype="multipart/form-data" class="mt-3">
+    <input type="hidden" name="version" value="@Convert.ToBase64String(Model.version)" />
+    <label for="photo">Foto del bien (opcional, agrégala o reemplázala; JPG o PNG, máximo 5 MB)</label>
+    <input id="photo" name="photo" type="file" accept=".jpg,.jpeg,.png" required class="form-control mb-3" />
+    <button class="btn btn-outline-primary">Guardar nueva foto</button>
+</form>
+}
+</section><section class="panel mt-4"><h2>Historial de decisiones</h2>@if(Model.decisiones.Count == 0) { <p>Esperando la revisión del administrador.</p> }
+@foreach(var decision in Model.decisiones.OrderBy(x => x.fecha)) { <div class="decision"><strong>@decision.estado</strong> · @decision.fecha.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm")<p>@decision.motivo</p>@if(User.IsInRole(Roles.Administrador)) { <small class="text-secondary">Administrador: @decision.id_administrador</small> }</div> }</section></div>
+@if(User.IsInRole(Roles.Administrador) && (Model.estado is EstadoDonacion.Pendiente or EstadoDonacion.Aprobada)) {
+<div class="col-lg-5"><section class="panel"><h2>Revisión administrativa</h2><form method="post" asp-action="Decide" asp-route-id="@Model.id" data-confirm="¿Registrar esta decisión? Quedará guardada en el historial."><input type="hidden" name="version" value="@Convert.ToBase64String(Model.version)" />
+@if(Model.estado == EstadoDonacion.Pendiente) { <p>Revisa la captura y verifica el ingreso en Yape, Plin o la cuenta bancaria antes de aprobar.</p>
+@if(Model.id_congregante == null) { <div class="mb-3"><label for="congregantId">Si el donante es miembro, vincula su ficha (opcional)</label><select id="congregantId" name="congregantId" class="form-select"><option value="">Conservar donante actual</option>@if(ViewBag.Congregants is List<Congregante> members) { foreach(var member in members) { <option value="@member.id">@member.nombre_completo</option> } }</select><small>La vinculación se guardará al aprobar o rechazar la donación; aparecerá en su historial privado.</small></div> }
+<div class="form-check my-3"><input class="form-check-input" type="checkbox" name="confirmReceived" value="true" id="confirmReceived" /><label class="form-check-label" for="confirmReceived">Confirmo que el dinero fue recibido.</label></div> }
+<label for="reason">Motivo (obligatorio para rechazar o anular)</label><textarea id="reason" name="reason" maxlength="1000" class="form-control mb-3" rows="3"></textarea><div class="d-flex gap-2 flex-wrap">
+@if(Model.estado == EstadoDonacion.Pendiente) { <button name="status" value="Aprobada" class="btn btn-primary">Aprobar</button><button name="status" value="Rechazada" class="btn btn-outline-danger">Rechazar</button> }
+<button name="status" value="Anulada" class="btn btn-outline-secondary">Anular registro</button></div></form></section></div> }
+</div>

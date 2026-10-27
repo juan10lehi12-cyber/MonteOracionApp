@@ -1,0 +1,39 @@
+@{
+    ViewData["Title"] = "Calendario Mensual";
+    int year = ViewBag.Year; int month = ViewBag.Month;
+    var first = (DateTime)ViewBag.FirstDay;
+    var byDay = (Dictionary<DateTime, List<Publicacion>>)ViewBag.ByDay;
+    int offset = ((int)first.DayOfWeek + 6) % 7;
+    int days = DateTime.DaysInMonth(year, month);
+    var prev = first.AddMonths(-1); var next = first.AddMonths(1);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Calendario — @first.ToString("MMMM yyyy")</h1>
+    <div class="btn-group">
+        <a asp-action="Calendar" asp-route-year="@prev.Year" asp-route-month="@prev.Month" class="btn btn-outline-secondary">&laquo; Mes anterior</a>
+        <a asp-action="Calendar" asp-route-year="@next.Year" asp-route-month="@next.Month" class="btn btn-outline-secondary">Mes siguiente &raquo;</a>
+    </div>
+</div>
+
+<div class="calendar-grid">
+    @foreach (var d in new[] { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" }) { <div class="calendar-head">@d</div> }
+    @for (int i = 0; i < offset; i++) { <div class="calendar-cell muted"></div> }
+    @for (int day = 1; day <= days; day++)
+    {
+        var date = new DateTime(year, month, day);
+        <div class="calendar-cell">
+            <div class="fw-bold small text-muted">@day</div>
+            @if (byDay.TryGetValue(date, out var list))
+            {
+                @foreach (var e in list)
+                {
+                    <a asp-action="Edit" asp-route-id="@e.id"
+                       class="badge d-block text-truncate text-start mb-1 @(e.cancelado ? "bg-danger" : e.publicado ? "bg-primary" : "bg-secondary")">
+                        @e.titulo
+                    </a>
+                }
+            }
+        </div>
+    }
+</div>

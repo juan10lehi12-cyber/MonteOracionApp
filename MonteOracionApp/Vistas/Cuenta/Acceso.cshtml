@@ -1,0 +1,9 @@
+@model FormularioAcceso
+@{ ViewData["Title"] = "Ingresar"; }
+<section class="panel narrow"><div class="eyebrow">TU COMUNIDAD</div><h1>Ingresa a tu cuenta</h1><p class="text-secondary">Consulta tus donaciones y mantente cerca de la iglesia.</p>
+<form method="post" asp-action="Login"><div asp-validation-summary="All" class="text-danger" role="alert"></div>
+    <input asp-for="url_retorno" type="hidden" />
+    <div class="mb-3"><label asp-for="correo"></label><input asp-for="correo" class="form-control" autocomplete="username" /></div>
+    <div class="mb-3"><label asp-for="clave"></label><input asp-for="clave" class="form-control" autocomplete="current-password" /></div>
+    <button class="btn btn-primary w-100" type="submit">Ingresar</button>
+</form><p class="small text-secondary mt-3 mb-0">Para obtener una cuenta o recuperar tu acceso, comunícate con el administrador de la iglesia.</p></section>

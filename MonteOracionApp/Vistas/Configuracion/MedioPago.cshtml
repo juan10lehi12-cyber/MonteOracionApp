@@ -1,0 +1,19 @@
+@model MedioPago
+@{ ViewData["Title"] = Model.id == 0 ? "Nuevo Medio de Pago" : "Editar Medio de Pago"; }
+
+<h1 class="h3 mb-3">@ViewData["Title"]</h1>
+<form method="post" enctype="multipart/form-data" class="card shadow-sm" style="max-width:600px">
+    <div class="card-body">
+        <input type="hidden" asp-for="id" />
+        <input type="hidden" asp-for="clave_qr" />
+        <div class="mb-3"><label class="form-label">Nombre (ej. Yape, Plin, BCP)</label><input asp-for="nombre" class="form-control" required /></div>
+        <div class="mb-3"><label class="form-label">Número / CCI / Teléfono</label><input asp-for="numero_cuenta" class="form-control" /></div>
+        <div class="mb-3"><label class="form-label">Instrucciones / Titular</label><input asp-for="instrucciones" class="form-control" /></div>
+        <div class="mb-3"><label class="form-label">Imagen QR (PNG/JPG)</label><input type="file" name="qrFile" class="form-control" accept=".jpg,.jpeg,.png" /></div>
+        <div class="form-check"><input asp-for="activo" class="form-check-input" /><label asp-for="activo" class="form-check-label">Visible en portal público</label></div>
+    </div>
+    <div class="card-footer text-end">
+        <a asp-action="PaymentMethods" class="btn btn-link">Cancelar</a>
+        <button class="btn btn-primary">Guardar</button>
+    </div>
+</form>

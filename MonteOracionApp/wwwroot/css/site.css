@@ -6,3 +6,40 @@ html{font-size:16px}body{font-family:Segoe UI,Arial,sans-serif;background:var(--
 .hero-compact{padding:2rem 2.5rem}.hero-compact h1{font-size:clamp(2rem,4vw,3rem);margin:.6rem 0 1.2rem}.workspace-shell{display:grid;grid-template-columns:245px minmax(0,1fr);flex:1}.workspace-sidebar{background:#173c2b;color:#edf5ed;padding:1.5rem 1rem}.workspace-sidebar nav{position:sticky;top:1rem}.workspace-sidebar a{display:block;color:#e4ede4;text-decoration:none;padding:.55rem .8rem;font-size:.9rem;border-radius:6px}.workspace-sidebar a:hover{background:#ffffff15}.workspace-sidebar summary{font-weight:650;padding:.8rem .4rem;color:#fff}.workspace-sidebar details{border-bottom:1px solid #ffffff20;padding-bottom:.5rem}.sidebar-home{font-weight:700;margin:.6rem 0}.workspace-content{padding:1.8rem;min-width:0}.event-cover{width:100%;height:190px;object-fit:cover;border-radius:10px;margin-bottom:1rem}.event-modal-image{width:100%;max-height:440px;object-fit:contain}.event-card{display:flex;flex-direction:column;align-items:flex-start}.event-card button{margin-top:auto}.access-card{display:block;text-decoration:none;height:100%}.access-card:hover{border-color:var(--primary);box-shadow:0 4px 20px #20392f15}summary{cursor:pointer}.workspace-content .form-panel{max-width:1000px}@media(max-width:991px){.workspace-shell{display:block}.workspace-sidebar{padding:.5rem 1rem}.workspace-sidebar nav{position:static;display:flex;flex-wrap:wrap;gap:.5rem}.workspace-sidebar details{flex:1;min-width:160px}.workspace-content{padding:1rem}.hero-compact{padding:1.5rem}}@media print{.site-header,.workspace-sidebar,footer,button,.btn{display:none!important}.workspace-shell{display:block}.workspace-content{padding:0}}
 
 .workspace-sidebar a.is-active{background:#ffffff24;color:#fff;font-weight:700}
+/* ===== Portada rediseÃ±ada ===== */
+.btn-donate{background:#2e9e5b;color:#fff;border:none}
+.btn-donate:hover{background:#27914f;color:#fff}
+.btn-outline-personal{--bs-btn-color:var(--ink);--bs-btn-border-color:#c6d3c8;--bs-btn-hover-bg:#28594314;--bs-btn-hover-border-color:var(--primary)}
+.btn-outline-personal:hover{color:var(--primary)}
+.hero p{margin-bottom:1.4rem}
+.event-figure{margin:0}
+.event-card{gap:.35rem}
+.event-card img.event-cover{aspect-ratio:16/9;height:auto;min-height:0}
+.event-badges{display:flex;gap:.4rem;flex-wrap:wrap}
+.event-meta{display:flex;flex-wrap:wrap;gap:.35rem 1rem;font-size:.92rem;color:var(--muted)}
+.event-meta-item{white-space:nowrap}
+.campaign-strip{width:100%;margin:.7rem 0 .4rem;border-top:1px dashed var(--line);padding-top:.7rem}
+.event-card .btn-view-details{margin-top:auto;align-self:flex-start}
+.donor-payments{display:flex;flex-direction:column;gap:1.5rem}
+.donor-payment{border-bottom:1px solid var(--line);padding-bottom:1.4rem}
+.donor-payment:last-child{border-bottom:none;padding-bottom:0}
+.donor-number-row{display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;margin:.4rem 0 .7rem}
+.donor-number{font-size:clamp(1.4rem,3vw,1.9rem);font-weight:750;letter-spacing:.06em;color:var(--primary)}
+.donor-qr{width:230px;margin:.2rem 0 .6rem;background:#fff;border:1px solid var(--line);border-radius:12px;padding:.8rem}
+.donor-details summary{color:var(--primary);cursor:pointer;font-weight:600}
+.donor-register h3{font-weight:600;line-height:1.35}
+.donor-goods{margin-top:1.4rem;padding:1rem;background:#e9f0e8;border-radius:12px}
+.donor-goods p{margin-bottom:.35rem;font-size:.95rem}
+footer.site-footer{border-top:1px solid var(--line);background:#fff;margin-top:auto}
+.footer-col h3{font-size:1.2rem}
+.footer-col h4{font-size:.95rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.7rem}
+.footer-lema{font-size:.92rem;max-width:420px;color:var(--muted)}
+.footer-col a{text-decoration:none}
+footer.site-footer:hover a{text-decoration:underline}
+
+/* Calendario de eventos (administración) */
+.calendar-grid td { vertical-align: top; height: 96px; padding: .35rem; }
+.calendar-grid .calendar-off { background: var(--bs-tertiary-bg, #f8f9fa); opacity: .5; }
+.calendar-grid .calendar-event { font-size: .72rem; padding: .15rem .35rem; border-radius: .35rem; background: var(--bs-primary-bg-subtle, #cfe2ff); color: var(--bs-emphasis-color); text-decoration: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: .15rem; }
+.calendar-grid .calendar-event.draft { opacity: .55; font-style: italic; }
+.calendar-grid .calendar-event.cancelled { background: var(--bs-danger-bg-subtle, #f8d7da); text-decoration: line-through; }
