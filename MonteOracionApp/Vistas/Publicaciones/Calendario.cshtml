@@ -1,39 +1,60 @@
 @{
     ViewData["Title"] = "Calendario Mensual";
-    int year = ViewBag.Year; int month = ViewBag.Month;
-    var first = (DateTime)ViewBag.FirstDay;
-    var byDay = (Dictionary<DateTime, List<Publicacion>>)ViewBag.ByDay;
+    var first = (DateTime)ViewBag.Month;
+    var prev = (DateTime)ViewBag.Prev;
+    var next = (DateTime)ViewBag.Next;
+    var byDay = (Dictionary<DateTime, List<Publicacion>>)ViewBag.Events;
     int offset = ((int)first.DayOfWeek + 6) % 7;
-    int days = DateTime.DaysInMonth(year, month);
-    var prev = first.AddMonths(-1); var next = first.AddMonths(1);
+    int days = DateTime.DaysInMonth(first.Year, first.Month);
+    int semanas = (int)Math.Ceiling((offset + days) / 7.0);
+    var cultura = new System.Globalization.CultureInfo("es-PE");
+    var tituloMes = cultura.TextInfo.ToTitleCase(first.ToString("MMMM yyyy", cultura));
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Calendario — @first.ToString("MMMM yyyy")</h1>
+    <h1 class="h3 mb-0">Calendario — @tituloMes</h1>
     <div class="btn-group">
-        <a asp-action="Calendar" asp-route-year="@prev.Year" asp-route-month="@prev.Month" class="btn btn-outline-secondary">&laquo; Mes anterior</a>
-        <a asp-action="Calendar" asp-route-year="@next.Year" asp-route-month="@next.Month" class="btn btn-outline-secondary">Mes siguiente &raquo;</a>
+        <a asp-action="Calendario" asp-route-year="@prev.Year" asp-route-month="@prev.Month" class="btn btn-outline-secondary">&laquo; Mes anterior</a>
+        <a asp-action="Calendario" asp-route-year="@next.Year" asp-route-month="@next.Month" class="btn btn-outline-secondary">Mes siguiente &raquo;</a>
     </div>
 </div>
 
-<div class="calendar-grid">
-    @foreach (var d in new[] { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" }) { <div class="calendar-head">@d</div> }
-    @for (int i = 0; i < offset; i++) { <div class="calendar-cell muted"></div> }
-    @for (int day = 1; day <= days; day++)
-    {
-        var date = new DateTime(year, month, day);
-        <div class="calendar-cell">
-            <div class="fw-bold small text-muted">@day</div>
-            @if (byDay.TryGetValue(date, out var list))
-            {
-                @foreach (var e in list)
+<table class="table table-bordered calendar-grid align-middle">
+    <thead>
+        <tr>
+            @foreach (var d in new[] { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" }) { <th class="text-center small text-muted">@d</th> }
+        </tr>
+    </thead>
+    <tbody>
+        @for (int semana = 0; semana < semanas; semana++)
+        {
+            <tr>
+                @for (int i = 0; i < 7; i++)
                 {
-                    <a asp-action="Edit" asp-route-id="@e.id"
-                       class="badge d-block text-truncate text-start mb-1 @(e.cancelado ? "bg-danger" : e.publicado ? "bg-primary" : "bg-secondary")">
-                        @e.titulo
-                    </a>
+                    int dia = semana * 7 + i - offset + 1;
+                    if (dia < 1 || dia > days)
+                    {
+                        <td class="calendar-off"></td>
+                    }
+                    else
+                    {
+                        var fecha = new DateTime(first.Year, first.Month, dia);
+                        <td>
+                            <div class="fw-bold small text-muted">@dia</div>
+                            @if (byDay.TryGetValue(fecha, out var lista))
+                            {
+                                foreach (var e in lista)
+                                {
+                                    <a asp-action="Edit" asp-route-id="@e.id"
+                                       class="d-block calendar-event @(e.cancelado ? "cancelled" : e.publicado ? "" : "draft")">
+                                        @e.titulo
+                                    </a>
+                                }
+                            }
+                        </td>
+                    }
                 }
-            }
-        </div>
-    }
-</div>
+            </tr>
+        }
+    </tbody>
+</table>

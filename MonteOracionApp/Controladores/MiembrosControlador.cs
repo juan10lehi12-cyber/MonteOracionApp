@@ -9,11 +9,12 @@ namespace MonteOracionApp.Controladores;
 [Authorize(Roles = Roles.Administrador)]
 public class CongregantsController(ContextoBaseDatos db) : Controller
 {
-    public async Task<IActionResult> Index(string? search, int page = 1)
+    public async Task<IActionResult> Index(string? search, bool? active, int page = 1)
     {
         var q = db.Congregantes.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(search)) q = q.Where(x => x.nombres.Contains(search) || x.apellidos.Contains(search) || x.dni == search);
-        ViewBag.Search = search; ViewBag.Page = Math.Clamp(page, 1, 100000); ViewBag.Total = await q.CountAsync();
+        if (active.HasValue) q = q.Where(x => x.activo == active.Value);
+        ViewBag.Search = search; ViewBag.Active = active; ViewBag.Page = Math.Clamp(page, 1, 100000); ViewBag.Total = await q.CountAsync();
         return View(await q.OrderBy(x => x.apellidos).ThenBy(x => x.id).Skip((Math.Clamp(page, 1, 100000) - 1) * 30).Take(30).ToListAsync());
     }
 

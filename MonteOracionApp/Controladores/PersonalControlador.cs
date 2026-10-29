@@ -15,7 +15,8 @@ public class StaffController(ContextoBaseDatos db, UserManager<IdentityUser> usu
     public async Task<IActionResult> Index()
     {
         var membresias = await (from ur in db.UserRoles join role in db.Roles on ur.RoleId equals role.Id select new { ur.UserId, role.Name }).ToListAsync();
-        ViewBag.RoleNames = membresias.GroupBy(x => x.UserId).ToDictionary(x => x.Key, x => string.Join(" · ", x.Select(r => r.Name)));
+        ViewBag.UserRoles = membresias.GroupBy(x => x.UserId)
+            .ToDictionary(x => x.Key, x => (IList<string>)x.Select(r => r.Name ?? "").ToList());
         return View(await db.PerfilesPersonal.Include(x => x.usuario).OrderBy(x => x.nombre_completo).ToListAsync());
     }
 

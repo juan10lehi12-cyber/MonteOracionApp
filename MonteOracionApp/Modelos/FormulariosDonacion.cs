@@ -73,6 +73,7 @@ public class FiltroDonacion
     public string? donante { get; set; }
     public DateTime? desde { get; set; }
     public DateTime? hasta { get; set; }
+    [Microsoft.AspNetCore.Mvc.FromQuery(Name = "page")]
     public int pagina { get; set; } = 1;
 }
 

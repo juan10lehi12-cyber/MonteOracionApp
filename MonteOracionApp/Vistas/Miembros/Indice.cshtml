@@ -7,7 +7,7 @@
 </div>
 
 <form method="get" class="row g-2 mb-3">
-    <div class="col-md-5"><input name="q" value="@ViewBag.Query" class="form-control" placeholder="Buscar por DNI, nombres o apellidos..." /></div>
+    <div class="col-md-5"><input name="search" value="@ViewBag.Search" class="form-control" placeholder="Buscar por DNI, nombres o apellidos..." /></div>
     <div class="col-md-3">
         <select name="active" class="form-select">
             <option value="">Todos</option>
@@ -38,7 +38,8 @@
                         <td><span class="badge @(c.activo ? "bg-success" : "bg-secondary")">@(c.activo ? "Activo" : "Inactivo")</span></td>
                         <td class="text-end">
                             <a asp-action="Edit" asp-route-id="@c.id" class="btn btn-sm btn-outline-primary">Editar</a>
-                            <form asp-action="Toggle" asp-route-id="@c.id" method="post" class="d-inline">
+                            <form asp-action="SetActive" asp-route-id="@c.id" method="post" class="d-inline">
+                                <input type="hidden" name="active" value="@(c.activo ? "false" : "true")" />
                                 <button class="btn btn-sm btn-outline-secondary">@(c.activo ? "Desactivar" : "Reactivar")</button>
                             </form>
                         </td>
@@ -48,3 +49,4 @@
         </table>
     </div>
 </div>
+<partial name="_Pagination" />

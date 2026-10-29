@@ -1,7 +1,7 @@
 @{ViewData["Title"]="Panel del personal";}
 <div class="section-heading"><div><div class="eyebrow">PERSONAL DE LA IGLESIA</div><h1>Hola, @(User.FindFirst("staff_name")?.Value??User.Identity?.Name)</h1><p>Donaciones y almacén rápidos.</p></div></div>
 <div class="row g-3 mb-4">
-<div class="col-md-6"><div class="panel metric"><span>Donaciones por verificar</span><strong>@ViewBag.Pending</strong><a asp-controller="Donations" asp-action="Index" asp-route-status="Pendiente">Revisar registros →</a></div></div>
+<div class="col-md-6"><div class="panel metric"><span>Donaciones por verificar</span><strong>@ViewBag.Pending</strong><a asp-controller="Donations" asp-action="Index" asp-route-estado="0">Revisar registros →</a></div></div>
 <div class="col-md-6"><div class="panel metric"><span>Entradas por dar visto bueno en almacén</span><strong>@ViewBag.PendingStock</strong><a asp-controller="Inventory" asp-action="Pending">Dar visto bueno →</a></div></div>
 </div>
 <div class="row g-4"><div class="col-md-6"><a class="access-card panel" asp-controller="Donations" asp-action="Receive"><h2>Registrar recepción</h2><p>Registra efectivo o bienes donados presencialmente.</p></a></div><div class="col-md-6"><a class="access-card panel" asp-controller="Inventory" asp-action="Exit"><h2>Registrar salida de almacén</h2><p>Entrega bienes para un evento o actividad y descuenta automáticamente.</p></a></div></div>

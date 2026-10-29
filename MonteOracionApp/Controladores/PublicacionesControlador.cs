@@ -22,7 +22,7 @@ public class PublicationsController(ContextoBaseDatos db, IAlmacenamientoArchivo
             .GroupBy(x => x.id_evento!.Value)
             .Select(g => new { id_evento = g.Key, total = g.Sum(x => x.monto) ?? 0m, cantidad = g.Count() })
             .ToListAsync();
-        ViewBag.RaisedByEvent = grupos.ToDictionary(g => g.id_evento, g => (g.total, g.cantidad));
+        ViewBag.Raised = grupos.ToDictionary(g => g.id_evento, g => g.total);
         ViewBag.General = await db.Donaciones.AsNoTracking()
             .Where(x => x.estado == EstadoDonacion.Aprobada && x.id_evento == null)
             .SumAsync(x => x.monto) ?? 0m;
