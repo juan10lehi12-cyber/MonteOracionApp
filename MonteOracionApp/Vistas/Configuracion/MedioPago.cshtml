@@ -9,11 +9,11 @@
         <div class="mb-3"><label class="form-label">Nombre (ej. Yape, Plin, BCP)</label><input asp-for="nombre" class="form-control" required /></div>
         <div class="mb-3"><label class="form-label">Número / CCI / Teléfono</label><input asp-for="numero_cuenta" class="form-control" /></div>
         <div class="mb-3"><label class="form-label">Instrucciones / Titular</label><input asp-for="instrucciones" class="form-control" /></div>
-        <div class="mb-3"><label class="form-label">Imagen QR (PNG/JPG)</label><input type="file" name="qrFile" class="form-control" accept=".jpg,.jpeg,.png" /></div>
+        <div class="mb-3"><label class="form-label">Imagen QR (PNG/JPG)</label><input type="file" name="qr" class="form-control" accept=".jpg,.jpeg,.png" /></div>
         <div class="form-check"><input asp-for="activo" class="form-check-input" /><label asp-for="activo" class="form-check-label">Visible en portal público</label></div>
     </div>
     <div class="card-footer text-end">
-        <a asp-action="PaymentMethods" class="btn btn-link">Cancelar</a>
+        <a asp-action="Payments" class="btn btn-link">Cancelar</a>
         <button class="btn btn-primary">Guardar</button>
     </div>
 </form>
