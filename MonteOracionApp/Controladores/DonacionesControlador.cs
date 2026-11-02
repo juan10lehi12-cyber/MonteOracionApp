@@ -26,6 +26,10 @@ public class DonationsController(ContextoBaseDatos db, IServicioDonaciones servi
     {
         ViewBag.Congregants = await db.Congregantes.AsNoTracking().Where(x => x.activo).OrderBy(x => x.apellidos).ToListAsync();
         ViewBag.Products = await db.Productos.Where(x => x.activo).OrderBy(x => x.nombre).ToListAsync();
+        var hoyLima = DateTime.UtcNow.AddHours(-5).Date;
+        ViewBag.Events = await db.Publicaciones.AsNoTracking()
+            .Where(x => x.tipo == TipoPublicacion.Evento && x.publicado && !x.cancelado && x.fecha_inicio_evento != null && x.fecha_inicio_evento.Value.Date >= hoyLima)
+            .OrderBy(x => x.fecha_inicio_evento).ToListAsync();
     }
 
     [HttpGet]
@@ -57,11 +61,30 @@ public class DonationsController(ContextoBaseDatos db, IServicioDonaciones servi
     public async Task<IActionResult> Index(FiltroDonacion filtro)
     {
         filtro.pagina = Math.Clamp(filtro.pagina, 1, 100000);
-        var q = db.Donaciones.Include(x => x.congregante).AsNoTracking();
+        ViewBag.EventosFiltro = await db.Publicaciones.AsNoTracking()
+            .Where(x => x.tipo == TipoPublicacion.Evento)
+            .OrderByDescending(x => x.fecha_inicio_evento)
+            .ToListAsync();
+
+        var q = db.Donaciones.Include(x => x.congregante).Include(x => x.evento).Include(x => x.bienes).AsSplitQuery().AsNoTracking();
         if (filtro.estado.HasValue) q = q.Where(x => x.estado == filtro.estado);
         if (filtro.tipo.HasValue) q = q.Where(x => x.tipo == filtro.tipo);
         if (filtro.tipo_donante.HasValue) q = q.Where(x => x.tipo_donante == filtro.tipo_donante);
         if (filtro.origen.HasValue) q = q.Where(x => x.digital == (filtro.origen == OrigenDonacion.Digital));
+
+        if (filtro.id_evento.HasValue && string.IsNullOrWhiteSpace(filtro.destino))
+            filtro.destino = filtro.id_evento.Value.ToString();
+
+        if (!string.IsNullOrWhiteSpace(filtro.destino))
+        {
+            if (filtro.destino.Equals("general", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.id_evento == null);
+            else if (filtro.destino.Equals("eventos", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.id_evento != null);
+            else if (int.TryParse(filtro.destino, out var idEv))
+                q = q.Where(x => x.id_evento == idEv);
+        }
+
         if (filtro.desde.HasValue) q = q.Where(x => x.fecha_recepcion_pago >= filtro.desde.Value.Date);
         if (filtro.hasta.HasValue) q = q.Where(x => x.fecha_recepcion_pago <= filtro.hasta.Value.Date);
         if (!string.IsNullOrWhiteSpace(filtro.donante))
@@ -72,8 +95,15 @@ public class DonationsController(ContextoBaseDatos db, IServicioDonaciones servi
             else q = q.Where(x => (x.nombre_externo != null && x.nombre_externo.Contains(termino)) || (x.congregante != null && (x.congregante.nombres + " " + x.congregante.apellidos).Contains(termino)));
         }
         var total = await q.CountAsync();
-        var dinero = await q.Where(x => x.estado == EstadoDonacion.Aprobada && x.tipo == TipoDonacion.Dinero).SumAsync(x => x.monto) ?? 0;
-        return View(new ListaDonaciones(await q.OrderByDescending(x => x.id).Skip((filtro.pagina - 1) * 30).Take(30).ToListAsync(), filtro, total, dinero));
+        var qDineroAprobado = q.Where(x => x.estado == EstadoDonacion.Aprobada && x.tipo == TipoDonacion.Dinero);
+        var dineroGeneral = await qDineroAprobado.Where(x => x.id_evento == null).SumAsync(x => x.monto) ?? 0m;
+        var dineroEventos = await qDineroAprobado.Where(x => x.id_evento != null).SumAsync(x => x.monto) ?? 0m;
+        var dineroTotal = dineroGeneral + dineroEventos;
+        ViewBag.PageSize = 10;
+        ViewBag.PendientesCount = await db.Donaciones.CountAsync(x => x.estado == EstadoDonacion.Pendiente);
+        ViewBag.MontoPendiente = await q.Where(x => x.estado == EstadoDonacion.Pendiente && x.tipo == TipoDonacion.Dinero).SumAsync(x => x.monto) ?? 0m;
+        var filas = await q.OrderByDescending(x => x.id).Skip((filtro.pagina - 1) * 10).Take(10).ToListAsync();
+        return View(new ListaDonaciones(filas, filtro, total, dineroTotal, dineroGeneral, dineroEventos));
     }
 
     [Authorize(Roles = Roles.Equipo), HttpGet] public async Task<IActionResult> Receive() { await CargarCatalogos(); return View(new FormularioRecepcionDonacion()); }

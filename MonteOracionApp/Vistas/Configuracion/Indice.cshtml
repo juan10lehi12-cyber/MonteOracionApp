@@ -1,20 +1,39 @@
 @model ConfiguracionIglesia
-@{ ViewData["Title"] = "Configuración Institucional"; }
+@{ ViewData["Title"] = "Datos de la Iglesia"; }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Configuración Institucional</h1>
-    <a asp-action="Payments" class="btn btn-outline-primary">Medios de pago y QR</a>
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">ADMINISTRACIÓN</div>
+        <h1>Datos de la Iglesia</h1>
+    </div>
+    <a asp-action="Payments" class="btn btn-outline-primary">💳 Medios de pago y QR</a>
 </div>
 
-<form method="post" class="card shadow-sm" style="max-width:750px">
-    <div class="card-body">
-        <div class="mb-3"><label class="form-label">Nombre de la Iglesia</label><input asp-for="nombre" class="form-control" required /></div>
-        <div class="mb-3"><label class="form-label">Quiénes Somos / Reseña</label><textarea asp-for="informacion" class="form-control" rows="4"></textarea></div>
-        <div class="row g-3">
-            <div class="col-md-6"><label class="form-label">Dirección</label><input asp-for="direccion" class="form-control" /></div>
-            <div class="col-md-6"><label class="form-label">Teléfono / Contacto</label><input asp-for="contacto" class="form-control" /></div>
-            <div class="col-12"><label class="form-label">Horarios de Cultos</label><input asp-for="horarios" class="form-control" /></div>
+<form method="post" class="panel form-panel" style="max-width:760px">
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Nombre de la Iglesia</label>
+        <input asp-for="nombre" class="form-control" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Quiénes Somos / Reseña principal</label>
+        <textarea asp-for="informacion" class="form-control" rows="3"></textarea>
+    </div>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Dirección del Templo</label>
+            <input asp-for="direccion" class="form-control" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Teléfono / WhatsApp de Contacto</label>
+            <input asp-for="contacto" class="form-control" placeholder="Ej.: 987 654 321" />
+        </div>
+        <div class="col-12">
+            <label class="form-label fw-semibold">Horarios de Cultos y Reuniones</label>
+            <textarea asp-for="horarios" class="form-control" rows="3" placeholder="Separa cada horario con una barra vertical |"></textarea>
+            <small class="text-secondary">Separa cada día de reunión con una barra vertical <code>|</code> (ej. <em>Domingos: 9:00 a.m. y 6:00 p.m. | Miércoles: 7:30 p.m.</em>).</small>
         </div>
     </div>
-    <div class="card-footer text-end"><button class="btn btn-primary">Guardar configuración</button></div>
+    <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+        <button class="btn btn-primary">Guardar configuración</button>
+    </div>
 </form>

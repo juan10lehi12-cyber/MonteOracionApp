@@ -1,18 +1,134 @@
 @model FormularioSalidaAlmacen
-@{ ViewData["Title"] = "Registrar salida"; var lots = (List<Lote>)ViewBag.Lots; }
-<section class="panel form-panel">
-<div class="eyebrow">ALMACÉN</div><h1>Registrar salida</h1>
-<p>Para entregar bienes (por ejemplo a un evento de la iglesia). Al guardar, la cantidad se descuenta sola del almacén.</p>
-<form method="post"><div asp-validation-summary="All" class="text-danger"></div>
-<input asp-for="id_comando" type="hidden" />
-<div class="row g-3 mb-3"><div class="col-md-6"><label asp-for="destino" class="form-label"></label><input asp-for="destino" class="form-control" placeholder="Ej.: Almuerzo de aniversario" autocomplete="off" /></div><div class="col-md-6"><label asp-for="detalle" class="form-label"></label><input asp-for="detalle" class="form-control" autocomplete="off" /></div></div>
-<p class="mb-1 fw-semibold">¿Qué sale? Llena solo las filas que necesites.</p>
-<div class="panel table-responsive mb-3"><table class="table align-middle mb-0"><thead><tr><th>Producto · ubicación (disponible)</th><th style="width:160px">Cantidad</th></tr></thead><tbody>
-@for (var i = 0; i < Model.lineas.Count; i++)
-{
-    <tr><td><select asp-for="lineas[i].id_lote" class="form-select"><option value="0">—</option>@foreach (var l in lots){<option value="@l.id" selected="@(Model.lineas[i].id_lote == l.id)">@l.producto.nombre · @(string.IsNullOrWhiteSpace(l.ubicacion) ? "sin ubicación" : l.ubicacion) (@l.cantidad_actual.ToString("0.##") @l.producto.unidad)</option>}</select></td><td><input asp-for="lineas[i].cantidad" class="form-control" type="number" min="0.01" step="0.01" /></td></tr>
+@{
+    ViewData["Title"] = "Registrar salida de almacén";
+    var lots = (List<Lote>)ViewBag.Lots;
+    var eventosSalida = ViewBag.EventosSalida as List<Publicacion> ?? [];
+    var eventoSelId = ViewBag.EventoSeleccionadoId as int?;
+    var lotesConEvento = lots.Where(x => x.donacion_bien?.donacion?.id_evento != null).ToList();
+    var conteoPorEvento = lotesConEvento
+        .GroupBy(x => x.donacion_bien!.donacion!.id_evento!.Value)
+        .ToDictionary(g => g.Key, g => g.Count());
 }
-</tbody></table></div>
-@if (lots.Count == 0) { <p class="text-secondary">No hay existencias disponibles con visto bueno.</p> }
-<button class="btn btn-primary">Registrar salida</button> <a class="btn btn-link" asp-action="Index">Cancelar</a>
-</form></section>
+<section class="panel form-panel">
+    <div class="eyebrow">GESTIÓN DE ALMACÉN</div>
+    <h1>Registrar salida</h1>
+    <p>Elige si la salida es para un Evento de la iglesia (cargando automáticamente lo acumulado) o para uso general / apoyo social.</p>
+
+    <!-- Paso 1 unificado: ¿Para qué es la salida? -->
+    <div class="p-3 mb-4 rounded-3 bg-light border">
+        <label class="form-label fw-semibold d-block mb-2">1. ¿Para qué es esta salida de almacén?</label>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <a class="btn btn-sm @(!eventoSelId.HasValue ? "btn-primary" : "btn-outline-secondary")" asp-action="Exit">
+                ⛪ Uso general / Apoyo social
+            </a>
+            <button class="btn btn-sm @(eventoSelId.HasValue ? "btn-primary" : "btn-outline-secondary")" type="button" data-bs-toggle="collapse" data-bs-target="#bloqueSelectorEvento" aria-expanded="@(eventoSelId.HasValue ? "true" : "false")">
+                🗓️ Para un Evento de la iglesia (sacar todo lo acumulado)
+            </button>
+        </div>
+
+        <div class="collapse @(eventoSelId.HasValue ? "show" : "")" id="bloqueSelectorEvento">
+            <form method="get" asp-action="Exit" class="row g-2 align-items-end pt-2 border-top">
+                <div class="col-md-8">
+                    <label for="eventoSelector" class="form-label small fw-semibold mb-1">Selecciona el Evento para cargar sus bienes acumulados:</label>
+                    <select id="eventoSelector" name="evento" class="form-select form-select-sm" onchange="if(this.value) this.form.submit();">
+                        <option value="">— Selecciona un evento —</option>
+                        @foreach (var ev in eventosSalida)
+                        {
+                            var cantItems = conteoPorEvento.GetValueOrDefault(ev.id, 0);
+                            <option value="@ev.id" selected="@(eventoSelId == ev.id)">
+                                🗓️ @ev.titulo @(cantItems > 0 ? $"({cantItems} lote(s) acumulados en almacén)" : "(sin lotes exclusivos)")
+                            </option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm">Cargar bienes del evento</button>
+                </div>
+            </form>
+            @if (eventoSelId.HasValue)
+            {
+                var cantCargados = Model.lineas.Count(x => x.id_lote != 0 && x.cantidad > 0);
+                if (cantCargados > 0)
+                {
+                    <div class="alert alert-success py-2 px-3 mt-2 mb-0 small">
+                        ✓ Se cargaron automáticamente <strong>@cantCargados producto(s)</strong> acumulados para este evento. Revisa las cantidades y presiona <strong>Registrar salida</strong>.
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                        Este evento aún no tiene víveres exclusivos acumulados con visto bueno en el almacén, pero puedes elegir productos del stock general abajo.
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <form method="post" asp-action="Exit">
+        <div asp-validation-summary="All" class="text-danger"></div>
+        <input asp-for="id_comando" type="hidden" />
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label asp-for="destino" class="form-label fw-semibold">2. Destino o motivo de la salida</label>
+                <input asp-for="destino" class="form-control" list="destinosSugeridos" placeholder="Ej.: Canasta solidaria familiar, Comedor, Evento..." autocomplete="off" />
+                <datalist id="destinosSugeridos">
+                    <option value="Canasta solidaria familiar"></option>
+                    <option value="Apoyo social comunitario"></option>
+                    <option value="Comedor solidario"></option>
+                    <option value="Baja por deterioro o vencimiento"></option>
+                    @foreach (var ev in eventosSalida)
+                    {
+                        <option value="Evento: @ev.titulo"></option>
+                    }
+                </datalist>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="detalle" class="form-label fw-semibold">Detalle o responsable (opcional)</label>
+                <input asp-for="detalle" class="form-control" placeholder="Ej.: Entrega a familias vulnerables o comité del evento" autocomplete="off" />
+            </div>
+        </div>
+
+        <p class="mb-2 fw-semibold">3. Productos a retirar del almacén <small class="text-secondary fw-normal">(Completa solo las filas necesarias)</small></p>
+        <div class="panel table-responsive mb-3">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Producto · Ubicación · Destino (disponible)</th>
+                        <th style="width:160px">Cantidad a retirar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.lineas.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                <select asp-for="lineas[i].id_lote" class="form-select">
+                                    <option value="0">— Seleccionar producto en stock —</option>
+                                    @foreach (var l in lots)
+                                    {
+                                        var evNombre = l.donacion_bien?.donacion?.evento?.titulo;
+                                        var etiquetaDestino = evNombre != null ? $"[🗓️ {evNombre}]" : "[⛪ General]";
+                                        <option value="@l.id" selected="@(Model.lineas[i].id_lote == l.id)">
+                                            @l.producto.nombre · @(string.IsNullOrWhiteSpace(l.ubicacion) ? "Sin ubicación" : l.ubicacion) @etiquetaDestino (Disponible: @l.cantidad_actual.ToString("0.##") @l.producto.unidad)
+                                        </option>
+                                    }
+                                </select>
+                            </td>
+                            <td>
+                                <input asp-for="lineas[i].cantidad" class="form-control" type="number" min="0.01" step="0.01" placeholder="0.00" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (lots.Count == 0)
+        {
+            <p class="text-secondary">No hay existencias disponibles con visto bueno.</p>
+        }
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary">Registrar salida</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Cancelar</a>
+        </div>
+    </form>
+</section>

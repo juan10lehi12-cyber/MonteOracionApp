@@ -1,36 +1,80 @@
 @model List<PerfilPersonal>
 @{
-    ViewData["Title"] = "Personal y Accesos";
+    ViewData["Title"] = "Personal y Permisos";
     var roles = (Dictionary<string, IList<string>>)ViewBag.UserRoles;
+    var rolActual = (string?)(ViewBag.Rol) ?? "";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Personal y Roles del Sistema</h1>
-    <a asp-action="Edit" class="btn btn-primary">Nuevo usuario</a>
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">GESTIÓN ADMINISTRATIVA</div>
+        <h1>Personal y Permisos</h1>
+    </div>
+    <a asp-action="Edit" class="btn btn-primary">➕ Nuevo usuario</a>
 </div>
 
-<div class="card shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr><th>Nombre</th><th>Cargo</th><th>Correo</th><th>Roles</th><th>Estado</th><th class="text-end">Acción</th></tr>
-            </thead>
-            <tbody>
-                @foreach (var p in Model)
-                {
-                    <tr>
-                        <td class="fw-semibold">@p.nombre_completo</td>
-                        <td>@p.cargo</td>
-                        <td>@p.usuario.Email</td>
-                        <td>
-                            @foreach (var r in roles.GetValueOrDefault(p.id_usuario) ?? Array.Empty<string>())
-                            { <span class="badge bg-primary me-1">@r</span> }
-                        </td>
-                        <td><span class="badge @(p.activo ? "bg-success" : "bg-danger")">@(p.activo ? "Activo" : "Bloqueado")</span></td>
-                        <td class="text-end"><a asp-action="Edit" asp-route-id="@p.id_usuario" class="btn btn-sm btn-outline-primary">Editar</a></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+<form method="get" class="panel p-3 mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label for="search" class="small fw-semibold">Buscar por nombre, cargo o correo</label>
+            <input id="search" name="search" value="@ViewBag.Search" class="form-control form-control-sm" placeholder="Ej. Juan, Tesorería, correo..." />
+        </div>
+        <div class="col-md-3">
+            <label for="rol" class="small fw-semibold">Rol asignado</label>
+            <select id="rol" name="rol" class="form-select form-select-sm">
+                <option value="" selected="@string.IsNullOrEmpty(rolActual)">Todos los roles</option>
+                <option value="@Roles.Administrador" selected="@rolActual.Equals(Roles.Administrador, StringComparison.OrdinalIgnoreCase)">Administrador</option>
+                <option value="@Roles.Personal" selected="@rolActual.Equals(Roles.Personal, StringComparison.OrdinalIgnoreCase)">Personal</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="active" class="small fw-semibold">Estado</label>
+            <select id="active" name="active" class="form-select form-select-sm">
+                <option value="">Todos</option>
+                <option value="true" selected="@(ViewBag.Active == true)">Activos</option>
+                <option value="false" selected="@(ViewBag.Active == false)">Bloqueados</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-1">
+            <button type="submit" class="btn btn-primary btn-sm px-3">Filtrar</button>
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Limpiar</a>
+        </div>
     </div>
+</form>
+
+<div class="panel table-responsive">
+    <table class="table align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Cargo</th>
+                <th>Correo electrónico</th>
+                <th>Roles</th>
+                <th>Estado</th>
+                <th class="text-end">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Model)
+            {
+                <tr>
+                    <td class="fw-semibold">@p.nombre_completo</td>
+                    <td>@(string.IsNullOrWhiteSpace(p.cargo) ? "—" : p.cargo)</td>
+                    <td>@p.usuario.Email</td>
+                    <td>
+                        @foreach (var r in roles.GetValueOrDefault(p.id_usuario) ?? Array.Empty<string>())
+                        {
+                            <span class="badge @(r == Roles.Administrador ? "bg-primary" : "bg-secondary") me-1">@r</span>
+                        }
+                    </td>
+                    <td><span class="badge @(p.activo ? "bg-success" : "bg-danger")">@(p.activo ? "Activo" : "Bloqueado")</span></td>
+                    <td class="text-end"><a asp-action="Edit" asp-route-id="@p.id_usuario" class="btn btn-sm btn-outline-primary">Editar</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (Model.Count == 0)
+    {
+        <p class="text-secondary mb-0">No se encontraron usuarios con este filtro.</p>
+    }
 </div>

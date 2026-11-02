@@ -1,1 +1,24 @@
-@if(User.Identity?.IsAuthenticated==true){<span class="nav-link">@(User.FindFirst("staff_name")?.Value??User.Identity.Name)<small class="d-block">@string.Join(" · ", User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(x=>x.Value))</small></span><a class="nav-link" asp-controller="Account" asp-action="Password">Contraseña</a><form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-outline-secondary btn-sm">Salir</button></form>}
+@inject MonteOracionApp.Datos.ContextoBaseDatos Db
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@if (User.Identity?.IsAuthenticated == true)
+{
+    var uid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var nombreReal = uid != null
+        ? Db.PerfilesPersonal.AsNoTracking().Where(x => x.id_usuario == uid).Select(x => x.nombre_completo).FirstOrDefault()
+        : null;
+    var nombreMostrar = !string.IsNullOrWhiteSpace(nombreReal)
+        ? nombreReal
+        : (User.FindFirstValue("staff_name") ?? User.Identity.Name);
+    var rolesTexto = string.Join(" · ", User.FindAll(ClaimTypes.Role).Select(x => x.Value));
+    <div class="d-flex flex-wrap align-items-center gap-2 ps-lg-2 border-start-lg">
+        <span class="px-2 py-1 text-end lh-sm">
+            <strong class="d-block small">@nombreMostrar</strong>
+            <small class="text-secondary" style="font-size: 0.75rem;">@rolesTexto</small>
+        </span>
+        <a class="btn btn-outline-secondary btn-sm" asp-controller="Account" asp-action="Password">🔑 Contraseña</a>
+        <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+            <button class="btn btn-outline-danger btn-sm">Salir</button>
+        </form>
+    </div>
+}

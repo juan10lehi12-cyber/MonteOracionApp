@@ -1,22 +1,102 @@
 @model List<Lote>
-@{ ViewData["Title"] = "Visto bueno de entradas"; var names = (Dictionary<string, string>)ViewBag.Names; }
-<div class="section-heading"><div><div class="eyebrow">ALMACÉN</div><h1>Visto bueno de entradas</h1><p>Confirma que los bienes donados están en el almacén e indica dónde quedaron guardados. Puedes confirmar una entrada que tú mismo registraste.</p></div></div>
+@{
+    ViewData["Title"] = "Visto bueno de entradas";
+    var names = (Dictionary<string, string>)ViewBag.Names;
+}
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">GESTIÓN DE ALMACÉN</div>
+        <h1>Visto bueno de entradas</h1>
+        <p class="mb-0">Confirma que los bienes donados están en el almacén, indica su ubicación y adjunta foto si lo deseas, o anula la entrada si no llegaron.</p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Index">Ver existencias →</a>
+</div>
+
 @if (Model.Count == 0)
 {
     <div class="empty-state">No hay entradas pendientes de visto bueno.</div>
 }
 else
 {
-    <div class="panel table-responsive"><table class="table"><thead><tr><th>Producto</th><th>Cantidad</th><th>Recibió</th><th>Ubicación y visto bueno</th></tr></thead><tbody>
-    @foreach (var l in Model)
-    {
-        <tr>
-            <td><strong>@l.producto.nombre</strong><br /><small>@l.producto.unidad</small></td>
-            <td>@l.cantidad_actual.ToString("0.##")</td>
-            <td>@(l.id_usuario_pendiente != null && names.TryGetValue(l.id_usuario_pendiente, out var n) ? n : "-")<br /><small class="text-secondary">@l.fecha_pendiente?.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm")</small></td>
-            <td><form method="post" asp-action="Confirm" asp-route-id="@l.id" class="d-flex gap-2 align-items-stretch" style="min-width:300px"><input name="commandId" type="hidden" value="@Guid.NewGuid()" /><input name="location" maxlength="160" required class="form-control form-control-sm" placeholder="Ubicación (estante, zona…)" /><button class="btn btn-success btn-sm text-nowrap">Dar visto bueno</button></form></td>
-        </tr>
-    }
-    </tbody></table></div>
+    <div class="panel table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Donación / Destino</th>
+                    <th>Registró recepción</th>
+                    <th>Ubicación, foto opcional y visto bueno</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model)
+                {
+                    var don = l.donacion_bien?.donacion;
+                    var cmdConfirm = Guid.NewGuid();
+                    var cmdReject = Guid.NewGuid();
+                    <tr>
+                        <td>
+                            <strong>@l.producto.nombre</strong><br />
+                            <small class="text-secondary">Unidad: @l.producto.unidad</small>
+                        </td>
+                        <td><strong>@l.cantidad_actual.ToString("0.##")</strong> @l.producto.unidad</td>
+                        <td>
+                            @if (don != null)
+                            {
+                                <div class="d-flex align-items-center gap-2">
+                                    <a asp-controller="Donations" asp-action="Details" asp-route-id="@don.id" class="fw-semibold text-decoration-none">Donación #@don.id</a>
+                                    @if (don.clave_comprobante != null)
+                                    {
+                                        <a asp-controller="Donations" asp-action="Receipt" asp-route-id="@don.id" target="_blank" rel="noopener" class="badge text-bg-info text-decoration-none" title="Ver foto del bien">📷 Ver foto</a>
+                                    }
+                                </div>
+                                <div class="mt-1">
+                                    @if (don.evento != null)
+                                    {
+                                        <span class="badge text-bg-primary-subtle text-primary-emphasis">🗓️ @don.evento.titulo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge text-bg-light border text-dark">⛪ General (Iglesia)</span>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="badge text-bg-light border text-dark">⛪ General (Almacén)</span>
+                            }
+                        </td>
+                        <td>
+                            @(l.id_usuario_pendiente != null && names.TryGetValue(l.id_usuario_pendiente, out var n) ? n : "-")<br />
+                            <small class="text-secondary">@l.fecha_pendiente?.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm")</small>
+                        </td>
+                        <td style="min-width: 390px;">
+                            <form method="post" asp-action="Confirm" asp-route-id="@l.id" enctype="multipart/form-data">
+                                <input name="commandId" type="hidden" value="@cmdConfirm" />
+                                <div class="d-flex gap-2 align-items-stretch">
+                                    <input name="location" maxlength="160" required class="form-control form-control-sm" placeholder="Ubicación (ej. Estante A-1)" />
+                                    <label class="btn btn-outline-secondary btn-sm text-nowrap mb-0" title="Adjuntar foto del bien recibido (opcional)">
+                                        📷 Foto
+                                        <input type="file" name="photo" accept=".jpg,.jpeg,.png" class="d-none" onchange="this.parentElement.classList.replace('btn-outline-secondary','btn-info')" />
+                                    </label>
+                                    <button type="submit" class="btn btn-success btn-sm text-nowrap">✓ Dar visto bueno</button>
+                                    <button class="btn btn-outline-danger btn-sm text-nowrap" type="button" data-bs-toggle="collapse" data-bs-target="#rechazar-@l.id" aria-expanded="false" aria-controls="rechazar-@l.id" title="Si los bienes no llegaron al almacén">
+                                        ✕ No llegó
+                                    </button>
+                                </div>
+                            </form>
+                            <div class="collapse mt-2" id="rechazar-@l.id">
+                                <form method="post" asp-action="Reject" asp-route-id="@l.id" class="p-2 bg-light border rounded-3 d-flex gap-2 align-items-center" data-confirm="¿Confirmas que estos bienes NO ingresaron al almacén? Se anulará esta entrada.">
+                                    <input name="commandId" type="hidden" value="@cmdReject" />
+                                    <input name="reason" maxlength="500" class="form-control form-control-sm" placeholder="Motivo (ej. No se entregó físicamente)" value="No llegó físicamente al almacén" required />
+                                    <button type="submit" class="btn btn-danger btn-sm text-nowrap">Confirmar anulación</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
-<a class="btn btn-link" asp-action="Index">Ver existencias</a>

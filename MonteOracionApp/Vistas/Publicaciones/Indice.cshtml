@@ -1,48 +1,125 @@
 @model List<Publicacion>
-@{ ViewData["Title"] = "Publicaciones y Eventos"; }
+@{
+    ViewData["Title"] = "Eventos y publicaciones";
+    ViewBag.Page = (int)(ViewBag.Page ?? 1);
+    var total = (int)(ViewBag.Total ?? 0);
+    var tipoActual = ViewBag.Tipo as TipoPublicacion?;
+    var estadoActual = (string?)(ViewBag.Estado) ?? "";
+    var ahora = HoraIglesia.Ahora;
+}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Publicaciones y Eventos</h1>
+<div class="section-heading">
     <div>
-        <a asp-action="Recaudacion" class="btn btn-outline-primary">Recaudaciones</a>
-        <a asp-action="Calendario" class="btn btn-outline-secondary">Calendario</a>
-        <a asp-action="Edit" class="btn btn-primary">Nueva publicación</a>
+        <div class="eyebrow">GESTIÓN ADMINISTRATIVA</div>
+        <h1>Eventos y publicaciones</h1>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a asp-action="Recaudacion" class="btn btn-outline-primary">📊 Recaudación</a>
+        <a asp-action="Calendario" class="btn btn-outline-secondary">📅 Calendario</a>
+        <a asp-action="Edit" class="btn btn-primary">➕ Nueva publicación</a>
     </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr><th>Título</th><th>Tipo</th><th>Fecha Evento</th><th>Estado</th><th class="text-end">Acción</th></tr>
-            </thead>
-            <tbody>
-                @foreach (var p in Model)
-                {
-                    <tr>
-                        <td class="fw-semibold">@p.titulo</td>
-                        <td><span class="badge bg-info text-dark">@p.tipo</span></td>
-                        <td>@(p.fecha_inicio_evento?.ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
-                        <td>
-                            @if (p.cancelado) { <span class="badge bg-danger">Cancelado</span> }
-                            else if (p.publicado) { <span class="badge bg-success">Publicado</span> }
-                            else { <span class="badge bg-secondary">Borrador</span> }
-                        </td>
-                        <td class="text-end">
-                            <a asp-action="Edit" asp-route-id="@p.id" class="btn btn-sm btn-outline-primary">Editar</a>
-                            @if (p.tipo == TipoPublicacion.Evento && !p.cancelado)
-                            {
-                                <form asp-action="Cancel" method="post" class="d-inline">
-                                    <input type="hidden" name="id" value="@p.id" />
-                                    <input type="hidden" name="reason" value="Cancelado por administración" />
-                                    <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Cancelar evento?')">Cancelar</button>
-                                </form>
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+<!-- Barra de filtro compacta con Tipo y Estado (Próximos / Finalizados / Publicados / Borradores) -->
+<form method="get" class="panel p-3 mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label for="search" class="small fw-semibold">Buscar por título o contenido</label>
+            <input id="search" name="search" value="@ViewBag.Search" class="form-control form-control-sm" placeholder="Ej. Concierto, Vigilia, Ensayo..." />
+        </div>
+        <div class="col-md-3">
+            <label for="tipo" class="small fw-semibold">Tipo de publicación</label>
+            <select id="tipo" name="tipo" class="form-select form-select-sm">
+                <option value="" selected="@(tipoActual == null)">Todos (Eventos y Avisos)</option>
+                <option value="@TipoPublicacion.Evento" selected="@(tipoActual == TipoPublicacion.Evento)">🗓️ Solo Eventos</option>
+                <option value="@TipoPublicacion.Aviso" selected="@(tipoActual == TipoPublicacion.Aviso)">📢 Solo Avisos</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="estado" class="small fw-semibold">Estado / Vigencia</label>
+            <select id="estado" name="estado" class="form-select form-select-sm">
+                <option value="" selected="@string.IsNullOrEmpty(estadoActual)">Todos los estados</option>
+                <option value="proximos" selected="@estadoActual.Equals("proximos", StringComparison.OrdinalIgnoreCase)">🗓️ Eventos próximos</option>
+                <option value="finalizados" selected="@estadoActual.Equals("finalizados", StringComparison.OrdinalIgnoreCase)">✅ Eventos finalizados</option>
+                <option value="publicados" selected="@estadoActual.Equals("publicados", StringComparison.OrdinalIgnoreCase)">🟢 Publicados</option>
+                <option value="borradores" selected="@estadoActual.Equals("borradores", StringComparison.OrdinalIgnoreCase)">⚪ Borradores</option>
+                <option value="cancelados" selected="@estadoActual.Equals("cancelados", StringComparison.OrdinalIgnoreCase)">🔴 Cancelados</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-1">
+            <button type="submit" class="btn btn-primary btn-sm px-3">Filtrar</button>
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Limpiar</a>
+        </div>
     </div>
+</form>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <span class="small text-secondary">Mostrando <strong>@Model.Count</strong> de <strong>@total</strong> publicaciones en total</span>
+</div>
+
+<div class="panel table-responsive">
+    <table class="table align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Título</th>
+                <th>Tipo</th>
+                <th>Fecha del Evento</th>
+                <th>Estado</th>
+                <th class="text-end">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Model)
+            {
+                var esFinalizado = p.tipo == TipoPublicacion.Evento && !p.cancelado && (p.fecha_fin_evento ?? p.fecha_inicio_evento) < ahora;
+                <tr>
+                    <td class="fw-semibold">@p.titulo</td>
+                    <td>
+                        @if (p.tipo == TipoPublicacion.Evento)
+                        {
+                            <span class="badge text-bg-primary-subtle text-primary-emphasis">🗓️ Evento</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">📢 Aviso</span>
+                        }
+                    </td>
+                    <td>@(p.fecha_inicio_evento?.ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                    <td>
+                        @if (p.cancelado)
+                        {
+                            <span class="badge bg-danger">Cancelado</span>
+                        }
+                        else if (p.publicado)
+                        {
+                            <span class="badge bg-success">Publicado</span>
+                            if (esFinalizado)
+                            {
+                                <span class="badge text-bg-light border text-secondary ms-1">✅ Finalizado</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Borrador</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        <a asp-action="Edit" asp-route-id="@p.id" class="btn btn-sm btn-outline-primary">Editar</a>
+                        @if (p.tipo == TipoPublicacion.Evento && !p.cancelado && !esFinalizado)
+                        {
+                            <form asp-action="Cancel" method="post" class="d-inline" data-confirm="¿Seguro que deseas cancelar este evento?">
+                                <input type="hidden" name="id" value="@p.id" />
+                                <button class="btn btn-sm btn-outline-danger">Cancelar</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (Model.Count == 0)
+    {
+        <p class="text-secondary mb-0">No se encontraron publicaciones con este filtro.</p>
+    }
 </div>
 <partial name="_Pagination" />

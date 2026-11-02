@@ -1,8 +1,8 @@
 @model FormularioRecepcionDonacion
-@{ViewData["Title"]="Registrar recepción";var members=((List<Congregante>)ViewBag.Congregants).Select(c=>new{id=c.id,dni=c.dni??"",name=c.nombre_completo}).ToList();var products=((List<Producto>)ViewBag.Products).Select(p=>new{id=p.id,name=p.nombre,unit=p.unidad}).ToList();}
+@{ViewData["Title"]="Registrar donación";var members=((List<Congregante>)ViewBag.Congregants).Select(c=>new{id=c.id,dni=c.dni??"",name=c.nombre_completo}).ToList();var products=((List<Producto>)ViewBag.Products).Select(p=>new{id=p.id,name=p.nombre,unit=p.unidad}).ToList();}
 <section class="panel form-panel">
-<h1>Registrar recepción</h1>
-<p>Documenta el efectivo o los bienes recibidos físicamente. Los bienes quedan pendientes del visto bueno del almacén.</p>
+<h1>Registrar donación</h1>
+<p>Documenta el efectivo o los bienes recibidos presencialmente en la iglesia. Los bienes quedan pendientes del visto bueno del almacén.</p>
 <form asp-action="Receive" method="post" enctype="multipart/form-data" data-receive>
 <div asp-validation-summary="All" class="text-danger"></div>
 <script type="application/json" data-receive-data>@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new { members, products }))</script>
@@ -43,8 +43,22 @@
 </div>
 <div data-donor="2" class="mb-4"></div>
 
+<div class="mb-4 col-lg-6">
+<label asp-for="EventId" class="form-label fw-semibold">Destino de la donación (Iglesia o Evento)</label>
+<select asp-for="EventId" class="form-select">
+<option value="">⛪ General (Iglesia / Almacén)</option>
+@if (ViewBag.Events is List<Publicacion> eventosActivos)
+{
+    @foreach (var ev in eventosActivos)
+    {
+        <option value="@ev.id">🗓️ Evento: @ev.titulo</option>
+    }
+}
+</select>
+</div>
+
 <div data-kind="0" class="mb-4 col-lg-5">
-<div class="mb-3"><label asp-for="Amount" class="form-label"></label><input asp-for="Amount" class="form-control" type="number" min="0.01" step="0.01" /></div>
+<div class="mb-3"><label asp-for="Amount" class="form-label fw-semibold"></label><input asp-for="Amount" class="form-control" type="number" min="0.01" step="0.01" /></div>
 </div>
 
 <div data-kind="1">
@@ -71,4 +85,4 @@
 <button type="button" class="btn btn-outline-secondary mb-3" data-add-goods>Agregar otro bien</button>
 </div>
 
-<button class="btn btn-primary mt-3">Registrar recepción</button></form></section>
+<button class="btn btn-primary mt-3">Registrar donación</button></form></section>

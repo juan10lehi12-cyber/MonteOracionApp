@@ -31,9 +31,22 @@ public class ServicioAlmacen(ContextoBaseDatos db)
         var ub = ubicacion.Trim();
         if (ub.Length > 160) throw new InvalidOperationException("Ubicación demasiado larga.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-        var lote = await db.Lotes.Include(x => x.producto).SingleOrDefaultAsync(x => x.id == idLote) ?? throw new InvalidOperationException("Entrada inexistente.");
+        var lote = await db.Lotes
+            .Include(x => x.producto)
+            .Include(x => x.donacion_bien)
+                .ThenInclude(x => x!.donacion)
+            .SingleOrDefaultAsync(x => x.id == idLote) ?? throw new InvalidOperationException("Entrada inexistente.");
         if (!lote.revision_pendiente) throw new InvalidOperationException("Esta entrada ya fue confirmada.");
-        var existente = await db.Lotes.FirstOrDefaultAsync(x => !x.revision_pendiente && x.id != lote.id && x.id_producto == lote.id_producto && x.ubicacion == ub);
+        var idEventoLote = lote.donacion_bien?.donacion?.id_evento;
+        var existente = await db.Lotes
+            .Include(x => x.donacion_bien)
+                .ThenInclude(x => x!.donacion)
+            .FirstOrDefaultAsync(x =>
+                !x.revision_pendiente
+                && x.id != lote.id
+                && x.id_producto == lote.id_producto
+                && x.ubicacion == ub
+                && (x.donacion_bien != null && x.donacion_bien.donacion != null ? x.donacion_bien.donacion.id_evento : null) == idEventoLote);
         if (existente != null)
         {
             existente.cantidad_actual += lote.cantidad_actual;
@@ -52,6 +65,53 @@ public class ServicioAlmacen(ContextoBaseDatos db)
             AgregarMovimiento(lote, TipoMovimientoAlmacen.VistoBueno, 0, idUsuario, $"Visto bueno; ubicación: {ub}").id_comando = idComando;
         }
         await db.GuardarOperacionAsync(); await tx.CommitAsync();
+    }
+
+    public async Task RechazarEntradaAsync(int idLote, string? motivo, string idUsuario, Guid idComando)
+    {
+        await VerificarComando(idComando);
+        var motivoLimpio = string.IsNullOrWhiteSpace(motivo) ? "Los bienes no llegaron físicamente al almacén." : motivo.Trim();
+        if (motivoLimpio.Length > 500) throw new InvalidOperationException("El motivo admite hasta 500 caracteres.");
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        var lote = await db.Lotes
+            .Include(x => x.producto)
+            .Include(x => x.donacion_bien)
+                .ThenInclude(x => x!.donacion)
+            .SingleOrDefaultAsync(x => x.id == idLote) ?? throw new InvalidOperationException("Entrada inexistente.");
+        if (!lote.revision_pendiente) throw new InvalidOperationException("Esta entrada ya fue procesada.");
+
+        var mov = AgregarMovimiento(lote, TipoMovimientoAlmacen.Salida, -lote.cantidad_actual, idUsuario, $"Entrada anulada (no ingresó a almacén): {motivoLimpio}");
+        mov.destino = "Anulación de entrada pendiente";
+        mov.id_comando = idComando;
+
+        lote.cantidad_actual = 0;
+        lote.revision_pendiente = false;
+        lote.id_usuario_pendiente = null;
+        lote.fecha_pendiente = null;
+
+        var donacion = lote.donacion_bien?.donacion;
+        if (donacion != null && donacion.estado == EstadoDonacion.Aprobada)
+        {
+            var otrosLotesActivos = await db.Lotes.AnyAsync(x =>
+                x.id != lote.id
+                && x.donacion_bien != null
+                && x.donacion_bien.id_donacion == donacion.id
+                && x.cantidad_actual > 0);
+            if (!otrosLotesActivos)
+            {
+                donacion.estado = EstadoDonacion.Anulada;
+                db.Set<DonacionHistorial>().Add(new DonacionHistorial
+                {
+                    id_donacion = donacion.id,
+                    estado = EstadoDonacion.Anulada,
+                    id_administrador = idUsuario,
+                    motivo = $"Anulada desde almacén: {motivoLimpio}"
+                });
+            }
+        }
+
+        await db.GuardarOperacionAsync();
+        await tx.CommitAsync();
     }
 
     public async Task RegistrarSalidaAsync(FormularioSalidaAlmacen formulario, string idUsuario)

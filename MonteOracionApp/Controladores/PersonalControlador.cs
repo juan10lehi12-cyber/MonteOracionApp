@@ -12,12 +12,27 @@ namespace MonteOracionApp.Controladores;
 [Authorize(Roles = Roles.Administrador)]
 public class StaffController(ContextoBaseDatos db, UserManager<IdentityUser> usuarios) : Controller
 {
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? search, string? rol, bool? active)
     {
         var membresias = await (from ur in db.UserRoles join role in db.Roles on ur.RoleId equals role.Id select new { ur.UserId, role.Name }).ToListAsync();
-        ViewBag.UserRoles = membresias.GroupBy(x => x.UserId)
+        var rolesPorUsuario = membresias.GroupBy(x => x.UserId)
             .ToDictionary(x => x.Key, x => (IList<string>)x.Select(r => r.Name ?? "").ToList());
-        return View(await db.PerfilesPersonal.Include(x => x.usuario).OrderBy(x => x.nombre_completo).ToListAsync());
+        ViewBag.UserRoles = rolesPorUsuario;
+
+        var q = db.PerfilesPersonal.Include(x => x.usuario).AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(search))
+            q = q.Where(x => x.nombre_completo.Contains(search) || (x.cargo != null && x.cargo.Contains(search)) || (x.usuario.Email != null && x.usuario.Email.Contains(search)));
+        if (active.HasValue)
+            q = q.Where(x => x.activo == active.Value);
+
+        var lista = await q.OrderBy(x => x.nombre_completo).ToListAsync();
+        if (!string.IsNullOrWhiteSpace(rol))
+            lista = lista.Where(p => rolesPorUsuario.TryGetValue(p.id_usuario, out var rs) && rs.Contains(rol, StringComparer.OrdinalIgnoreCase)).ToList();
+
+        ViewBag.Search = search;
+        ViewBag.Rol = rol;
+        ViewBag.Active = active;
+        return View(lista);
     }
 
     [HttpGet]

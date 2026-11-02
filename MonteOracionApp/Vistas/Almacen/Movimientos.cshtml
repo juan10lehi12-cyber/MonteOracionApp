@@ -1,11 +1,121 @@
 @model List<MovimientoAlmacen>
-@{ ViewData["Title"] = "Entradas y salidas"; ViewBag.Page = (int)ViewBag.Page; var names = (Dictionary<string, string>)ViewBag.Names; }
-<div class="section-heading"><div><div class="eyebrow">ALMACÉN</div><h1>Entradas y salidas</h1></div><div class="d-flex gap-2"><a class="btn btn-primary" asp-action="Exit">Registrar salida</a><a class="btn btn-outline-secondary" asp-action="Index">Ver existencias</a></div></div>
-<form method="get" class="panel d-flex gap-3 mb-3 flex-wrap"><input name="search" value="@ViewBag.Search" class="form-control w-auto" placeholder="Producto o destino" aria-label="Buscar movimiento" /><button class="btn btn-primary">Filtrar</button><a asp-action="Movements">Limpiar</a></form>
-<div class="panel table-responsive"><table class="table"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Producto</th><th class="text-end">Cantidad</th><th>Destino / detalle</th><th>Registró</th></tr></thead><tbody>
-@foreach (var m in Model)
-{
-    <tr><td>@m.fecha_hora.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm")</td><td>@(m.tipo == TipoMovimientoAlmacen.Donacion ? "Entrada" : "Salida")</td><td>@m.lote.producto.nombre</td><td class="text-end">@m.cantidad.ToString("+0.##;-0.##;0") <small>@m.lote.producto.unidad</small></td><td>@m.destino @m.motivo</td><td>@(names.TryGetValue(m.id_usuario, out var n) ? n : "")</td></tr>
+@{
+    ViewData["Title"] = "Entradas y salidas de almacén";
+    ViewBag.Page = (int)ViewBag.Page;
+    var names = (Dictionary<string, string>)ViewBag.Names;
+    var eventosFiltro = ViewBag.EventosFiltro as List<Publicacion> ?? [];
+    var tipoActual = (string?)(ViewBag.Tipo) ?? "";
+    var destinoActual = (string?)(ViewBag.Destino) ?? "";
+    var total = (int)(ViewBag.Total ?? 0);
 }
-</tbody></table>@if (Model.Count == 0) { <p>Todavía no hay movimientos.</p> }</div>
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">GESTIÓN DE ALMACÉN</div>
+        <h1>Entradas y salidas</h1>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-primary" asp-action="Exit">📤 Registrar salida</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">← Ver existencias</a>
+    </div>
+</div>
+
+<!-- Barra de filtro compacta con Destino (Iglesia o Evento) y Tipo (Entrada / Salida) -->
+<form method="get" class="panel p-3 mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label for="search" class="small fw-semibold">Buscar producto, destino o motivo</label>
+            <input id="search" name="search" value="@ViewBag.Search" class="form-control form-control-sm" placeholder="Ej. Arroz, Concierto de Navidad, Canasta..." />
+        </div>
+        <div class="col-md-3">
+            <label for="destino" class="small fw-semibold">Destino (Almacén o Evento)</label>
+            <select id="destino" name="destino" class="form-select form-select-sm">
+                <option value="" selected="@string.IsNullOrEmpty(destinoActual)">Todos los destinos</option>
+                <option value="general" selected="@destinoActual.Equals("general", StringComparison.OrdinalIgnoreCase)">⛪ General (Almacén iglesia)</option>
+                <option value="eventos" selected="@destinoActual.Equals("eventos", StringComparison.OrdinalIgnoreCase)">🗓️ Todos los eventos</option>
+                @if (eventosFiltro.Count > 0)
+                {
+                    <optgroup label="Eventos específicos">
+                        @foreach (var ev in eventosFiltro)
+                        {
+                            <option value="@ev.id" selected="@(destinoActual == ev.id.ToString())">
+                                🗓️ @ev.titulo @(ev.fecha_inicio_evento.HasValue ? $"({ev.fecha_inicio_evento.Value:dd/MM/yyyy})" : "")
+                            </option>
+                        }
+                    </optgroup>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="tipo" class="small fw-semibold">Tipo de movimiento</label>
+            <select id="tipo" name="tipo" class="form-select form-select-sm">
+                <option value="" selected="@string.IsNullOrEmpty(tipoActual)">Todos los movimientos</option>
+                <option value="entrada" selected="@tipoActual.Equals("entrada", StringComparison.OrdinalIgnoreCase)">📥 Solo Entradas (+)</option>
+                <option value="salida" selected="@tipoActual.Equals("salida", StringComparison.OrdinalIgnoreCase)">📤 Solo Salidas (-)</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-1">
+            <button type="submit" class="btn btn-primary btn-sm px-3">Filtrar</button>
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Movements">Limpiar</a>
+        </div>
+    </div>
+</form>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <span class="small text-secondary">Mostrando <strong>@Model.Count</strong> de <strong>@total</strong> movimientos en total</span>
+</div>
+
+<div class="panel table-responsive">
+    <table class="table align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Movimiento</th>
+                <th>Producto</th>
+                <th class="text-end">Cantidad</th>
+                <th>Destino / Detalle</th>
+                <th>Registró</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var m in Model)
+            {
+                var esEntrada = m.cantidad > 0;
+                var evLote = m.lote?.donacion_bien?.donacion?.evento;
+                <tr>
+                    <td>@m.fecha_hora.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>
+                        @if (esEntrada)
+                        {
+                            <span class="badge text-bg-success-subtle text-success-emphasis">📥 Entrada</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-danger-subtle text-danger-emphasis">📤 Salida</span>
+                        }
+                    </td>
+                    <td><strong>@m.lote?.producto.nombre</strong></td>
+                    <td class="text-end fw-semibold @(esEntrada ? "text-success" : "text-danger")">
+                        @m.cantidad.ToString("+0.##;-0.##;0") <small class="text-secondary fw-normal">@m.lote?.producto.unidad</small>
+                    </td>
+                    <td>
+                        @if (evLote != null)
+                        {
+                            <span class="badge text-bg-primary-subtle text-primary-emphasis mb-1">🗓️ @evLote.titulo</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(m.destino))
+                        {
+                            <strong class="d-block small">@m.destino</strong>
+                        }
+                        <span class="small text-secondary">@m.motivo</span>
+                    </td>
+                    <td>@(names.TryGetValue(m.id_usuario, out var n) ? n : "-")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (Model.Count == 0)
+    {
+        <p class="text-secondary mb-0">Todavía no hay movimientos con estos filtros.</p>
+    }
+</div>
 <partial name="_Pagination" />
