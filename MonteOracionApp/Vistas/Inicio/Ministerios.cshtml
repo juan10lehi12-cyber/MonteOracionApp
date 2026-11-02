@@ -1,0 +1,156 @@
+@{
+    ViewData["Title"] = "Áreas de Servicio y Comunidad";
+    var church = (ConfiguracionIglesia)ViewBag.Church;
+    var waUrl = church.ObtenerUrlWhatsApp();
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="QuienesSomos">La Iglesia</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Áreas de Servicio</li>
+    </ol>
+</nav>
+
+<!-- Encabezado de Áreas de Servicio -->
+<section class="panel page-hero-panel mb-4">
+    <div class="row g-4 align-items-center">
+        <div class="col-lg-8">
+            <div class="eyebrow">ÁREAS DE SERVICIO Y COMUNIDAD</div>
+            <h1 class="display-5 fw-bold mb-3">Encuentra tu lugar para servir</h1>
+            <p class="lead text-secondary mb-4">
+                En <strong>@church.nombre</strong> creemos que cada hermano tiene dones dados por Dios para servir al prójimo. No importa tu edad ni tu experiencia: aquí hay un equipo pequeño y cercano donde tus manos y tu corazón suman.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-primary" href="#unirse">
+                    Quiero servir ↓
+                </a>
+                <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="QuienesSomos">Conoce quiénes somos</a>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="p-3 bg-light rounded-4 border text-center">
+                <span class="fs-1 d-block mb-2">🙌</span>
+                <h2 class="h5 fw-bold mb-1">Un lugar para todos</h2>
+                <p class="small text-secondary mb-0">Niños, jóvenes, matrimonios y adultos mayores encuentran un espacio activo para servir y crecer espiritualmente.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Catálogo de Áreas de Servicio en Cuadrícula 2x2 -->
+<div class="row g-4 mb-4">
+    <!-- 1. Alabanza y Adoración -->
+    <div class="col-lg-6">
+        <article class="panel h-100 d-flex flex-column p-0 overflow-hidden shadow-sm">
+            <div style="height: 190px; overflow: hidden; position: relative;">
+                <img src="~/imagenes/vigilia-adoracion.png" alt="Alabanza y Adoración" class="w-100 h-100 object-fit-cover" />
+                <span class="badge text-bg-dark position-absolute bottom-0 start-0 m-3 px-3 py-2">🎵 VIDA ESPIRITUAL</span>
+            </div>
+            <div class="p-4 d-flex flex-column flex-grow-1">
+                <h2 class="h4 fw-bold mb-2">🎵 Alabanza y Adoración</h2>
+                <p class="text-secondary mb-3">
+                    Guía el tiempo de adoración en nuestros cultos dominicales y vigilias nocturnas. Cultiva los talentos vocales e instrumentales de la congregación, dedicando cada canción a la gloria de Dios y al quebrantamiento de los corazones.
+                </p>
+                <div class="mt-auto pt-2">
+                    @if (waUrl != null)
+                    {
+                        <a class="btn btn-outline-primary btn-sm" href="@(waUrl)?text=@Uri.EscapeDataString("Hola, quiero servir en el equipo de Alabanza y Adoración 🎵")" target="_blank" rel="noopener">
+                            Cantar o tocar con el equipo →
+                        </a>
+                    }
+                </div>
+            </div>
+        </article>
+    </div>
+
+    <!-- 2. Escuela Dominical -->
+    <div class="col-lg-6">
+        <article class="panel h-100 d-flex flex-column p-0 overflow-hidden shadow-sm">
+            <div style="height: 190px; overflow: hidden; position: relative;">
+                <img src="~/imagenes/hero-comunidad.png" alt="Escuela Dominical" class="w-100 h-100 object-fit-cover" />
+                <span class="badge text-bg-dark position-absolute bottom-0 start-0 m-3 px-3 py-2">👨‍👩‍👧‍👦 NIÑOS Y FAMILIAS</span>
+            </div>
+            <div class="p-4 d-flex flex-column flex-grow-1">
+                <h2 class="h4 fw-bold mb-2">🧒 Escuela Dominical</h2>
+                <p class="text-secondary mb-3">
+                    Espacio educativo y dinámico enfocado en formar valores bíblicos y morales en los más pequeños. Con maestras capacitadas, los niños aprenden la Palabra de Dios mediante historias ilustradas, manualidades y cánticos adaptados a su edad.
+                </p>
+                <div class="mt-auto pt-2 d-flex flex-wrap gap-2">
+                    @if (waUrl != null)
+                    {
+                        <a class="btn btn-outline-primary btn-sm" href="@(waUrl)?text=@Uri.EscapeDataString("Hola, deseo servir como maestra o maestro en la Escuela Dominical 🧒")" target="_blank" rel="noopener">
+                            Ser maestra o maestro →
+                        </a>
+                        <a class="btn btn-outline-secondary btn-sm" href="@(waUrl)?text=@Uri.EscapeDataString("Hola, deseo información sobre las clases dominicales para mis hijos")" target="_blank" rel="noopener">
+                            Información para mis hijos
+                        </a>
+                    }
+                </div>
+            </div>
+        </article>
+    </div>
+
+    <!-- 3. Voluntariado y Almacén Solidario -->
+    <div class="col-lg-6">
+        <article class="panel h-100 d-flex flex-column p-0 overflow-hidden shadow-sm">
+            <div style="height: 190px; overflow: hidden; position: relative;">
+                <img src="~/imagenes/accion-social.png" alt="Voluntariado y Almacén Solidario" class="w-100 h-100 object-fit-cover" />
+                <span class="badge text-bg-dark position-absolute bottom-0 start-0 m-3 px-3 py-2">📦 SOLIDARIDAD</span>
+            </div>
+            <div class="p-4 d-flex flex-column flex-grow-1">
+                <h2 class="h4 fw-bold mb-2">📦 Voluntariado y Almacén Solidario</h2>
+                <p class="text-secondary mb-3">
+                    Lleva la compasión de Cristo a la práctica. Administra el almacén de bienes donados de la iglesia (víveres, abrigos y alimentos no perecibles), preparando canastas solidarias para comedores y familias vulnerables de Comas.
+                </p>
+                <div class="mt-auto pt-2">
+                    @if (waUrl != null)
+                    {
+                        <a class="btn btn-outline-primary btn-sm" href="@(waUrl)?text=@Uri.EscapeDataString("Hola, quiero servir en el área de Voluntariado y Almacén Solidario 📦")" target="_blank" rel="noopener">
+                            Ser voluntario del almacén →
+                        </a>
+                    }
+                </div>
+            </div>
+        </article>
+    </div>
+
+    <!-- 4. Evangelismo y Consejería -->
+    <div class="col-lg-6">
+        <article class="panel h-100 d-flex flex-column p-0 overflow-hidden shadow-sm">
+            <div style="height: 190px; overflow: hidden; position: relative;">
+                <img src="~/imagenes/hero-comunidad.png" alt="Evangelismo y Consejería" class="w-100 h-100 object-fit-cover" />
+                <span class="badge text-bg-dark position-absolute bottom-0 start-0 m-3 px-3 py-2">🌱 PASTORAL Y MISIÓN</span>
+            </div>
+            <div class="p-4 d-flex flex-column flex-grow-1">
+                <h2 class="h4 fw-bold mb-2">💬 Evangelismo y Consejería</h2>
+                <p class="text-secondary mb-3">
+                    Lleva el mensaje de salvación fuera de las cuatro paredes del templo. Coordina campañas al aire libre, visitas hospitalarias, atención a personas en necesidad y cadenas continuas de oración e intercesión pastoral.
+                </p>
+                <div class="mt-auto pt-2">
+                    @if (waUrl != null)
+                    {
+                        <a class="btn btn-outline-primary btn-sm" href="@(waUrl)?text=@Uri.EscapeDataString("Hola, deseo solicitar consejería o servir en Evangelismo y Consejería 💬")" target="_blank" rel="noopener">
+                            Pedir consejería o acompañamiento →
+                        </a>
+                    }
+                </div>
+            </div>
+        </article>
+    </div>
+</div>
+
+<!-- Banner Verde Final -->
+<section class="panel inst-pastoral-box p-4 text-center" id="unirse">
+    <div class="eyebrow text-white opacity-75">¿NO SABES DÓNDE SERVIR?</div>
+    <h2 class="h3 text-white mb-2">Acércate o escríbenos directamente</h2>
+    <p class="text-white opacity-90 mx-auto mb-3" style="max-width: 650px;">
+        No necesitas experiencia previa ni saberlo todo: en nuestra comunidad hay un espacio para ti en la bienvenida, el almacén, la enseñanza, la música o la oración. Nuestros pastores y hermanos te recibirán con los brazos abiertos.
+    </p>
+    <div class="d-flex justify-content-center gap-2">
+        @if (waUrl != null)
+        {
+            <a class="btn btn-light fw-semibold" href="@waUrl" target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>
+        }
+    </div>
+</section>

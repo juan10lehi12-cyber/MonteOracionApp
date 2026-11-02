@@ -4,21 +4,27 @@ public record ArchivoGuardado(string clave, string tipo_contenido);
 
 public interface IAlmacenamientoArchivos
 {
-    Task<ArchivoGuardado> GuardarAsync(IFormFile archivo, bool soloImagen = false);
+    Task<ArchivoGuardado> GuardarAsync(IFormFile archivo, bool soloImagen = false, string? categoria = null);
     Stream Abrir(string clave);
     void Eliminar(string clave);
 }
 
 public sealed class AlmacenamientoArchivos : IAlmacenamientoArchivos
 {
+    private static readonly string[] Subcarpetas = ["MediosPago", "Eventos", "Donaciones", "Portada"];
     private readonly string raiz;
+    private readonly string respaldo;
+
     public AlmacenamientoArchivos(IWebHostEnvironment env, IConfiguration config)
     {
-        raiz = Path.GetFullPath(config["Storage:Path"] ?? Path.Combine(env.ContentRootPath, "App_Data", "attachments"));
+        raiz = Path.GetFullPath(config["Storage:Path"] ?? Path.Combine(env.ContentRootPath, "Imagenes"));
+        respaldo = Path.Combine(env.ContentRootPath, "App_Data", "attachments");
         Directory.CreateDirectory(raiz);
+        foreach (var sub in Subcarpetas)
+            Directory.CreateDirectory(Path.Combine(raiz, sub));
     }
 
-    public async Task<ArchivoGuardado> GuardarAsync(IFormFile archivo, bool soloImagen = false)
+    public async Task<ArchivoGuardado> GuardarAsync(IFormFile archivo, bool soloImagen = false, string? categoria = null)
     {
         if (archivo.Length is <= 0 or > 5 * 1024 * 1024) throw new InvalidOperationException("El archivo debe tener entre 1 byte y 5 MB.");
         await using var entrada = archivo.OpenReadStream();
@@ -35,14 +41,27 @@ public sealed class AlmacenamientoArchivos : IAlmacenamientoArchivos
         else if (pdf && extension == ".pdf" && !soloImagen) tipo = "application/pdf";
         else throw new InvalidOperationException(soloImagen ? "Adjunta una imagen JPG o PNG válida." : "Adjunta un archivo JPG, PNG o PDF válido.");
         var clave = Guid.NewGuid().ToString("N") + (tipo == "image/png" ? ".png" : tipo == "image/jpeg" ? ".jpg" : ".pdf");
-        await File.WriteAllBytesAsync(Path.Combine(raiz, clave), datos);
+        var carpetaDestino = !string.IsNullOrWhiteSpace(categoria) && Subcarpetas.Contains(categoria, StringComparer.OrdinalIgnoreCase)
+            ? Path.Combine(raiz, categoria)
+            : Path.Combine(raiz, "Donaciones");
+        Directory.CreateDirectory(carpetaDestino);
+        await File.WriteAllBytesAsync(Path.Combine(carpetaDestino, clave), datos);
         return new(clave, tipo);
     }
 
     private string Resolver(string clave)
     {
         if (string.IsNullOrWhiteSpace(clave) || clave != Path.GetFileName(clave) || clave.Contains('\\') || clave.Contains('/')) throw new InvalidOperationException("Archivo inválido.");
-        return Path.Combine(raiz, clave);
+        foreach (var sub in Subcarpetas)
+        {
+            var rutaSub = Path.Combine(raiz, sub, clave);
+            if (File.Exists(rutaSub)) return rutaSub;
+        }
+        var rutaRaiz = Path.Combine(raiz, clave);
+        if (File.Exists(rutaRaiz)) return rutaRaiz;
+        var rutaRespaldo = Path.Combine(respaldo, clave);
+        if (File.Exists(rutaRespaldo)) return rutaRespaldo;
+        return rutaRaiz;
     }
 
     public Stream Abrir(string clave) => File.OpenRead(Resolver(clave));

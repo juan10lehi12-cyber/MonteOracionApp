@@ -1,0 +1,56 @@
+@{
+    ViewData["Title"] = "Avisos";
+    var church = (ConfiguracionIglesia)ViewBag.Church;
+    var avisos = ViewBag.Avisos as List<Publicacion> ?? new List<Publicacion>();
+    var culturaEs = new System.Globalization.CultureInfo("es-PE");
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+        <li class="breadcrumb-item">Noticias</li>
+        <li class="breadcrumb-item active" aria-current="page">Avisos</li>
+    </ol>
+</nav>
+
+<header class="section-heading text-center mx-auto mb-4" style="max-width: 780px;">
+    <div class="eyebrow text-uppercase">ANUNCIOS DE NUESTRA IGLESIA</div>
+    <h1 class="display-5 fw-bold mb-2">Avisos a la Congregación</h1>
+    <p class="lead text-secondary mb-0">
+        Comunicados oficiales, horarios de ensayos, campañas de víveres y anuncios importantes para nuestra comunidad.
+    </p>
+</header>
+
+@if (avisos.Count == 0)
+{
+    <div class="empty-state text-center py-5 mb-4">
+        <span class="fs-1 d-block mb-2">🕊️</span>
+        <h2 class="h4 fw-bold">Por ahora no hay avisos nuevos</h2>
+        <p class="text-secondary mb-0">Los anuncios y comunicados para la congregación se publicarán en esta sección.</p>
+    </div>
+}
+else
+{
+    <div class="row g-4 mb-4">
+        @foreach (var av in avisos)
+        {
+            <div class="col-md-6">
+                <article class="panel inst-notice-card h-100 d-flex flex-column p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge text-bg-primary">📢 Aviso a la Congregación</span>
+                        <small class="text-secondary">Publicado el @av.fecha_creacion.ToString("dd MMM yyyy", culturaEs)</small>
+                    </div>
+                    <h2 class="h5 fw-bold mb-2">@av.titulo</h2>
+                    <p class="preserve-lines text-secondary mb-3 flex-grow-1">@av.contenido</p>
+                    <div class="pt-3 border-top d-flex justify-content-between align-items-center mt-auto">
+                        <small class="text-muted fw-semibold">@church.nombre</small>
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#event-@av.id">
+                            Ver en pantalla completa →
+                        </button>
+                    </div>
+                </article>
+            </div>
+            <partial name="_EventModal" model="av" />
+        }
+    </div>
+}

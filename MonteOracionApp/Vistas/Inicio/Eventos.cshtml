@@ -1,0 +1,334 @@
+@{
+    ViewData["Title"] = "Eventos";
+    var church = (ConfiguracionIglesia)ViewBag.Church;
+    var podio = ViewBag.Podio as Publicacion;
+    var siguientes = ViewBag.Siguientes as List<Publicacion> ?? new List<Publicacion>();
+    var finalizados = ViewBag.Finalizados as List<Publicacion> ?? new List<Publicacion>();
+    var activeTab = (string)ViewBag.ActiveTab;
+    var totalProximos = (podio != null ? 1 : 0) + siguientes.Count;
+    var ahora = HoraIglesia.Ahora;
+    var finDeSemana = ahora.Date.AddDays(7);
+    var culturaEs = new System.Globalization.CultureInfo("es-PE");
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+        <li class="breadcrumb-item">Noticias</li>
+        <li class="breadcrumb-item active" aria-current="page">Eventos</li>
+    </ol>
+</nav>
+
+<!-- NIVEL 1: Título y encabezado principal -->
+<header class="section-heading text-center mx-auto mb-4" style="max-width: 780px;">
+    <div class="eyebrow text-uppercase">AGENDA DE NUESTRA COMUNIDAD</div>
+    <h1 class="display-5 fw-bold mb-2">Eventos</h1>
+    <p class="lead text-secondary mb-0">
+        Conoce nuestros próximos eventos especiales y revisa el historial de eventos finalizados en nuestra iglesia.
+    </p>
+</header>
+
+<!-- NIVEL 2: Selector de 2 pestañas (Próximos Eventos y Eventos Finalizados) -->
+<div class="d-flex justify-content-center mb-4">
+    <div class="events-pill-tabs" role="tablist" aria-label="Filtro de eventos">
+        <button type="button" class="event-pill-btn @(activeTab == "proximos" ? "is-active" : "")" data-event-tab="tab-proximos" aria-label="Ver próximos eventos, @totalProximos disponibles">
+            🗓️ Próximos Eventos <span class="badge rounded-pill bg-light text-dark ms-1" aria-hidden="true">@totalProximos</span>
+        </button>
+        <button type="button" class="event-pill-btn @(activeTab == "finalizados" ? "is-active" : "")" data-event-tab="tab-finalizados" aria-label="Ver eventos finalizados, @finalizados.Count registrados">
+            ✅ Eventos Finalizados <span class="badge rounded-pill bg-light text-dark ms-1" aria-hidden="true">@finalizados.Count</span>
+        </button>
+    </div>
+</div>
+
+<!-- NIVEL 3: Contenido según la pestaña seleccionada -->
+<div class="events-tab-content">
+
+    <!-- ===================================================================
+         PESTAÑA 1: PRÓXIMOS EVENTOS
+         =================================================================== -->
+    <div class="event-tab-pane @(activeTab == "proximos" ? "is-active" : "")" id="tab-proximos">
+        @if (podio == null && siguientes.Count == 0)
+        {
+            <div class="empty-state text-center py-5">
+                <span class="fs-1 d-block mb-2">🗓️</span>
+                <h2 class="h4 fw-bold">Por ahora no hay nuevos eventos programados</h2>
+                <p class="text-secondary mb-0">Te esperamos en nuestros cultos dominicales y reuniones semanales.</p>
+            </div>
+        }
+        else
+        {
+            <!-- EL PODIO: Evento más próximo -->
+            @if (podio != null)
+            {
+                var podioEsHoy = podio.fecha_inicio_evento.HasValue && podio.fecha_inicio_evento.Value.Date == ahora.Date;
+                var podioEstaSemana = podio.fecha_inicio_evento.HasValue && podio.fecha_inicio_evento.Value.Date >= ahora.Date && podio.fecha_inicio_evento.Value.Date <= finDeSemana;
+                var podioImg = podio.clave_imagen != null
+                    ? Url.Action("Image", "Publications", new { id = podio.id })
+                    : podio.titulo.Contains("Navidad", StringComparison.OrdinalIgnoreCase)
+                        ? Url.Content("~/imagenes/concierto-navidad.png")
+                        : Url.Content("~/imagenes/vigilia-adoracion.png");
+
+                <div class="panel event-podium-card mb-5 p-0 overflow-hidden shadow-sm">
+                    <div class="row g-0 align-items-stretch">
+                        <div class="col-lg-6 event-podium-media">
+                            <img src="@podioImg" alt="@podio.titulo" class="w-100 h-100 object-fit-cover" />
+                            <div class="event-podium-chip">
+                                @if (podioEsHoy)
+                                {
+                                    <span class="badge text-bg-danger fs-6 py-2 px-3"><span class="pulse-dot"></span> HOY EN VIVO</span>
+                                }
+                                else if (podioEstaSemana)
+                                {
+                                    <span class="badge text-bg-warning fs-6 py-2 px-3">★ ESTA SEMANA</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-success fs-6 py-2 px-3">★ PRÓXIMO EVENTO PRINCIPAL</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-lg-6 p-4 p-md-5 d-flex flex-column justify-content-center">
+                            <h2 class="display-6 fw-bold mb-3">@podio.titulo</h2>
+
+                            @if (podio.fecha_inicio_evento.HasValue)
+                            {
+                                <div class="d-flex flex-column gap-2 text-secondary mb-3 fs-6">
+                                    <span>🗓️ <strong>Fecha:</strong> @podio.fecha_inicio_evento.Value.ToString("ddd dd MMM yyyy · HH:mm 'h'", culturaEs)</span>
+                                    @if (!string.IsNullOrWhiteSpace(podio.lugar))
+                                    {
+                                        <span>📍 <strong>Lugar:</strong> @podio.lugar</span>
+                                    }
+                                </div>
+                            }
+
+                            <p class="text-secondary line-clamp-3 mb-4">@podio.contenido</p>
+
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#event-@podio.id">
+                                    Ver afiche completo
+                                </button>
+                                @if (podio.fecha_inicio_evento.HasValue)
+                                {
+                                    var gCalStart = podio.fecha_inicio_evento.Value.ToString("yyyyMMddTHHmmss");
+                                    var gCalEnd = (podio.fecha_fin_evento ?? podio.fecha_inicio_evento.Value.AddHours(2)).ToString("yyyyMMddTHHmmss");
+                                    var gCalUrl = $"https://calendar.google.com/calendar/render?action=TEMPLATE&text={Uri.EscapeDataString(podio.titulo)}&dates={gCalStart}/{gCalEnd}&details={Uri.EscapeDataString(podio.contenido)}&location={Uri.EscapeDataString(podio.lugar ?? (church.direccion ?? "Iglesia Monte de Oración, Comas, Lima"))}";
+                                    <a class="btn btn-outline-primary" target="_blank" rel="noopener" href="@gCalUrl" title="Guardar en Google Calendar">
+                                        📅 Agregar al calendario
+                                    </a>
+                                }
+                                @if (podio.meta_recaudacion > 0)
+                                {
+                                    <a class="btn btn-outline-success" asp-controller="Donations" asp-action="Create" asp-route-evento="@podio.id">
+                                        Ofrendar / Apoyar
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- FILA INFERIOR: Siguientes eventos programados -->
+            @if (siguientes.Count > 0)
+            {
+                <div class="d-flex align-items-center gap-3 my-4">
+                    <hr class="flex-grow-1 my-0 text-secondary opacity-25" />
+                    <span class="eyebrow mb-0 text-secondary fw-bold">SIGUIENTES EVENTOS PROGRAMADOS</span>
+                    <hr class="flex-grow-1 my-0 text-secondary opacity-25" />
+                </div>
+
+                <div class="row g-4">
+                    @foreach (var ev in siguientes)
+                    {
+                        var evEsHoy = ev.fecha_inicio_evento.HasValue && ev.fecha_inicio_evento.Value.Date == ahora.Date;
+                        var evEstaSemana = ev.fecha_inicio_evento.HasValue && ev.fecha_inicio_evento.Value.Date >= ahora.Date && ev.fecha_inicio_evento.Value.Date <= finDeSemana;
+                        var evImg = ev.clave_imagen != null
+                            ? Url.Action("Image", "Publications", new { id = ev.id })
+                            : ev.titulo.Contains("Navidad", StringComparison.OrdinalIgnoreCase)
+                                ? Url.Content("~/imagenes/concierto-navidad.png")
+                                : Url.Content("~/imagenes/vigilia-adoracion.png");
+
+                        <div class="col-md-6 col-xl-4">
+                            <article class="panel event-card h-100 d-flex flex-column">
+                                <div class="event-cover-wrap">
+                                    <img class="event-cover" src="@evImg" alt="@ev.titulo" loading="lazy" />
+                                    @if (ev.fecha_inicio_evento.HasValue)
+                                    {
+                                        <div class="event-date-chip">
+                                            <strong>@ev.fecha_inicio_evento.Value.ToString("dd")</strong>
+                                            <span>@ev.fecha_inicio_evento.Value.ToString("MMM", culturaEs)</span>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="event-badges">
+                                    <span class="badge text-bg-light">@ev.tipo</span>
+                                    @if (evEsHoy)
+                                    {
+                                        <span class="badge text-bg-danger"><span class="pulse-dot"></span> HOY</span>
+                                    }
+                                    else if (evEstaSemana)
+                                    {
+                                        <span class="badge text-bg-warning">ESTA SEMANA</span>
+                                    }
+                                </div>
+                                <h3 class="h5 fw-bold mt-2">@ev.titulo</h3>
+                                @if (ev.fecha_inicio_evento.HasValue)
+                                {
+                                    <p class="event-meta">
+                                        <span class="event-meta-item">🗓️ @ev.fecha_inicio_evento.Value.ToString("ddd dd MMM yyyy · HH:mm 'h'", culturaEs)</span>
+                                        @if (!string.IsNullOrWhiteSpace(ev.lugar))
+                                        {
+                                            <span class="event-meta-item">📍 @ev.lugar</span>
+                                        }
+                                    </p>
+                                }
+                                <p class="text-secondary small line-clamp-2 mb-3">@ev.contenido</p>
+                                <div class="d-flex flex-wrap gap-2 mt-auto pt-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#event-@ev.id">
+                                        Ver detalles
+                                    </button>
+                                    @if (ev.fecha_inicio_evento.HasValue)
+                                    {
+                                        var gCalStart = ev.fecha_inicio_evento.Value.ToString("yyyyMMddTHHmmss");
+                                        var gCalEnd = (ev.fecha_fin_evento ?? ev.fecha_inicio_evento.Value.AddHours(2)).ToString("yyyyMMddTHHmmss");
+                                        var gCalUrl = $"https://calendar.google.com/calendar/render?action=TEMPLATE&text={Uri.EscapeDataString(ev.titulo)}&dates={gCalStart}/{gCalEnd}&details={Uri.EscapeDataString(ev.contenido)}&location={Uri.EscapeDataString(ev.lugar ?? (church.direccion ?? "Iglesia Monte de Oración, Comas, Lima"))}";
+                                        <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" href="@gCalUrl" title="Guardar en Google Calendar">
+                                            📅 Guardar
+                                        </a>
+                                    }
+                                    @if (ev.meta_recaudacion > 0)
+                                    {
+                                        <a class="btn btn-outline-success btn-sm" asp-controller="Donations" asp-action="Create" asp-route-evento="@ev.id">
+                                            Ofrendar
+                                        </a>
+                                    }
+                                </div>
+                            </article>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+
+    <!-- ===================================================================
+         PESTAÑA 2: EVENTOS FINALIZADOS
+         =================================================================== -->
+    <div class="event-tab-pane @(activeTab == "finalizados" ? "is-active" : "")" id="tab-finalizados">
+        @if (finalizados.Count == 0)
+        {
+            <div class="empty-state text-center py-5">
+                <span class="fs-1 d-block mb-2">✅</span>
+                <h2 class="h4 fw-bold">Aún no hay eventos finalizados registrados</h2>
+                <p class="text-secondary mb-0">Aquí se mostrarán las actividades concluidas de nuestra congregación.</p>
+            </div>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var fin in finalizados)
+                {
+                    var finImg = fin.clave_imagen != null
+                        ? Url.Action("Image", "Publications", new { id = fin.id })
+                        : fin.titulo.Contains("Navidad", StringComparison.OrdinalIgnoreCase)
+                            ? Url.Content("~/imagenes/concierto-navidad.png")
+                            : Url.Content("~/imagenes/hero-comunidad.png");
+
+                    <div class="col-md-6 col-xl-4">
+                        <article class="panel event-card h-100 d-flex flex-column">
+                            <div class="event-cover-wrap">
+                                <img class="event-cover" src="@finImg" alt="@fin.titulo" loading="lazy" />
+                                <span class="badge text-bg-secondary position-absolute bottom-0 start-0 m-3 px-3 py-1">
+                                    ✅ Evento Finalizado
+                                </span>
+                            </div>
+                            <h3 class="h5 fw-bold mt-2 mb-1">@fin.titulo</h3>
+                            @if (fin.fecha_inicio_evento.HasValue)
+                            {
+                                <p class="small text-secondary mb-2">
+                                    🗓️ Realizado el @fin.fecha_inicio_evento.Value.ToString("ddd dd MMM yyyy", culturaEs)
+                                </p>
+                            }
+                            <p class="text-secondary small line-clamp-2 mb-3">@fin.contenido</p>
+                            <div class="mt-auto pt-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#event-@fin.id">
+                                    Ver resumen y afiche
+                                </button>
+                            </div>
+                        </article>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+</div>
+
+<!-- Renderizar Modales -->
+@if (podio != null)
+{
+    var imgPodioModal = podio.clave_imagen != null
+        ? Url.Action("Image", "Publications", new { id = podio.id })
+        : podio.titulo.Contains("Navidad", StringComparison.OrdinalIgnoreCase)
+            ? Url.Content("~/imagenes/concierto-navidad.png")
+            : Url.Content("~/imagenes/vigilia-adoracion.png");
+
+    <div class="modal fade" id="featured-event-spotlight" tabindex="-1" aria-labelledby="spotlight-title" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content spotlight-modal-content">
+                <div class="spotlight-modal-banner">
+                    <img src="@imgPodioModal" alt="@podio.titulo" />
+                    <div class="spotlight-modal-overlay">
+                        <span class="spotlight-pill"><span class="pulse-dot"></span> PRÓXIMO EVENTO DESTACADO</span>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-4">
+                    <h2 class="h3 fw-bold mb-2" id="spotlight-title">@podio.titulo</h2>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        @if (podio.fecha_inicio_evento.HasValue)
+                        {
+                            <span class="badge text-bg-primary-subtle text-primary-emphasis py-2 px-3">
+                                🗓️ @podio.fecha_inicio_evento.Value.ToString("dddd dd 'de' MMMM yyyy · HH:mm 'h'", culturaEs)
+                            </span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(podio.lugar))
+                        {
+                            <span class="badge text-bg-light border text-dark py-2 px-3">
+                                📍 @podio.lugar
+                            </span>
+                        }
+                    </div>
+                    <p class="text-secondary preserve-lines mb-4">@podio.contenido</p>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3 border-top">
+                        @if (!string.IsNullOrWhiteSpace(podio.lugar))
+                        {
+                            <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=@Uri.EscapeDataString(podio.lugar)">
+                                🗺️ Ver ubicación en Google Maps
+                            </a>
+                        }
+                        else
+                        {
+                            <span></span>
+                        }
+                        <div class="d-flex flex-wrap gap-2">
+                            <a class="btn btn-success fw-semibold" asp-controller="Donations" asp-action="Create" asp-route-evento="@podio.id">
+                                💚 Ofrendar / Apoyar este evento
+                            </a>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <partial name="_EventModal" model="podio" />
+}
+@foreach (var ev in siguientes)
+{
+    <partial name="_EventModal" model="ev" />
+}
+@foreach (var fin in finalizados)
+{
+    <partial name="_EventModal" model="fin" />
+}

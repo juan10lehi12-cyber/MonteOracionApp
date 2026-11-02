@@ -1,22 +1,204 @@
 @model FormularioDonacionWeb
-@{ViewData["Title"]="Registrar donación";var payments=(List<MedioPago>)ViewBag.Payments;var eventos=(List<Publicacion>)ViewBag.Events;}
-<div class="section-heading"><div><div class="eyebrow">GENEROSIDAD QUE NOS UNE</div><h1>Registrar donación digital</h1><p>Realiza el pago y adjunta la captura. La administración comprobará el ingreso antes de aprobarla.</p></div></div>
-@if(payments.Count==0){<div class="empty-state">Todavía no hay medios de pago activos. Acércate a la administración de la iglesia.</div>}else{
-<div class="row g-4"><section class="col-lg-4"><div class="panel"><h2>Medios de pago</h2>@foreach(var p in payments){<div class="payment"><h3>@p.nombre</h3><p>@p.instrucciones</p>@if(p.clave_qr!=null){<img src="@Url.Action("Qr","Settings",new{id=p.id})" alt="QR de @p.nombre" class="payment-qr" />}</div>}</div></section>
-<section class="col-lg-8"><div class="panel"><form method="post" enctype="multipart/form-data" data-confirm="¿El monto, fecha y número de operación coinciden con tu captura?"><div asp-validation-summary="All" class="text-danger"></div>
-<div class="form-check mb-3"><input asp-for="anonimo" class="form-check-input" id="chkAnonimo" /><label asp-for="anonimo" class="form-check-label"></label><small>Solo registra monto, medio, destino, fecha, número de operación y captura.</small></div>
-<div class="mb-3" id="campoDni"><label asp-for="dni"></label><input asp-for="dni" inputmode="numeric" maxlength="8" autocomplete="off" class="form-control" /><small>Si tu DNI no está registrado, acércate a la administración o dona de forma anónima.</small></div>
-<div class="row"><div class="col-md-6 mb-3"><label asp-for="monto"></label><input asp-for="monto" type="number" min="0.01" max="99999.99" step="0.01" class="form-control" /></div><div class="col-md-6 mb-3"><label asp-for="fecha_pago"></label><input asp-for="fecha_pago" class="form-control" /></div></div>
-<div class="mb-3"><label asp-for="id_medio_pago"></label><select asp-for="id_medio_pago" class="form-select"><option value="">Seleccionar</option>@foreach(var p in payments){<option value="@p.id">@p.nombre</option>}</select></div>
-<div class="mb-3"><label asp-for="numero_operacion"></label><input asp-for="numero_operacion" maxlength="20" autocomplete="off" class="form-control" /><small>Lo encuentras en el detalle de tu pago en la app (Yape, transferencia, etc.).</small></div>
-<div class="mb-3"><label>¿Para qué donas?</label><select asp-for="id_evento" class="form-select"><option value="">Obra y necesidades de la iglesia</option>@foreach(var e in eventos){<option value="@e.id">Evento: @e.titulo · @e.fecha_inicio_evento!.Value.ToString("dd/MM/yyyy")</option>}</select><small>Por defecto tu donación apoya las necesidades generales de la iglesia. Si eliges un evento, queda dedicada a su recaudación.</small></div>
-<div class="mb-3"><label asp-for="comprobante"></label><input asp-for="comprobante" type="file" accept=".jpg,.jpeg,.png" class="form-control" /></div>
-<p>La captura no aprueba tu pago: la administración comprobará el ingreso antes de aprobar la donación. <a asp-controller="Home" asp-action="Privacy">Uso de tus datos</a>. Para revisar tus donaciones, acércate a la administración o llámanos.</p>
-<button class="btn btn-primary">Enviar para revisión</button></form></div></section></div>}
-@section Scripts{
-<script>
-(function(){var chk=document.getElementById('chkAnonimo'),campo=document.getElementById('campoDni');if(!chk||!campo)return;
-function mostrar(){var anonimo=chk.checked;campo.classList.toggle('d-none',anonimo);var input=campo.querySelector('input');if(anonimo&&input)input.value='';input.disabled=anonimo;}
-chk.addEventListener('change',mostrar);mostrar();})();
-</script>
+@{
+    ViewData["Title"] = "Donaciones y Ofrendas";
+    var church = ViewBag.Church as ConfiguracionIglesia ?? new ConfiguracionIglesia();
+    var payments = (List<MedioPago>)ViewBag.Payments;
+    var eventos = (List<Publicacion>)ViewBag.Events;
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Donar</li>
+    </ol>
+</nav>
+
+<header class="section-heading text-center mx-auto mb-4" style="max-width: 780px;">
+    <div class="eyebrow">OFRENDAS Y APOYO SOLIDARIO</div>
+    <h1 class="display-5 fw-bold mb-2">Donaciones y Aportes a la Iglesia</h1>
+    <p class="lead text-secondary mb-0">
+        Apoya la obra de <strong>@church.nombre</strong> y nuestras campañas de ayuda comunitaria de forma económica a través de nuestros canales oficiales verificados.
+    </p>
+</header>
+
+@if (payments.Count == 0)
+{
+    <div class="empty-state mb-4">Todavía no hay medios de pago activos. Acércate a la administración de la iglesia.</div>
+}
+else
+{
+    <div class="row g-4 mb-4">
+        <!-- Columna Izquierda: Paso 1 - Canales Oficiales (Yape, Plin, BCP) -->
+        <section class="col-lg-5">
+            <div class="panel h-100">
+                <div class="eyebrow mb-1">PASO 1 · CANALES OFICIALES</div>
+                <h2 class="h4 mb-2">Medios de Pago Verificados</h2>
+                <p class="small text-secondary mb-3">Elige el canal donde realizaste o realizarás tu aporte económico:</p>
+
+                <div class="payment-tabs-nav mb-3" role="tablist">
+                    @for (int i = 0; i < payments.Count; i++)
+                    {
+                        <button type="button" class="payment-tab-btn @(i == 0 ? "is-active" : "")" data-payment-tab="create-pay-@payments[i].id" data-payment-id="@payments[i].id">
+                            💳 @payments[i].nombre
+                        </button>
+                    }
+                </div>
+
+                @for (int i = 0; i < payments.Count; i++)
+                {
+                    var p = payments[i];
+                    <div class="payment payment-tab-pane @(i == 0 ? "is-active" : "")" id="create-pay-@p.id">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h3 class="h5 mb-0">@p.nombre</h3>
+                            <span class="badge text-bg-success">Canal oficial verificado</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(p.numero_cuenta))
+                        {
+                            <div class="donor-number-row my-3">
+                                <span class="donor-number" id="cnum-@p.id">@p.numero_cuenta</span>
+                                <button type="button" class="btn btn-outline-primary btn-sm" data-copy="cnum-@p.id">Copiar número</button>
+                            </div>
+                        }
+                        <p class="preserve-lines small text-secondary mb-3">@p.instrucciones</p>
+                        @if (p.clave_qr != null)
+                        {
+                            <div class="qr-showcase mt-2">
+                                <a href="@Url.Action("Qr", "Settings", new { id = p.id })" target="_blank" rel="noopener">
+                                    <img src="@Url.Action("Qr", "Settings", new { id = p.id })" alt="QR de @p.nombre" class="payment-qr donor-qr" />
+                                </a>
+                                <small class="text-secondary d-block mt-2">Escanea desde tu celular o haz clic para ampliar</small>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+
+        <!-- Columna Derecha: Paso 2 - Formulario de Registro del Comprobante -->
+        <section class="col-lg-7">
+            <div class="panel h-100">
+                <div class="eyebrow mb-1">PASO 2 · REGISTRA TU PAGO</div>
+                <h2 class="h4 mb-3">Enviar Comprobante de Donación Económica</h2>
+
+                <form method="post" enctype="multipart/form-data" data-confirm="¿El monto, fecha y número de operación coinciden con tu captura?">
+                    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+                    <div class="p-3 bg-light rounded-3 border mb-3">
+                        <div class="form-check">
+                            <input asp-for="anonimo" class="form-check-input" id="chkAnonimo" />
+                            <label asp-for="anonimo" class="form-check-label fw-semibold" for="chkAnonimo">
+                                Donar de forma anónima o como visitante (sin DNI)
+                            </label>
+                            <small class="d-block text-secondary mt-1">
+                                Marca esta casilla si nos visitas por primera vez o prefieres no vincular tu DNI.
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="campoDni">
+                        <label asp-for="dni" class="form-label fw-semibold">DNI del miembro (opcional si marcas donación anónima)</label>
+                        <input asp-for="dni" inputmode="numeric" maxlength="8" autocomplete="off" class="form-control" placeholder="8 dígitos de tu DNI" />
+                        <small class="text-secondary">Si eres miembro registrado de la congregación, ingresa tu DNI.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="small text-secondary d-block mb-1">Montos rápidos sugeridos:</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-quick-amount="20">S/ 20</button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-quick-amount="50">S/ 50</button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-quick-amount="100">S/ 100</button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-quick-amount="200">S/ 200</button>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="monto" class="form-label fw-semibold"></label>
+                            <input asp-for="monto" type="number" min="0.01" max="99999.99" step="0.01" class="form-control" placeholder="0.00" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="fecha_pago" class="form-label fw-semibold"></label>
+                            <input asp-for="fecha_pago" class="form-control" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="id_medio_pago" class="form-label fw-semibold"></label>
+                            <select asp-for="id_medio_pago" class="form-select">
+                                <option value="">Seleccionar canal usado</option>
+                                @foreach (var p in payments)
+                                {
+                                    <option value="@p.id">@p.nombre</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="numero_operacion" class="form-label fw-semibold"></label>
+                            <input asp-for="numero_operacion" maxlength="20" autocomplete="off" class="form-control" placeholder="Ej. 12345678" />
+                            <small class="text-secondary">Aparece en el detalle de tu pago en Yape, Plin o banco.</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">¿A qué deseas destinar tu aporte?</label>
+                        <select asp-for="id_evento" class="form-select">
+                            <option value="">Obra social y necesidades generales de la iglesia</option>
+                            @foreach (var e in eventos)
+                            {
+                                <option value="@e.id">Actividad: @e.titulo · @e.fecha_inicio_evento!.Value.ToString("dd/MM/yyyy")</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="comprobante" class="form-label fw-semibold">Captura o foto del comprobante (.jpg, .png)</label>
+                        <input asp-for="comprobante" type="file" accept=".jpg,.jpeg,.png" class="form-control" />
+                    </div>
+
+                    <div class="p-3 rounded-3 bg-light border small text-secondary mb-3">
+                        🔒 <strong>Verificación y privacidad:</strong> La administración comprobará el ingreso bancario antes de aprobar el registro. Los datos individuales son privados. <a asp-controller="Home" asp-action="Privacy">Ver política de privacidad</a>.
+                    </div>
+
+                    <button class="btn btn-primary btn-lg w-100">✅ Enviar comprobante de donación</button>
+                </form>
+            </div>
+        </section>
+    </div>
+}
+
+<!-- Aviso Inferior: Donación de Víveres o Bienes Materiales (Presencial en la Iglesia) -->
+<section class="panel p-4 mb-2" id="donar-viveres">
+    <div class="row align-items-center g-3">
+        <div class="col-lg-8">
+            <div class="eyebrow">DONACIONES MATERIALES EN EL TEMPLO</div>
+            <h2 class="h4 fw-bold mb-2">📦 ¿Deseas donar víveres, alimentos o algo material?</h2>
+            <p class="text-secondary mb-0">
+                Si deseas donar alimentos no perecibles, víveres o artículos materiales en buen estado, <strong>acércate personalmente a nuestra iglesia</strong>@(string.IsNullOrWhiteSpace(church.direccion) ? "" : $" ({church.direccion})") durante nuestros horarios de reunión para entregarlos directamente a los encargados del almacén.
+            </p>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+            <a class="btn btn-outline-primary fw-semibold" asp-controller="Home" asp-action="Horarios">
+                🕒 Ver horarios y ubicación →
+            </a>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (function () {
+            var chk = document.getElementById('chkAnonimo'), campo = document.getElementById('campoDni');
+            if (!chk || !campo) return;
+            function mostrar() {
+                var anonimo = chk.checked;
+                campo.classList.toggle('d-none', anonimo);
+                var input = campo.querySelector('input');
+                if (anonimo && input) input.value = '';
+                if (input) input.disabled = anonimo;
+            }
+            chk.addEventListener('change', mostrar);
+            mostrar();
+        })();
+    </script>
 }

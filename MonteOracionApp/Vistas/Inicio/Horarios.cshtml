@@ -1,0 +1,102 @@
+@{
+    ViewData["Title"] = "Horarios y Mapa";
+    var church = (ConfiguracionIglesia)ViewBag.Church;
+    var whatsapp = church.ObtenerUrlWhatsApp();
+    var mapsUrl = $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString((church.direccion ?? "Iglesia Monte de Oración") + " Comas Lima")}";
+    var listaHorarios = (church.horarios ?? "")
+        .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Horarios y Mapa</li>
+    </ol>
+</nav>
+
+<!-- Encabezado limpio y directo (sin botones duplicados) -->
+<header class="section-heading text-center mx-auto mb-4" style="max-width: 760px;">
+    <div class="eyebrow">VISÍTANOS EN COMAS, LIMA</div>
+    <h1 class="display-5 fw-bold mb-2">Horarios de Culto y Ubicación</h1>
+    <p class="lead text-secondary mb-0">
+        Las puertas de <strong>@church.nombre</strong> están abiertas para ti y tu familia. Conoce nuestros días de reunión y cómo llegar al templo.
+    </p>
+</header>
+
+<!-- Cuerpo Principal: Horarios y Dirección (Izquierda) + Mapa Interactivo (Derecha) -->
+<section class="mb-4" id="visitanos">
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="d-flex flex-column gap-4 h-100">
+                <div class="panel">
+                    <div class="eyebrow mb-1">REUNIONES SEMANALES</div>
+                    <h2 class="h4 mb-3">🕒 Horarios de Culto</h2>
+                    @if (listaHorarios.Length == 0)
+                    {
+                        <p class="text-secondary mb-0">La iglesia publicará aquí sus horarios de culto y reuniones.</p>
+                    }
+                    else if (listaHorarios.Length > 1)
+                    {
+                        <ul class="list-unstyled mb-0 d-flex flex-column gap-2">
+                            @foreach (var item in listaHorarios)
+                            {
+                                <li class="p-2 bg-light rounded-3 border small fw-semibold text-secondary">
+                                    • @item
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="preserve-lines mb-0">@church.horarios</p>
+                    }
+                </div>
+
+                <div class="panel flex-grow-1 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="eyebrow mb-1">UBICACIÓN Y CONTACTO</div>
+                        <h2 class="h4 mb-3">📍 Dirección y Teléfono</h2>
+                        @if (!string.IsNullOrWhiteSpace(church.direccion))
+                        {
+                            <p class="mb-2"><strong>Dirección:</strong> @church.direccion</p>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(church.contacto))
+                        {
+                            <p class="mb-3"><strong>Teléfono:</strong> @church.contacto</p>
+                        }
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 pt-2">
+                        @if (whatsapp != null)
+                        {
+                            <a class="btn btn-success" href="@whatsapp" target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>
+                        }
+                        <a class="btn btn-outline-primary" target="_blank" rel="noopener" href="@mapsUrl">🗺️ Abrir en Google Maps</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="panel h-100 p-2 overflow-hidden">
+                <iframe title="Mapa de ubicación en Comas, Lima"
+                        src="https://www.google.com/maps?q=@Uri.EscapeDataString((church.direccion ?? "Iglesia Monte de Oración") + " Comas Lima Peru")&output=embed"
+                        width="100%" height="420" style="border:0;border-radius:10px;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Banner de Primera Visita (Unificado y sin redundancias) -->
+<section class="panel inst-pastoral-box p-4 mb-2">
+    <div class="row align-items-center g-3">
+        <div class="col-lg-8">
+            <div class="eyebrow text-white opacity-75">BIENVENIDA FRATERNA</div>
+            <h2 class="h4 text-white mb-1">¿Nos visitas por primera vez?</h2>
+            <p class="text-white opacity-90 mb-0">
+                No necesitas inscripción previa. Acércate con confianza unos minutos antes de la reunión; nuestro equipo te recibirá en la entrada y contamos con Escuela Dominical para los niños.
+            </p>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+            <a class="btn btn-light fw-semibold" asp-controller="Home" asp-action="Eventos">🗓️ Ver próximos eventos →</a>
+        </div>
+    </div>
+</section>

@@ -1,4 +1,4 @@
-﻿document.querySelectorAll('form[data-confirm]').forEach(form => form.addEventListener('submit', event => {
+document.querySelectorAll('form[data-confirm]').forEach(form => form.addEventListener('submit', event => {
     if (!window.confirm(form.dataset.confirm)) event.preventDefault();
 }));
 document.querySelectorAll('[data-repeat-add]').forEach(button => button.addEventListener('click', () => {
@@ -300,3 +300,194 @@ if (unifyModal) {
         });
     });
 }
+
+
+/* ===== UX Público: Navegación directa, Desplazamiento suave a anclas y Pestañas de Pago ===== */
+(function () {
+    // Desplazamiento suave para anclas directas (#donar, #visitanos, #contacto, #donar-viveres, etc.)
+    function scrollToHash(hash) {
+        if (!hash) return;
+        const targetId = hash.replace('#', '').toLowerCase();
+        let targetEl = document.getElementById(targetId);
+        // Aliases para compatibilidad con anclas de horarios y contacto
+        if (!targetEl && (targetId === 'contacto' || targetId === 'horarios')) {
+            targetEl = document.getElementById('visitanos');
+        }
+        if (targetEl) {
+            setTimeout(() => {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 80);
+        }
+    }
+
+    if (location.hash) {
+        scrollToHash(location.hash);
+    }
+    window.addEventListener('hashchange', () => scrollToHash(location.hash));
+
+    // Si el usuario hace clic en un enlace a una ancla dentro de la página, cierra el menú móvil si está abierto
+    document.querySelectorAll('a[href*="#"]').forEach(anchor => {
+        anchor.addEventListener('click', e => {
+            const hash = anchor.hash;
+            if (hash && (anchor.pathname === location.pathname || !anchor.pathname)) {
+                scrollToHash(hash);
+                const collapseEl = document.getElementById('navigation');
+                if (collapseEl?.classList.contains('show') && window.bootstrap?.Collapse) {
+                    bootstrap.Collapse.getOrCreateInstance(collapseEl).hide();
+                }
+            }
+        });
+    });
+
+    // Pestañas interactivas de Medios de Pago (Yape / Plin / BCP)
+    document.querySelectorAll('[data-payment-tab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-payment-tab');
+            const nav = btn.closest('.payment-tabs-nav');
+            const container = btn.closest('.panel') || document;
+            nav?.querySelectorAll('[data-payment-tab]').forEach(b => b.classList.toggle('is-active', b === btn));
+            container.querySelectorAll('.payment-tab-pane').forEach(pane => {
+                pane.classList.toggle('is-active', pane.id === targetId);
+            });
+            const payId = btn.getAttribute('data-payment-id');
+            const select = document.getElementById('id_medio_pago');
+            if (payId && select) select.value = payId;
+        });
+    });
+
+    // Botones de monto rápido en formulario de donación
+    document.querySelectorAll('[data-quick-amount]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const montoInput = document.getElementById('monto');
+            if (montoInput) {
+                montoInput.value = btn.getAttribute('data-quick-amount');
+                montoInput.focus();
+            }
+        });
+    });
+
+    // Modal automático del próximo evento destacado al abrir Inicio o Eventos
+    const spotlightEl = document.getElementById('featured-event-spotlight');
+    if (spotlightEl && window.bootstrap?.Modal) {
+        const initialHash = (location.hash || '').replace('#', '');
+        const params = new URLSearchParams(location.search);
+        if (!initialHash && !params.has('period') && !params.has('page')) {
+            const modal = new bootstrap.Modal(spotlightEl);
+            setTimeout(() => modal.show(), 250);
+        }
+    }
+
+    // ===== Control Inteligente, Pausa y Accesibilidad del Hero Carousel =====
+    const heroCarouselEl = document.getElementById('heroCarousel');
+    if (heroCarouselEl && window.bootstrap?.Carousel) {
+        const carousel = bootstrap.Carousel.getOrCreateInstance(heroCarouselEl, {
+            interval: 5500,
+            pause: 'hover',
+            touch: true,
+            keyboard: true
+        });
+
+        let userPaused = false;
+        const pauseBtn = document.getElementById('heroCarouselPause');
+        const pauseIcon = pauseBtn?.querySelector('.inst-pause-icon');
+
+        function setPausedState(isPaused, byUser = false) {
+            if (byUser) userPaused = isPaused;
+            heroCarouselEl.classList.toggle('is-paused', isPaused);
+            if (isPaused) {
+                carousel.pause();
+                if (pauseBtn) {
+                    pauseBtn.setAttribute('title', 'Reanudar rotación automática');
+                    pauseBtn.setAttribute('aria-label', 'Reanudar rotación automática');
+                    if (pauseIcon) pauseIcon.textContent = '▶';
+                }
+            } else if (!userPaused) {
+                carousel.cycle();
+                if (pauseBtn) {
+                    pauseBtn.setAttribute('title', 'Pausar rotación automática');
+                    pauseBtn.setAttribute('aria-label', 'Pausar rotación automática');
+                    if (pauseIcon) pauseIcon.textContent = '⏸';
+                }
+            }
+        }
+
+        // Reinicio visual de la barra de progreso al cambiar de diapositiva
+        heroCarouselEl.addEventListener('slide.bs.carousel', () => {
+            const indicators = heroCarouselEl.querySelectorAll('.inst-indicator-btn');
+            indicators.forEach(btn => {
+                const fill = btn.querySelector('.inst-indicator-fill');
+                if (fill) {
+                    fill.style.animation = 'none';
+                    void fill.offsetWidth; // Trigger reflow para reiniciar la animación CSS
+                    fill.style.animation = '';
+                }
+            });
+        });
+
+        // Botón interactivo de pausa / reanudación
+        pauseBtn?.addEventListener('click', e => {
+            e.preventDefault();
+            const willPause = !userPaused;
+            setPausedState(willPause, true);
+        });
+
+        // Pausa al pasar el cursor o hacer foco con teclado (WCAG 2.2.2)
+        heroCarouselEl.addEventListener('mouseenter', () => {
+            if (!userPaused) heroCarouselEl.classList.add('is-paused');
+        });
+        heroCarouselEl.addEventListener('mouseleave', () => {
+            if (!userPaused) heroCarouselEl.classList.remove('is-paused');
+        });
+        heroCarouselEl.addEventListener('focusin', () => {
+            if (!userPaused) heroCarouselEl.classList.add('is-paused');
+        });
+        heroCarouselEl.addEventListener('focusout', () => {
+            if (!userPaused) heroCarouselEl.classList.remove('is-paused');
+        });
+
+        // Pausar si la pestaña del navegador está oculta (Page Visibility API)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                carousel.pause();
+                heroCarouselEl.classList.add('is-paused');
+            } else if (!userPaused) {
+                heroCarouselEl.classList.remove('is-paused');
+                carousel.cycle();
+            }
+        });
+
+        // Respeto a usuarios con "movimiento reducido" (WCAG)
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            setPausedState(true, true);
+        }
+    }
+
+    // Pestañas de la página /Eventos (Próximos, Avisos, Recuerdos con soporte de Hash URL)
+    const eventTabs = Array.from(document.querySelectorAll('[data-event-tab]'));
+    if (eventTabs.length > 0) {
+        function activateEventTab(tabId, updateUrl) {
+            eventTabs.forEach(btn => btn.classList.toggle('is-active', btn.getAttribute('data-event-tab') === tabId));
+            document.querySelectorAll('.event-tab-pane').forEach(pane => pane.classList.toggle('is-active', pane.id === tabId));
+            if (updateUrl) {
+                const shortName = tabId.replace('tab-', '');
+                history.replaceState(null, '', `${location.pathname}#${shortName}`);
+            }
+        }
+
+        eventTabs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                activateEventTab(btn.getAttribute('data-event-tab'), true);
+            });
+        });
+
+        function resolveTabFromUrl() {
+            const hashOrParam = (location.hash || '').replace('#', '') || new URLSearchParams(location.search).get('tab');
+            if (hashOrParam === 'finalizados' || hashOrParam === 'proximos') {
+                activateEventTab(`tab-${hashOrParam}`, false);
+            }
+        }
+
+        resolveTabFromUrl();
+        window.addEventListener('hashchange', resolveTabFromUrl);
+    }
+})();

@@ -32,7 +32,7 @@ public class SettingsController(ContextoBaseDatos db, IAlmacenamientoArchivos al
         ArchivoGuardado? subido = null; var anterior = p.clave_qr;
         if (qr != null)
         {
-            try { subido = await almacenamiento.GuardarAsync(qr, soloImagen: true); }
+            try { subido = await almacenamiento.GuardarAsync(qr, soloImagen: true, categoria: "MediosPago"); }
             catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); return View(formulario); }
             p.clave_qr = subido.clave; p.tipo_contenido_qr = subido.tipo_contenido;
         }
