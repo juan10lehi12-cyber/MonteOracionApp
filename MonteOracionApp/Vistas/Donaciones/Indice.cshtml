@@ -1,13 +1,179 @@
 @model ListaDonaciones
-@{ ViewData["Title"] = "Donaciones"; ViewBag.Page = Model.filtro.pagina; ViewBag.Total = Model.total; }
-<div class="section-heading"><h1>Donaciones</h1><a class="btn btn-primary" asp-action="Receive">Registrar recepción</a></div>
-<form method="get" class="panel mb-4"><div class="row g-3 align-items-end">
-<div class="col-md-3"><label for="donante">Donante, código o número</label><input id="donante" name="donante" value="@Model.filtro.donante" class="form-control" /></div>
-<div class="col-md-2"><label for="estado">Estado</label><select id="estado" name="estado" class="form-select"><option value="">Todos</option>@foreach(var s in Enum.GetValues<EstadoDonacion>()) { <option value="@s" selected="@(Model.filtro.estado == s)">@s</option> }</select></div>
-<div class="col-md-2"><label for="tipo">Tipo</label><select id="tipo" name="tipo" class="form-select"><option value="">Todos</option>@foreach(var k in Enum.GetValues<TipoDonacion>()) { <option value="@k" selected="@(Model.filtro.tipo == k)">@k</option> }</select></div>
-<div class="col-md-2"><label for="tipo_donante">Donante</label><select id="tipo_donante" name="tipo_donante" class="form-select"><option value="">Todos</option><option value="Congregante" selected="@(Model.filtro.tipo_donante == TipoDonante.Congregante)">Miembro</option><option value="Externo" selected="@(Model.filtro.tipo_donante == TipoDonante.Externo)">Externo</option><option value="Anonimo" selected="@(Model.filtro.tipo_donante == TipoDonante.Anonimo)">Anónimo</option></select></div>
-<div class="col-md-2"><label for="origen">Origen</label><select id="origen" name="origen" class="form-select"><option value="">Todos</option><option value="Digital" selected="@(Model.filtro.origen == OrigenDonacion.Digital)">Digital (página web)</option><option value="Presencial" selected="@(Model.filtro.origen == OrigenDonacion.Presencial)">Presencial (recepción)</option></select></div>
-<div class="col-md-2"><label for="desde">Desde</label><input id="desde" type="date" name="desde" value="@Model.filtro.desde?.ToString("yyyy-MM-dd")" class="form-control" /></div><div class="col-md-2"><label for="hasta">Hasta</label><input id="hasta" type="date" name="hasta" value="@Model.filtro.hasta?.ToString("yyyy-MM-dd")" class="form-control" /></div><div class="col-md-1"><button class="btn btn-primary">Filtrar</button></div>
-</div><p class="mt-3 mb-0">@Model.total registros</p></form>
-<partial name="_DonationTable" model="Model.filas" /><partial name="_Pagination" />
-<p class="mt-3 fs-5">Total del resultado: <strong>S/ @Model.dinero_aprobado.ToString("N2")</strong> <small class="text-secondary fs-6">(solo dinero aprobado dentro del filtro)</small></p>
+@{
+    ViewData["Title"] = "Verificar donaciones";
+    ViewBag.Page = Model.filtro.pagina;
+    ViewBag.Total = Model.total;
+    ViewBag.PageSize = 10;
+    var eventosFiltro = ViewBag.EventosFiltro as List<Publicacion> ?? [];
+    var destinoActual = Model.filtro.destino ?? "";
+    var montoPendiente = (decimal)(ViewBag.MontoPendiente ?? 0m);
+    var soloPendientes = Model.filtro.estado == EstadoDonacion.Pendiente;
+    var tieneFiltrosAvanzados = Model.filtro.tipo.HasValue
+        || Model.filtro.tipo_donante.HasValue
+        || Model.filtro.origen.HasValue
+        || Model.filtro.desde.HasValue
+        || Model.filtro.hasta.HasValue;
+}
+
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">GESTIÓN DE DONACIONES</div>
+        <h1>Verificar donaciones</h1>
+    </div>
+    <a class="btn btn-primary" asp-action="Receive">➕ Registrar donación</a>
+</div>
+
+<!-- 1. Buscador y Filtro Compacto en una sola fila (con Más filtros desplegable) -->
+<form method="get" class="panel p-3 mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label for="donante" class="small fw-semibold">Buscar donante, código o #registro</label>
+            <input id="donante" name="donante" value="@Model.filtro.donante" class="form-control form-control-sm" placeholder="Ej. #12, nombre o código" />
+        </div>
+        <div class="col-md-3">
+            <label for="destino" class="small fw-semibold">Destino (Iglesia o Evento)</label>
+            <select id="destino" name="destino" class="form-select form-select-sm">
+                <option value="" selected="@string.IsNullOrEmpty(destinoActual)">Todos los destinos</option>
+                <option value="general" selected="@destinoActual.Equals("general", StringComparison.OrdinalIgnoreCase)">⛪ General para la iglesia</option>
+                <option value="eventos" selected="@destinoActual.Equals("eventos", StringComparison.OrdinalIgnoreCase)">🗓️ Todos los eventos</option>
+                @if (eventosFiltro.Count > 0)
+                {
+                    <optgroup label="Eventos específicos">
+                        @foreach (var ev in eventosFiltro)
+                        {
+                            <option value="@ev.id" selected="@(destinoActual == ev.id.ToString())">
+                                🗓️ @ev.titulo @(ev.fecha_inicio_evento.HasValue ? $"({ev.fecha_inicio_evento.Value:dd/MM/yyyy})" : "")
+                            </option>
+                        }
+                    </optgroup>
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="estado" class="small fw-semibold">Estado</label>
+            <select id="estado" name="estado" class="form-select form-select-sm">
+                <option value="">Todos</option>
+                @foreach (var s in Enum.GetValues<EstadoDonacion>())
+                {
+                    <option value="@s" selected="@(Model.filtro.estado == s)">@s</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-1">
+            <button type="submit" class="btn btn-primary btn-sm px-3">Filtrar</button>
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#masFiltros" aria-expanded="@(tieneFiltrosAvanzados ? "true" : "false")" aria-controls="masFiltros">
+                ⚙️ Más filtros
+            </button>
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index" title="Limpiar filtros">Limpiar</a>
+        </div>
+    </div>
+
+    <!-- Filtros secundarios ocultos por defecto para no recargar la pantalla -->
+    <div class="collapse @(tieneFiltrosAvanzados ? "show" : "") mt-3 pt-3 border-top" id="masFiltros">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label for="tipo" class="small fw-semibold">Tipo de aporte</label>
+                <select id="tipo" name="tipo" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    @foreach (var k in Enum.GetValues<TipoDonacion>())
+                    {
+                        <option value="@k" selected="@(Model.filtro.tipo == k)">@k</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="tipo_donante" class="small fw-semibold">Tipo de donante</label>
+                <select id="tipo_donante" name="tipo_donante" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    <option value="Congregante" selected="@(Model.filtro.tipo_donante == TipoDonante.Congregante)">Miembro</option>
+                    <option value="Externo" selected="@(Model.filtro.tipo_donante == TipoDonante.Externo)">Externo</option>
+                    <option value="Anonimo" selected="@(Model.filtro.tipo_donante == TipoDonante.Anonimo)">Anónimo</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="origen" class="small fw-semibold">Origen</label>
+                <select id="origen" name="origen" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    <option value="Digital" selected="@(Model.filtro.origen == OrigenDonacion.Digital)">Digital (página web)</option>
+                    <option value="Presencial" selected="@(Model.filtro.origen == OrigenDonacion.Presencial)">Presencial (iglesia)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="desde" class="small fw-semibold">Desde</label>
+                <input id="desde" type="date" name="desde" value="@Model.filtro.desde?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-2">
+                <label for="hasta" class="small fw-semibold">Hasta</label>
+                <input id="hasta" type="date" name="hasta" value="@Model.filtro.hasta?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- 2. Resumen dinámico de dinero según el estado y el destino seleccionado -->
+@{
+    var esFiltroGeneral = destinoActual.Equals("general", StringComparison.OrdinalIgnoreCase);
+    var esFiltroEventos = destinoActual.Equals("eventos", StringComparison.OrdinalIgnoreCase) || int.TryParse(destinoActual, out _);
+    var eventoSeleccionado = int.TryParse(destinoActual, out var idEvSel)
+        ? eventosFiltro.FirstOrDefault(x => x.id == idEvSel)
+        : null;
+}
+<div class="row g-3 mb-3">
+    @if (soloPendientes)
+    {
+        <div class="col-md-6 col-lg-5">
+            <div class="panel py-2 px-3 h-100 border-start border-4 border-warning">
+                <small class="text-secondary d-block">⏳ Monto pendiente por verificar</small>
+                <strong class="fs-4 text-warning-emphasis">S/ @montoPendiente.ToString("N2")</strong>
+            </div>
+        </div>
+    }
+    else if (esFiltroGeneral)
+    {
+        <div class="col-md-6 col-lg-5">
+            <div class="panel py-2 px-3 h-100 border-start border-4 border-primary">
+                <small class="text-secondary d-block">⛪ Ingreso General para la Iglesia (Aprobado)</small>
+                <strong class="fs-4 text-primary">S/ @Model.dinero_general.ToString("N2")</strong>
+            </div>
+        </div>
+    }
+    else if (esFiltroEventos)
+    {
+        <div class="col-md-6 col-lg-5">
+            <div class="panel py-2 px-3 h-100 border-start border-4 border-success">
+                <small class="text-secondary d-block">
+                    🗓️ @(eventoSeleccionado != null ? $"Recaudado en: {eventoSeleccionado.titulo}" : "Dinero para Eventos (Aprobado)")
+                </small>
+                <strong class="fs-4 text-success">S/ @Model.dinero_eventos.ToString("N2")</strong>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="col-md-4">
+            <div class="panel py-2 px-3 h-100 border-start border-4 border-primary">
+                <small class="text-secondary d-block">⛪ Ingreso General para la Iglesia (Aprobado)</small>
+                <strong class="fs-5">S/ @Model.dinero_general.ToString("N2")</strong>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="panel py-2 px-3 h-100 border-start border-4 border-success">
+                <small class="text-secondary d-block">🗓️ Dinero para Eventos (Aprobado)</small>
+                <strong class="fs-5">S/ @Model.dinero_eventos.ToString("N2")</strong>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="panel py-2 px-3 h-100 bg-light">
+                <small class="text-secondary d-block">💰 Total Dinero Aprobado (General + Eventos)</small>
+                <strong class="fs-5 text-success">S/ @Model.dinero_aprobado.ToString("N2")</strong>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- 3. Tabla paginada de 10 en 10 -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <span class="small text-secondary">Mostrando <strong>@Model.filas.Count</strong> de <strong>@Model.total</strong> registros en total</span>
+</div>
+<partial name="_DonationTable" model="Model.filas" />
+<partial name="_Pagination" />

@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "Calendario Mensual";
+    ViewData["Title"] = "Calendario de Eventos";
     var first = (DateTime)ViewBag.Month;
     var prev = (DateTime)ViewBag.Prev;
     var next = (DateTime)ViewBag.Next;
@@ -9,52 +9,83 @@
     int semanas = (int)Math.Ceiling((offset + days) / 7.0);
     var cultura = new System.Globalization.CultureInfo("es-PE");
     var tituloMes = cultura.TextInfo.ToTitleCase(first.ToString("MMMM yyyy", cultura));
+    var hoy = HoraIglesia.Hoy;
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Calendario — @tituloMes</h1>
-    <div class="btn-group">
-        <a asp-action="Calendario" asp-route-year="@prev.Year" asp-route-month="@prev.Month" class="btn btn-outline-secondary">&laquo; Mes anterior</a>
-        <a asp-action="Calendario" asp-route-year="@next.Year" asp-route-month="@next.Month" class="btn btn-outline-secondary">Mes siguiente &raquo;</a>
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">GESTIÓN ADMINISTRATIVA</div>
+        <h1>Calendario — @tituloMes</h1>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <div class="btn-group">
+            <a asp-action="Calendario" asp-route-year="@prev.Year" asp-route-month="@prev.Month" class="btn btn-outline-secondary btn-sm">&laquo; Mes anterior</a>
+            <a asp-action="Calendario" class="btn btn-outline-secondary btn-sm">Mes actual</a>
+            <a asp-action="Calendario" asp-route-year="@next.Year" asp-route-month="@next.Month" class="btn btn-outline-secondary btn-sm">Mes siguiente &raquo;</a>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Publicaciones</a>
+        <a asp-action="Edit" class="btn btn-primary btn-sm">➕ Nuevo evento</a>
     </div>
 </div>
 
-<table class="table table-bordered calendar-grid align-middle">
-    <thead>
-        <tr>
-            @foreach (var d in new[] { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" }) { <th class="text-center small text-muted">@d</th> }
-        </tr>
-    </thead>
-    <tbody>
-        @for (int semana = 0; semana < semanas; semana++)
-        {
+<div class="panel p-0 overflow-hidden mb-3">
+    <table class="table table-bordered calendar-grid align-middle mb-0">
+        <thead>
             <tr>
-                @for (int i = 0; i < 7; i++)
+                @foreach (var d in new[] { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" })
                 {
-                    int dia = semana * 7 + i - offset + 1;
-                    if (dia < 1 || dia > days)
-                    {
-                        <td class="calendar-off"></td>
-                    }
-                    else
-                    {
-                        var fecha = new DateTime(first.Year, first.Month, dia);
-                        <td>
-                            <div class="fw-bold small text-muted">@dia</div>
-                            @if (byDay.TryGetValue(fecha, out var lista))
-                            {
-                                foreach (var e in lista)
-                                {
-                                    <a asp-action="Edit" asp-route-id="@e.id"
-                                       class="d-block calendar-event @(e.cancelado ? "cancelled" : e.publicado ? "" : "draft")">
-                                        @e.titulo
-                                    </a>
-                                }
-                            }
-                        </td>
-                    }
+                    <th class="text-center small text-secondary bg-light">@d</th>
                 }
             </tr>
-        }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+            @for (int semana = 0; semana < semanas; semana++)
+            {
+                <tr>
+                    @for (int i = 0; i < 7; i++)
+                    {
+                        int dia = semana * 7 + i - offset + 1;
+                        if (dia < 1 || dia > days)
+                        {
+                            <td class="calendar-off"></td>
+                        }
+                        else
+                        {
+                            var fecha = new DateTime(first.Year, first.Month, dia);
+                            var esHoy = fecha == hoy;
+                            <td class="@(esHoy ? "bg-warning-subtle" : "")">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-bold small @(esHoy ? "text-primary" : "text-secondary")">@dia</span>
+                                    @if (esHoy)
+                                    {
+                                        <span class="badge text-bg-primary" style="font-size:.65rem;">Hoy</span>
+                                    }
+                                </div>
+                                @if (byDay.TryGetValue(fecha, out var lista))
+                                {
+                                    foreach (var e in lista)
+                                    {
+                                        <a asp-action="Edit" asp-route-id="@e.id"
+                                           class="d-block calendar-event @(e.cancelado ? "cancelled" : e.publicado ? "" : "draft")">
+                                            @if (e.fecha_inicio_evento.HasValue)
+                                            {
+                                                <strong>@e.fecha_inicio_evento.Value.ToString("HH:mm")</strong>
+                                            }
+                                            @e.titulo
+                                        </a>
+                                    }
+                                }
+                            </td>
+                        }
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex flex-wrap gap-3 small text-secondary">
+    <span><span class="badge bg-success me-1">&nbsp;</span> Publicado en web</span>
+    <span><span class="badge bg-secondary me-1">&nbsp;</span> Borrador interno</span>
+    <span><span class="badge bg-danger me-1">&nbsp;</span> Cancelado</span>
+</div>

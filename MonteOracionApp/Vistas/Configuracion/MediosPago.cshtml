@@ -1,29 +1,52 @@
 @model List<MedioPago>
 @{ ViewData["Title"] = "Medios de Pago"; }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Medios de Pago y Códigos QR</h1>
-    <a asp-action="Payment" class="btn btn-primary">Nuevo medio de pago</a>
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">ADMINISTRACIÓN</div>
+        <h1>Medios de Pago y Códigos QR</h1>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">← Datos de la iglesia</a>
+        <a asp-action="Payment" class="btn btn-primary">➕ Nuevo medio de pago</a>
+    </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-                <tr><th>Nombre</th><th>Cuenta / Número</th><th>Instrucciones</th><th>Estado</th><th class="text-end">Acción</th></tr>
-            </thead>
-            <tbody>
-                @foreach (var p in Model)
-                {
-                    <tr>
-                        <td class="fw-semibold">@p.nombre</td>
-                        <td>@p.numero_cuenta</td>
-                        <td>@p.instrucciones</td>
-                        <td><span class="badge @(p.activo ? "bg-success" : "bg-secondary")">@(p.activo ? "Activo" : "Inactivo")</span></td>
-                        <td class="text-end"><a asp-action="Payment" asp-route-id="@p.id" class="btn btn-sm btn-outline-primary">Editar</a></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+<div class="panel table-responsive">
+    <table class="table align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Cuenta / Número</th>
+                <th>Instrucciones</th>
+                <th>Código QR</th>
+                <th>Estado</th>
+                <th class="text-end">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Model)
+            {
+                <tr>
+                    <td class="fw-semibold">@p.nombre</td>
+                    <td>@p.numero_cuenta</td>
+                    <td class="small text-secondary">@p.instrucciones</td>
+                    <td>
+                        @if (p.clave_qr != null)
+                        {
+                            <a asp-action="Qr" asp-route-id="@p.id" target="_blank" rel="noopener" title="Ver QR completo">
+                                <img src="@Url.Action("Qr", new { id = p.id })" alt="QR @p.nombre" style="width:42px;height:42px;object-fit:contain;" class="border rounded bg-white p-1" />
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-light border text-secondary">Sin QR</span>
+                        }
+                    </td>
+                    <td><span class="badge @(p.activo ? "bg-success" : "bg-secondary")">@(p.activo ? "Activo" : "Inactivo")</span></td>
+                    <td class="text-end"><a asp-action="Payment" asp-route-id="@p.id" class="btn btn-sm btn-outline-primary">Editar</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
 </div>

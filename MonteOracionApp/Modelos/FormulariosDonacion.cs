@@ -41,6 +41,8 @@ public class FormularioRecepcionDonacion
     public string? ExternalContact { get; set; }
     [Display(Name = "Monto recibido en efectivo (S/)")]
     public decimal? Amount { get; set; }
+    [Display(Name = "Destino del aporte (Iglesia o Evento)")]
+    public int? EventId { get; set; }
     [DataType(DataType.Date), Display(Name = "Fecha de recepción")]
     public DateTime ReceivedOn { get; set; } = DateTime.UtcNow.AddHours(-5).Date;
     public List<ItemRecepcionForm> Items { get; set; } = [new()];
@@ -70,6 +72,8 @@ public class FiltroDonacion
     public TipoDonacion? tipo { get; set; }
     public TipoDonante? tipo_donante { get; set; }
     public OrigenDonacion? origen { get; set; }
+    public string? destino { get; set; }
+    public int? id_evento { get; set; }
     public string? donante { get; set; }
     public DateTime? desde { get; set; }
     public DateTime? hasta { get; set; }
@@ -77,7 +81,13 @@ public class FiltroDonacion
     public int pagina { get; set; } = 1;
 }
 
-public record ListaDonaciones(List<Donacion> filas, FiltroDonacion filtro, int total, decimal dinero_aprobado);
+public record ListaDonaciones(
+    List<Donacion> filas,
+    FiltroDonacion filtro,
+    int total,
+    decimal dinero_aprobado,
+    decimal dinero_general = 0m,
+    decimal dinero_eventos = 0m);
 
 public static class ReglasDonacion
 {

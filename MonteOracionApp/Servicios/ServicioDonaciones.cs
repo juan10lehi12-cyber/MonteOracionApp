@@ -95,6 +95,12 @@ public class ServicioDonaciones(ContextoBaseDatos db, IAlmacenamientoArchivos al
             contacto_externo = formulario.DonorKind == TipoDonante.Externo ? formulario.ExternalContact?.Trim() : null,
             fecha_recepcion_pago = formulario.ReceivedOn.Date, id_usuario_registro = idAdministrador
         };
+        if (formulario.EventId.HasValue)
+        {
+            var ev = await db.Publicaciones.SingleOrDefaultAsync(x => x.id == formulario.EventId.Value && x.tipo == TipoPublicacion.Evento && !x.cancelado)
+                ?? throw new InvalidOperationException("El evento seleccionado no está disponible.");
+            d.id_evento = ev.id;
+        }
         if (formulario.Kind == TipoDonacion.Dinero)
         {
             ReglasDonacion.ValidarMonto(formulario.Amount);

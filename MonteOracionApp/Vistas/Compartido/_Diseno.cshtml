@@ -48,7 +48,14 @@
             </button>
             <div class="collapse navbar-collapse" id="navigation">
                 <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-lg-end w-100 gap-2 my-2 my-lg-0">
-                    <a class="btn btn-outline-personal" asp-controller="Dashboard" asp-action="Index">Mi panel</a>
+                    @if (!workspace)
+                    {
+                        <a class="btn btn-outline-personal btn-sm" asp-controller="Dashboard" asp-action="Index">Ir al panel del personal</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-outline-secondary btn-sm" asp-controller="Home" asp-action="Index" title="Ver portal público de la iglesia">🌐 Ver web pública</a>
+                    }
                     <partial name="_LoginPartial" />
                 </div>
             </div>
@@ -107,7 +114,7 @@
     </nav>
 </header>
 <div class="@(workspace?"workspace-shell":"")">
-@if(workspace){<aside class="workspace-sidebar"><button class="btn btn-outline-light d-lg-none w-100" type="button" data-bs-toggle="collapse" data-bs-target="#staff-navigation" aria-controls="staff-navigation" aria-expanded="false">Módulos del personal</button><nav id="staff-navigation" class="collapse d-lg-block" aria-label="Módulos del personal"><a class="sidebar-home" asp-controller="Dashboard" asp-action="Index">Inicio del personal</a><details open><summary>Donaciones</summary><a asp-controller="Donations" asp-action="Index">Registros y verificación</a><a asp-controller="Donations" asp-action="Receive">Registrar recepción</a></details><details open><summary>Almacén</summary><a asp-controller="Inventory" asp-action="Pending">Visto bueno de entradas</a><a asp-controller="Inventory" asp-action="Index">Existencias</a><a asp-controller="Inventory" asp-action="Exit">Registrar salida</a><a asp-controller="Inventory" asp-action="Movements">Entradas y salidas</a></details>@if(User.IsInRole(Roles.Administrador)){<details open><summary>Administración</summary><a asp-controller="Publications" asp-action="Calendario">Calendario de eventos</a><a asp-controller="Publications" asp-action="Index">Eventos y publicaciones</a><a asp-controller="Publications" asp-action="Recaudacion">Recaudación</a><a asp-controller="Congregants" asp-action="Index">Miembros</a><a asp-controller="Staff" asp-action="Index">Personal y permisos</a><a asp-controller="Settings" asp-action="Index">Datos de la iglesia</a><a asp-controller="Settings" asp-action="Payments">Medios de pago</a></details>}</nav></aside>}
+@if(workspace){<aside class="workspace-sidebar"><button class="btn btn-outline-light d-lg-none w-100" type="button" data-bs-toggle="collapse" data-bs-target="#staff-navigation" aria-controls="staff-navigation" aria-expanded="false">Módulos del personal</button><nav id="staff-navigation" class="collapse d-lg-block" aria-label="Módulos del personal"><a class="sidebar-home" asp-controller="Dashboard" asp-action="Index">Inicio del personal</a><details open><summary>Gestión de Donaciones</summary><a asp-controller="Donations" asp-action="Index">Verificar donaciones</a><a asp-controller="Donations" asp-action="Receive">Registrar donación</a></details><details open><summary>Gestión de Almacén</summary><a asp-controller="Inventory" asp-action="Pending">Visto bueno de entradas</a><a asp-controller="Inventory" asp-action="Index">Existencias</a><a asp-controller="Inventory" asp-action="Exit">Registrar salida</a><a asp-controller="Inventory" asp-action="Movements">Entradas y salidas</a></details>@if(User.IsInRole(Roles.Administrador)){<details open><summary>Gestión Administrativa</summary><a asp-controller="Publications" asp-action="Index">Eventos y publicaciones</a><a asp-controller="Publications" asp-action="Calendario">Calendario de eventos</a><a asp-controller="Publications" asp-action="Recaudacion">Recaudación por evento</a><a asp-controller="Congregants" asp-action="Index">Miembros</a><a asp-controller="Staff" asp-action="Index">Personal y permisos</a><a asp-controller="Settings" asp-action="Index">Datos de la iglesia</a><a asp-controller="Settings" asp-action="Payments">Medios de pago</a></details>}</nav></aside>}
 <main class="@(workspace?"workspace-content":"container py-4")" id="main">@if(TempData["Success"] is string success){<div class="alert alert-success" role="status">@success</div>}@if(TempData["Error"] is string error){<div class="alert alert-danger" role="alert">@error</div>}@RenderBody()</main></div>
 @if (!workspace)
 {

@@ -9,26 +9,74 @@ namespace MonteOracionApp.Controladores;
 [Authorize(Roles = Roles.Administrador)]
 public class PublicationsController(ContextoBaseDatos db, IAlmacenamientoArchivos almacenamiento) : Controller
 {
-    public async Task<IActionResult> Index(int page = 1)
+    public async Task<IActionResult> Index(string? search, TipoPublicacion? tipo, string? estado, int page = 1)
     {
-        ViewBag.Page = Math.Clamp(page, 1, 100000); ViewBag.Total = await db.Publicaciones.CountAsync();
-        return View(await db.Publicaciones.AsNoTracking().OrderByDescending(x => x.id).Skip((Math.Clamp(page, 1, 100000) - 1) * 30).Take(30).ToListAsync());
+        page = Math.Clamp(page, 1, 100000);
+        var ahora = HoraIglesia.Ahora;
+        var q = db.Publicaciones.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(search))
+            q = q.Where(x => x.titulo.Contains(search) || x.contenido.Contains(search));
+        if (tipo.HasValue)
+            q = q.Where(x => x.tipo == tipo.Value);
+
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            if (estado.Equals("publicados", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.publicado && !x.cancelado);
+            else if (estado.Equals("borradores", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => !x.publicado && !x.cancelado);
+            else if (estado.Equals("cancelados", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.cancelado);
+            else if (estado.Equals("proximos", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.tipo == TipoPublicacion.Evento && !x.cancelado && (x.fecha_fin_evento ?? x.fecha_inicio_evento) >= ahora);
+            else if (estado.Equals("finalizados", StringComparison.OrdinalIgnoreCase))
+                q = q.Where(x => x.tipo == TipoPublicacion.Evento && !x.cancelado && (x.fecha_fin_evento ?? x.fecha_inicio_evento) < ahora);
+        }
+
+        var total = await q.CountAsync();
+        var filas = await q.OrderByDescending(x => x.id).Skip((page - 1) * 10).Take(10).ToListAsync();
+        ViewBag.Search = search;
+        ViewBag.Tipo = tipo;
+        ViewBag.Estado = estado;
+        ViewBag.Page = page;
+        ViewBag.PageSize = 10;
+        ViewBag.Total = total;
+        return View(filas);
     }
 
-    public async Task<IActionResult> Recaudacion()
+    public async Task<IActionResult> Recaudacion(string? filtro)
     {
+        var ahora = HoraIglesia.Ahora;
         var grupos = await db.Donaciones.AsNoTracking()
-            .Where(x => x.estado == EstadoDonacion.Aprobada && x.id_evento != null)
+            .Where(x => x.estado == EstadoDonacion.Aprobada && x.tipo == TipoDonacion.Dinero && x.id_evento != null)
             .GroupBy(x => x.id_evento!.Value)
             .Select(g => new { id_evento = g.Key, total = g.Sum(x => x.monto) ?? 0m, cantidad = g.Count() })
             .ToListAsync();
         ViewBag.Raised = grupos.ToDictionary(g => g.id_evento, g => g.total);
         ViewBag.General = await db.Donaciones.AsNoTracking()
-            .Where(x => x.estado == EstadoDonacion.Aprobada && x.id_evento == null)
+            .Where(x => x.estado == EstadoDonacion.Aprobada && x.tipo == TipoDonacion.Dinero && x.id_evento == null)
             .SumAsync(x => x.monto) ?? 0m;
-        return View(await db.Publicaciones.AsNoTracking()
-            .Where(x => x.tipo == TipoPublicacion.Evento && x.fecha_inicio_evento != null)
-            .OrderByDescending(x => x.fecha_inicio_evento).Take(60).ToListAsync());
+
+        var lotesEvento = await db.Lotes.AsNoTracking()
+            .Where(x => !x.revision_pendiente && x.cantidad_actual > 0 && x.donacion_bien != null && x.donacion_bien.donacion != null && x.donacion_bien.donacion.id_evento != null)
+            .GroupBy(x => x.donacion_bien!.donacion!.id_evento!.Value)
+            .Select(g => new { id_evento = g.Key, cantidad = g.Count() })
+            .ToListAsync();
+        ViewBag.GoodsByEvent = lotesEvento.ToDictionary(g => g.id_evento, g => g.cantidad);
+        ViewBag.Filtro = filtro;
+
+        var qEventos = db.Publicaciones.AsNoTracking()
+            .Where(x => x.tipo == TipoPublicacion.Evento && x.fecha_inicio_evento != null);
+
+        if (!string.IsNullOrWhiteSpace(filtro))
+        {
+            if (filtro.Equals("proximos", StringComparison.OrdinalIgnoreCase))
+                qEventos = qEventos.Where(x => !x.cancelado && (x.fecha_fin_evento ?? x.fecha_inicio_evento) >= ahora);
+            else if (filtro.Equals("finalizados", StringComparison.OrdinalIgnoreCase))
+                qEventos = qEventos.Where(x => !x.cancelado && (x.fecha_fin_evento ?? x.fecha_inicio_evento) < ahora);
+        }
+
+        return View(await qEventos.OrderByDescending(x => x.fecha_inicio_evento).Take(60).ToListAsync());
     }
 
     public async Task<IActionResult> Calendario(int? month, int? year)

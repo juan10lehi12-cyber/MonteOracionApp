@@ -1,66 +1,241 @@
 @model List<Lote>
-@{ ViewData["Title"]="Almacén"; var products = ViewBag.Products as List<Producto> ?? []; }
-<div class="section-heading"><div><div class="eyebrow">ALMACÉN</div><h1>Existencias</h1><p class="mb-0">Todo lo que hay guardado. Se suma con cada entrada con visto bueno y se descuenta solo en cada salida.</p></div><div class="d-flex gap-2 flex-wrap"><a class="btn btn-primary" asp-action="Exit">Registrar salida</a><a class="btn btn-outline-primary" asp-controller="Donations" asp-action="Receive">Registrar recepción</a></div></div>
+@{
+    ViewData["Title"] = "Existencias de almacén";
+    ViewBag.Page = (int)(ViewBag.Page ?? 1);
+    var total = (int)(ViewBag.Total ?? 0);
+    var products = ViewBag.Products as List<Producto> ?? [];
+    var eventosFiltro = ViewBag.EventosFiltro as List<Publicacion> ?? [];
+    var destinoActual = (string?)(ViewBag.Destino) ?? "";
+    var lotesGeneral = (int)(ViewBag.LotesGeneral ?? 0);
+    var lotesEventos = (int)(ViewBag.LotesEventos ?? 0);
+    var lotesDisponibles = (int)(ViewBag.LotesDisponibles ?? 0);
+    var esFiltroGeneral = destinoActual.Equals("general", StringComparison.OrdinalIgnoreCase);
+    var esFiltroEventos = destinoActual.Equals("eventos", StringComparison.OrdinalIgnoreCase) || int.TryParse(destinoActual, out _);
+    var eventoSeleccionado = int.TryParse(destinoActual, out var idEvSel)
+        ? eventosFiltro.FirstOrDefault(x => x.id == idEvSel)
+        : null;
+}
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">GESTIÓN DE ALMACÉN</div>
+        <h1>Existencias</h1>
+        <p class="mb-0">Inventario actual confirmado en almacén. Filtra por almacén general o por los víveres acumulados para un evento.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-primary" asp-action="Exit">📤 Registrar salida</a>
+        <a class="btn btn-outline-primary" asp-controller="Donations" asp-action="Receive">➕ Registrar donación</a>
+    </div>
+</div>
+
 @if (ViewBag.PendingCount is int pc && pc > 0)
-{<div class="alert alert-warning d-flex justify-content-between align-items-center"><span>Hay <strong>@pc entrada(s) por dar visto bueno</strong>.</span><a class="btn btn-sm btn-warning" asp-action="Pending">Revisar entradas</a></div>}
-<div class="d-flex flex-wrap gap-2 mb-3">
-    <a class="btn btn-sm btn-outline-secondary" asp-action="Movements">Historial de entradas y salidas</a>
-    @if (User.IsInRole(Roles.Administrador) && products.Count > 0)
+{
+    <div class="alert alert-warning d-flex justify-content-between align-items-center">
+        <span>Hay <strong>@pc entrada(s) pendientes de visto bueno</strong> antes de sumarse al inventario.</span>
+        <a class="btn btn-sm btn-warning fw-semibold" asp-action="Pending">Revisar entradas →</a>
+    </div>
+}
+
+<!-- 1. Barra de filtro compacta con Destino (Iglesia o Evento) -->
+<form method="get" class="panel p-3 mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label for="search" class="small fw-semibold">Buscar producto o ubicación</label>
+            <input id="search" name="search" value="@ViewBag.Search" class="form-control form-control-sm" placeholder="Ej. Arroz, Estante A-1..." />
+        </div>
+        <div class="col-md-3">
+            <label for="destino" class="small fw-semibold">Destino (Almacén o Evento)</label>
+            <select id="destino" name="destino" class="form-select form-select-sm">
+                <option value="" selected="@string.IsNullOrEmpty(destinoActual)">Todos los destinos</option>
+                <option value="general" selected="@esFiltroGeneral">⛪ General (Almacén iglesia)</option>
+                <option value="eventos" selected="@destinoActual.Equals("eventos", StringComparison.OrdinalIgnoreCase)">🗓️ Todos los eventos</option>
+                @if (eventosFiltro.Count > 0)
+                {
+                    <optgroup label="Eventos específicos">
+                        @foreach (var ev in eventosFiltro)
+                        {
+                            <option value="@ev.id" selected="@(destinoActual == ev.id.ToString())">
+                                🗓️ @ev.titulo @(ev.fecha_inicio_evento.HasValue ? $"({ev.fecha_inicio_evento.Value:dd/MM/yyyy})" : "")
+                            </option>
+                        }
+                    </optgroup>
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" id="availableOnly" name="availableOnly" value="true" checked="@ViewBag.AvailableOnly" />
+                <label class="form-check-label small fw-semibold" for="availableOnly">Solo disponibles</label>
+            </div>
+        </div>
+        <div class="col-md-4 d-flex flex-wrap justify-content-md-end gap-1">
+            <button type="submit" class="btn btn-primary btn-sm px-3">Filtrar</button>
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Limpiar</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Movements">📋 Movimientos</a>
+            @if (User.IsInRole(Roles.Administrador) && products.Count > 0)
+            {
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#unifyModal">🔧 Unificar</button>
+            }
+        </div>
+    </div>
+</form>
+
+<!-- 2. Cuadros de Resumen dinámicos según el filtro seleccionado (igual que en Donaciones) -->
+<div class="row g-3 mb-3">
+    @if (esFiltroGeneral)
     {
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#unifyModal">Unificar productos</button>
+        <div class="col-md-6 col-lg-5">
+            <div class="panel py-2 px-3 h-100 border-start border-4 border-primary">
+                <small class="text-secondary d-block">⛪ Lotes disponibles en Almacén General</small>
+                <strong class="fs-4 text-primary">@lotesGeneral producto(s) con stock</strong>
+            </div>
+        </div>
+    }
+    else if (esFiltroEventos)
+    {
+        <div class="col-md-8 col-lg-7">
+            <div class="panel py-2 px-3 h-100 border-start border-4 border-success d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <small class="text-secondary d-block">
+                        🗓️ @(eventoSeleccionado != null ? $"Bienes acumulados para: {eventoSeleccionado.titulo}" : "Lotes acumulados para Eventos")
+                    </small>
+                    <strong class="fs-4 text-success">@lotesEventos lote(s) con stock</strong>
+                </div>
+                @if (eventoSeleccionado != null && lotesEventos > 0)
+                {
+                    <a class="btn btn-success btn-sm fw-semibold" asp-action="Exit" asp-route-evento="@eventoSeleccionado.id">
+                        📤 Retirar todo lo acumulado de este evento →
+                    </a>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="col-md-4">
+            <div class="panel py-2 px-3 h-100 border-start border-4 border-primary">
+                <small class="text-secondary d-block">⛪ Stock General (Almacén Iglesia)</small>
+                <strong class="fs-5">@lotesGeneral lote(s) disponibles</strong>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="panel py-2 px-3 h-100 border-start border-4 border-success">
+                <small class="text-secondary d-block">🗓️ Stock Acumulado para Eventos</small>
+                <strong class="fs-5">@lotesEventos lote(s) disponibles</strong>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="panel py-2 px-3 h-100 bg-light">
+                <small class="text-secondary d-block">📦 Total Lotes con Stock Disponible</small>
+                <strong class="fs-5 text-success">@lotesDisponibles lote(s)</strong>
+            </div>
+        </div>
     }
 </div>
-<form method="get" class="panel d-flex gap-3 mb-3 flex-wrap"><input name="search" value="@ViewBag.Search" class="form-control w-auto" placeholder="Producto o ubicación" aria-label="Buscar en el almacén" /><label class="d-flex gap-2 align-items-center"><input type="checkbox" name="availableOnly" value="true" checked="@ViewBag.AvailableOnly" /> Solo con existencias</label><button class="btn btn-primary">Filtrar</button><a asp-action="Index">Limpiar</a></form>
-<div class="panel table-responsive"><table class="table"><thead><tr><th>Producto</th><th>Ubicación</th><th class="text-end">Cantidad</th></tr></thead><tbody>
-@foreach(var l in Model){<tr><td><strong>@l.producto.nombre</strong></td><td>@l.ubicacion</td><td class="text-end">@l.cantidad_actual.ToString("0.##") <small>@l.producto.unidad</small></td></tr>}
-</tbody></table>@if(Model.Count==0){<p>No hay existencias para mostrar.</p>}</div>
+
+<!-- 3. Tabla paginada de 10 en 10 -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <span class="small text-secondary">Mostrando <strong>@Model.Count</strong> de <strong>@total</strong> registros en total</span>
+</div>
+
+<div class="panel table-responsive">
+    <table class="table align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Destino asignado</th>
+                <th>Ubicación en almacén</th>
+                <th>Estado</th>
+                <th class="text-end">Cantidad actual</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var l in Model)
+            {
+                var disponible = l.cantidad_actual > 0;
+                var evLote = l.donacion_bien?.donacion?.evento;
+                <tr class="@(disponible ? "" : "opacity-75")">
+                    <td><strong>@l.producto.nombre</strong></td>
+                    <td>
+                        @if (evLote != null)
+                        {
+                            <span class="badge text-bg-primary-subtle text-primary-emphasis">🗓️ @evLote.titulo</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-light border text-dark">⛪ General (Iglesia)</span>
+                        }
+                    </td>
+                    <td>@(string.IsNullOrWhiteSpace(l.ubicacion) ? "Sin ubicación" : l.ubicacion)</td>
+                    <td>
+                        @if (disponible)
+                        {
+                            <span class="badge text-bg-success-subtle text-success-emphasis">Disponible</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">Agotado</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        <strong>@l.cantidad_actual.ToString("0.##")</strong> <small class="text-secondary">@l.producto.unidad</small>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (Model.Count == 0)
+    {
+        <p class="text-secondary mb-0">No hay existencias para mostrar con este filtro.</p>
+    }
+</div>
+<partial name="_Pagination" />
 
 @if (User.IsInRole(Roles.Administrador) && products.Count > 0)
 {
-<div class="modal fade" id="unifyModal" tabindex="-1" aria-labelledby="unifyModalLabel" aria-hidden="true" data-unify-modal>
-  <div class="modal-dialog modal-lg">
-    <form method="post" asp-action="ProductUnify" class="modal-content">
-      <div class="modal-header">
-        <h2 class="modal-title h5" id="unifyModalLabel">Unificar o corregir nombre de productos</h2>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-      </div>
-      <div class="modal-body">
-        <p class="small text-secondary">Busca los productos mal escritos o repetidos, márcalos y escribe el nombre correcto con el que deben quedar. Sus existencias y donaciones se sumarán automáticamente.</p>
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label for="unifyTarget" class="form-label fw-semibold">1. Producto base (opcional)</label>
-            <select id="unifyTarget" name="targetId" class="form-select" data-unify-target>
-              <option value="0">— Usar el primero que marque abajo —</option>
-              @foreach (var p in products)
-              {
-                  <option value="@p.id" data-name="@p.nombre">@p.nombre · @p.unidad</option>
-              }
-            </select>
-          </div>
-          <div class="col-md-6">
-            <label for="unifyCorrectName" class="form-label fw-semibold">2. Nombre correcto definitivo</label>
-            <input id="unifyCorrectName" name="correctName" maxlength="160" class="form-control" data-unify-name placeholder="Ej.: Arroz" autocomplete="off" />
-          </div>
+    <div class="modal fade" id="unifyModal" tabindex="-1" aria-labelledby="unifyModalLabel" aria-hidden="true" data-unify-modal>
+        <div class="modal-dialog modal-lg">
+            <form method="post" asp-action="ProductUnify" class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="unifyModalLabel">Unificar o corregir nombre de productos</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-secondary">Busca los productos mal escritos o repetidos, márcalos y escribe el nombre correcto con el que deben quedar. Sus existencias y donaciones se sumarán automáticamente.</p>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="unifyTarget" class="form-label fw-semibold">1. Producto base (opcional)</label>
+                            <select id="unifyTarget" name="targetId" class="form-select" data-unify-target>
+                                <option value="0">— Usar el primero que marque abajo —</option>
+                                @foreach (var p in products)
+                                {
+                                    <option value="@p.id" data-name="@p.nombre">@p.nombre · @p.unidad</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="unifyCorrectName" class="form-label fw-semibold">2. Nombre correcto definitivo</label>
+                            <input id="unifyCorrectName" name="correctName" maxlength="160" class="form-control" data-unify-name placeholder="Ej.: Arroz" autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label for="unifySearch" class="form-label fw-semibold">3. Buscar y marcar los nombres mal escritos o repetidos</label>
+                        <input id="unifySearch" type="text" class="form-control mb-2" data-unify-search placeholder="Escribe para buscar… p. ej. arroz" autocomplete="off" />
+                        <div class="border rounded p-2" style="max-height:240px;overflow-y:auto" data-unify-list>
+                            @foreach (var p in products)
+                            {
+                                <label class="form-check py-1" data-unify-item="@p.nombre">
+                                    <input type="checkbox" name="duplicateIds" value="@p.id" class="form-check-input" data-unify-check data-name="@p.nombre" />
+                                    <span class="form-check-label">@p.nombre <small class="text-secondary">(@p.unidad)</small></span>
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Unificar en nombre correcto</button>
+                </div>
+            </form>
         </div>
-        <div class="mb-2">
-          <label for="unifySearch" class="form-label fw-semibold">3. Buscar y marcar los nombres mal escritos o repetidos</label>
-          <input id="unifySearch" type="text" class="form-control mb-2" data-unify-search placeholder="Escribe para buscar… p. ej. arros" autocomplete="off" />
-          <div class="border rounded p-2" style="max-height:240px;overflow-y:auto" data-unify-list>
-            @foreach (var p in products)
-            {
-                <label class="form-check py-1" data-unify-item="@p.nombre">
-                  <input type="checkbox" name="duplicateIds" value="@p.id" class="form-check-input" data-unify-check data-name="@p.nombre" />
-                  <span class="form-check-label">@p.nombre <small class="text-secondary">(@p.unidad)</small></span>
-                </label>
-            }
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Unificar en nombre correcto</button>
-      </div>
-    </form>
-  </div>
-</div>
+    </div>
 }
