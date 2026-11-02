@@ -14,6 +14,29 @@ public class HomeController(ContextoBaseDatos db) : Controller
         ViewBag.PaymentMethods = await db.MediosPago.AsNoTracking().Where(x => x.activo).OrderBy(x => x.nombre).ToListAsync();
         period = period == "realizados" ? "realizados" : "proximos"; ViewBag.Period = period;
         var ahora = HoraIglesia.Ahora; var q = db.Publicaciones.AsNoTracking().Where(x => x.publicado);
+        var enCurso = await db.Publicaciones.AsNoTracking()
+            .Where(x => x.publicado && !x.cancelado && x.tipo == TipoPublicacion.Evento && x.fecha_inicio_evento <= ahora && (x.fecha_fin_evento ?? x.fecha_inicio_evento) >= ahora)
+            .OrderBy(x => x.fecha_inicio_evento)
+            .FirstOrDefaultAsync();
+        var proximoDestacado = enCurso ?? await db.Publicaciones.AsNoTracking()
+            .Where(x => x.publicado && !x.cancelado && x.tipo == TipoPublicacion.Evento && (x.fecha_fin_evento ?? x.fecha_inicio_evento) >= ahora)
+            .OrderBy(x => x.fecha_inicio_evento)
+            .FirstOrDefaultAsync() ?? await db.Publicaciones.AsNoTracking()
+            .Where(x => x.publicado && !x.cancelado && x.tipo == TipoPublicacion.Evento)
+            .OrderByDescending(x => x.fecha_inicio_evento)
+            .FirstOrDefaultAsync();
+        ViewBag.FeaturedEvent = proximoDestacado;
+        ViewBag.IsLiveEvent = enCurso != null;
+        ViewBag.BannerEvents = await db.Publicaciones.AsNoTracking()
+            .Where(x => x.publicado && !x.cancelado && x.tipo == TipoPublicacion.Evento && (x.fecha_fin_evento ?? x.fecha_inicio_evento) >= ahora)
+            .OrderBy(x => x.fecha_inicio_evento)
+            .Take(5)
+            .ToListAsync();
+        ViewBag.Announcements = await db.Publicaciones.AsNoTracking()
+            .Where(x => x.publicado && !x.cancelado && x.tipo == TipoPublicacion.Aviso)
+            .OrderByDescending(x => x.fecha_creacion)
+            .Take(8)
+            .ToListAsync();
         q = period == "realizados" ? q.Where(x => x.tipo == TipoPublicacion.Evento && !x.cancelado && (x.fecha_fin_evento ?? x.fecha_inicio_evento) < ahora) : q.Where(x => x.tipo == TipoPublicacion.Aviso || (x.fecha_fin_evento ?? x.fecha_inicio_evento) >= ahora);
         ViewBag.PageSize = 12; ViewBag.Page = Math.Clamp(page, 1, 100000); ViewBag.Total = await q.CountAsync();
         ViewBag.RaisedByEvent = await db.Donaciones.Where(x => x.estado == EstadoDonacion.Aprobada && x.id_evento != null)
@@ -21,6 +44,71 @@ public class HomeController(ContextoBaseDatos db) : Controller
             .ToDictionaryAsync(g => g.id_evento, g => g.total ?? 0m);
         var ordenado = period == "realizados" ? q.OrderByDescending(x => x.fecha_inicio_evento).ThenByDescending(x => x.fecha_creacion) : q.OrderBy(x => x.fecha_inicio_evento == null).ThenBy(x => x.fecha_inicio_evento).ThenByDescending(x => x.fecha_creacion);
         return View(await ordenado.Skip((Math.Clamp(page, 1, 100000) - 1) * 12).Take(12).ToListAsync());
+    }
+
+    [Route("quienes-somos")]
+    [Route("la-iglesia")]
+    public async Task<IActionResult> QuienesSomos()
+    {
+        ViewBag.Church = await db.ConfiguracionesIglesia.AsNoTracking().SingleOrDefaultAsync() ?? new ConfiguracionIglesia();
+        return View();
+    }
+
+    [Route("ministerios")]
+    public async Task<IActionResult> Ministerios()
+    {
+        ViewBag.Church = await db.ConfiguracionesIglesia.AsNoTracking().SingleOrDefaultAsync() ?? new ConfiguracionIglesia();
+        return View();
+    }
+
+    [Route("eventos")]
+    public async Task<IActionResult> Eventos(string tab = "proximos")
+    {
+        ViewBag.Church = await db.ConfiguracionesIglesia.AsNoTracking().SingleOrDefaultAsync() ?? new ConfiguracionIglesia();
+        var ahora = HoraIglesia.Ahora;
+
+        var proximos = await db.Publicaciones.AsNoTracking()
+            .Where(x => x.publicado && !x.cancelado && x.tipo == TipoPublicacion.Evento && (x.fecha_fin_evento ?? x.fecha_inicio_evento) >= ahora)
+            .OrderBy(x => x.fecha_inicio_evento)
+            .ToListAsync();
+
+        ViewBag.Podio = proximos.FirstOrDefault();
+        ViewBag.Siguientes = proximos.Skip(1).ToList();
+
+        ViewBag.Finalizados = await db.Publicaciones.AsNoTracking()
+            .Where(x => x.publicado && !x.cancelado && x.tipo == TipoPublicacion.Evento && (x.fecha_fin_evento ?? x.fecha_inicio_evento) < ahora)
+            .OrderByDescending(x => x.fecha_inicio_evento)
+            .ToListAsync();
+
+        ViewBag.ActiveTab = tab.ToLowerInvariant() switch
+        {
+            "finalizados" or "recuerdos" => "finalizados",
+            _ => "proximos"
+        };
+
+        return View();
+    }
+
+    [Route("avisos")]
+    public async Task<IActionResult> Avisos()
+    {
+        ViewBag.Church = await db.ConfiguracionesIglesia.AsNoTracking().SingleOrDefaultAsync() ?? new ConfiguracionIglesia();
+        ViewBag.Avisos = await db.Publicaciones.AsNoTracking()
+            .Where(x => x.publicado && !x.cancelado && x.tipo == TipoPublicacion.Aviso)
+            .OrderByDescending(x => x.fecha_creacion)
+            .ToListAsync();
+        return View();
+    }
+
+    [Route("obra-social")]
+    public IActionResult ObraSocial() => RedirectToAction("Create", "Donations");
+
+    [Route("horarios-y-mapa")]
+    [Route("visitanos")]
+    public async Task<IActionResult> Horarios()
+    {
+        ViewBag.Church = await db.ConfiguracionesIglesia.AsNoTracking().SingleOrDefaultAsync() ?? new ConfiguracionIglesia();
+        return View();
     }
 
     public IActionResult Privacy() => View();

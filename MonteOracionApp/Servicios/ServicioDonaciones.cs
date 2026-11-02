@@ -41,7 +41,7 @@ public class ServicioDonaciones(ContextoBaseDatos db, IAlmacenamientoArchivos al
                 throw new InvalidOperationException("El evento indicado no está aceptando donaciones.");
         }
         if (formulario.comprobante == null) throw new InvalidOperationException("El comprobante es obligatorio.");
-        var archivo = await almacenamiento.GuardarAsync(formulario.comprobante, soloImagen: true);
+        var archivo = await almacenamiento.GuardarAsync(formulario.comprobante, soloImagen: true, categoria: "Donaciones");
         var donacion = new Donacion
         {
             tipo = TipoDonacion.Dinero, estado = EstadoDonacion.Pendiente,

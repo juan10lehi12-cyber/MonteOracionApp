@@ -1,0 +1,139 @@
+@{
+    ViewData["Title"] = "Quiénes Somos";
+    var church = (ConfiguracionIglesia)ViewBag.Church;
+    var whatsapp = church.ObtenerUrlWhatsApp();
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Quiénes somos</li>
+    </ol>
+</nav>
+
+<!-- Header de Página -->
+<section class="panel page-hero-panel mb-4">
+    <div class="row g-4 align-items-center">
+        <div class="col-lg-7">
+            <div class="eyebrow">CONOCE NUESTRA COMUNIDAD</div>
+            <h1 class="display-5 fw-bold mb-3">@church.nombre</h1>
+            <p class="lead text-secondary mb-4">
+                Somos una comunidad de fe cristiana en el distrito de Comas, Lima, comprometida con la proclamación del Evangelio, la restauración de las familias y el servicio solidario al prójimo.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-primary" asp-controller="Home" asp-action="Ministerios">Ver nuestras áreas de servicio →</a>
+                @if (whatsapp != null)
+                {
+                    <a class="btn btn-outline-success" href="@whatsapp" target="_blank" rel="noopener">💬 Contactar por WhatsApp</a>
+                }
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="rounded-4 overflow-hidden shadow-sm">
+                <img src="~/imagenes/hero-comunidad.png" alt="Comunidad @church.nombre" class="img-fluid w-100 object-fit-cover" style="max-height: 320px;" />
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Misión y Visión -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="panel h-100 p-4 border-start border-4 border-primary">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="fs-4">🎯</span>
+                <h2 class="h4 mb-0">Nuestra Misión</h2>
+            </div>
+            <p class="text-secondary mb-0">
+                Llevar el mensaje de esperanza, amor y salvación a cada hogar de nuestra comunidad, guiando a las personas hacia un encuentro personal con Jesucristo, equipándolas a través de la enseñanza bíblica y sirviendo activamente a las familias más vulnerables.
+            </p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="panel h-100 p-4 border-start border-4 border-success">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="fs-4">🔭</span>
+                <h2 class="h4 mb-0">Nuestra Visión</h2>
+            </div>
+            <p class="text-secondary mb-0">
+                Ser una iglesia vibrante, acogedora y misionera en Lima Norte, reconocida por su testimonio de fe, su unidad fraterna, la entrega de sus equipos de servicio y su impacto transformador en la sociedad a través de la acción social y la oración constante.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Nuestra Fe y Reseña -->
+<section class="panel p-4 mb-4">
+    <div class="eyebrow">NUESTRA IDENTIDAD</div>
+    <h2 class="h3 mb-3">Fe, Oración y Compromiso con Comas</h2>
+    <div class="row g-4 align-items-center">
+        <div class="col-lg-8">
+            <p class="preserve-lines text-secondary fs-6">@church.informacion</p>
+            <p class="text-secondary mb-0">
+                Creemos en las Sagradas Escrituras como la Palabra viva de Dios y guía para nuestras vidas. Fomentamos un ambiente donde cada niño, joven, adulto y anciano encuentra un hogar espiritual, con palabras de aliento y un grupo de hermanos dispuestos a orar y caminar juntos.
+            </p>
+        </div>
+        <div class="col-lg-4">
+            <div class="p-4 bg-light rounded-4 border text-center">
+                <span class="fs-2 d-block mb-2">📖</span>
+                <h3 class="h6 fw-bold mb-2">Una Puerta Abierta en Comas</h3>
+                <p class="small text-secondary mb-3">
+                    Te invitamos a congregarte con nosotros en familia. Consulta aquí nuestros horarios y cómo llegar al templo.
+                </p>
+                <a class="btn btn-outline-primary btn-sm w-100" asp-controller="Home" asp-action="Horarios">🕒 Ver horarios y mapa →</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Valores y Pilares Comunitarios -->
+<div class="mb-4">
+    <div class="section-heading mb-3">
+        <div>
+            <div class="eyebrow">PILARES CENTRALES</div>
+            <h2 class="h3 mb-0">Los Valores que Guían Nuestra Iglesia</h2>
+        </div>
+    </div>
+    <div class="row g-3">
+        <div class="col-sm-6 col-lg-3">
+            <div class="panel h-100 text-center p-4">
+                <div class="fs-1 mb-2">🙏</div>
+                <h3 class="h6 fw-bold">Oración Constante</h3>
+                <p class="small text-secondary mb-0">La base de todas nuestras decisiones y el motor espiritual que sostiene a las familias.</p>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="panel h-100 text-center p-4">
+                <div class="fs-1 mb-2">❤️</div>
+                <h3 class="h6 fw-bold">Amor y Familia</h3>
+                <p class="small text-secondary mb-0">Cuidado mutuo, protección del núcleo familiar y acompañamiento pastoral cercano.</p>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="panel h-100 text-center p-4">
+                <div class="fs-1 mb-2">📖</div>
+                <h3 class="h6 fw-bold">Palabra y Verdad</h3>
+                <p class="small text-secondary mb-0">Enseñanza bíblica práctica, transparente y edificante para todas las generaciones.</p>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="panel h-100 text-center p-4">
+                <div class="fs-1 mb-2">🤝</div>
+                <h3 class="h6 fw-bold">Servicio Solidario</h3>
+                <p class="small text-secondary mb-0">Fe en acción a través de nuestro almacén de alimentos y apoyo a los más necesitados.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Llamado a conocer las áreas de servicio -->
+<section class="panel inst-pastoral-box p-4 text-center">
+    <div class="eyebrow text-white opacity-75">PARTICIPA Y CRECE</div>
+    <h2 class="h3 text-white mb-2">¿Deseas integrarte a alguna de nuestras áreas de servicio?</h2>
+    <p class="text-white opacity-90 mx-auto mb-3" style="max-width: 650px;">
+        Contamos con equipos de alabanza, escuela dominical, almacén solidario y consejería familiar. Descubre cómo poner tus dones al servicio de Dios y la comunidad.
+    </p>
+    <div class="d-flex justify-content-center gap-2">
+        <a class="btn btn-light fw-semibold" asp-controller="Home" asp-action="Ministerios">Explorar Áreas de Servicio →</a>
+    </div>
+</section>

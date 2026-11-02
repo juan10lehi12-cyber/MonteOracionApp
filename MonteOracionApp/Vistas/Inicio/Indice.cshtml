@@ -1,29 +1,332 @@
 @model List<Publicacion>
-@{ViewData["Title"]="Nuestra comunidad";var church=(ConfiguracionIglesia)ViewBag.Church;var payments=(List<MedioPago>)ViewBag.PaymentMethods;var raised=(System.Collections.Generic.Dictionary<int,decimal>?)ViewBag.RaisedByEvent;}
-<section class="hero hero-compact"><div class="eyebrow">BIENVENIDOS · COMUNIDAD Y FE</div><h1>@church.nombre</h1><p>Un lugar de encuentro, esperanza y restauración en Comas.</p><div class="d-flex flex-wrap gap-2"><a class="btn btn-light" href="#publicaciones">Ver próximos eventos</a><a class="btn btn-outline-light" href="#horarios">Nuestros horarios</a></div></section>
-<section id="publicaciones"><div class="section-heading"><div><div class="eyebrow">VIDA EN COMUNIDAD</div><h2>Próximos eventos y vida comunitaria</h2></div><div class="btn-group"><a class="btn @(ViewBag.Period=="proximos"?"btn-primary":"btn-outline-primary")" asp-action="Index" asp-route-period="proximos" asp-fragment="publicaciones">Próximos</a><a class="btn @(ViewBag.Period=="realizados"?"btn-primary":"btn-outline-primary")" asp-action="Index" asp-route-period="realizados" asp-fragment="publicaciones">Pasados</a></div></div>
-@if(Model.Count==0){<div class="empty-state">No hay publicaciones en esta sección.</div>}
-<div class="row g-4">@foreach(var p in Model){
-var esCampaña=p.tipo==TipoPublicacion.Evento&&!p.cancelado&&p.meta_recaudacion>0&&(ViewBag.Period!="realizados");
-decimal recaudado=0m,meta=0m,pct=0m;
-if(esCampaña){meta=(decimal)(p.meta_recaudacion??0);if(raised!=null&&raised.TryGetValue(p.id,out var v))recaudado=v;pct=meta==0?0:Math.Min(100,Math.Round(recaudado/meta*100,1));}
-<div class="col-md-6 col-xl-4"><article class="panel event-card h-100">@if(p.clave_imagen!=null){<img class="event-cover" src="@Url.Action("Image","Publications",new{id=p.id})" alt="@p.titulo" loading="lazy" />}
-<div class="event-badges"><span class="badge text-bg-light">@p.tipo</span>@if(p.cancelado){<span class="badge text-bg-danger">Cancelado</span>}@if(esCampaña){<span class="badge text-bg-success">Campaña de recaudación</span>}</div>
-<h3 class="mt-2">@p.titulo</h3>
-@if(p.fecha_inicio_evento.HasValue){<p class="event-meta"><span class="event-meta-item">🗓️ @p.fecha_inicio_evento.Value.ToString("dd/MM/yyyy HH:mm")</span>@if(!string.IsNullOrWhiteSpace(p.lugar)){<span class="event-meta-item">📍 @p.lugar.Split(':')[0]</span>}</p>}
-@if(esCampaña){<div class="campaign-strip"><div class="progress" style="height:.6rem" role="progressbar" aria-label="Recaudación" aria-valuenow="@pct" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar bg-success" style="width:@pct.ToString("0.0",System.Globalization.CultureInfo.InvariantCulture)%"></div></div><p class="small text-secondary mb-2">Recaudación: S/ @recaudado.ToString("N2") de S/ @meta.ToString("N2")</p><a class="btn btn-success btn-sm" asp-controller="Donations" asp-action="Create" asp-route-evento="@p.id">Apoyar actividad</a></div>}
-<button type="button" class="btn btn-outline-primary btn-view-details" data-bs-toggle="modal" data-bs-target="#event-@p.id">Ver detalles</button></article></div><partial name="_EventModal" model="p" />}</div>
-<div class="d-flex gap-3 my-3">@if((int)ViewBag.Page>1){<a asp-action="Index" asp-route-page="@((int)ViewBag.Page-1)" asp-route-period="@ViewBag.Period" asp-fragment="publicaciones">Anterior</a>}@if((int)ViewBag.Page*12<(int)ViewBag.Total){<a asp-action="Index" asp-route-page="@((int)ViewBag.Page+1)" asp-route-period="@ViewBag.Period" asp-fragment="publicaciones">Siguiente</a>}</div></section>
-<section class="donation-section" id="donar"><div class="section-heading"><div><div class="eyebrow">TU APORTE TRANSFORMA</div><h2>Aportes y donaciones</h2></div></div>
-<div class="row g-4 align-items-stretch">
-<div class="col-lg-6"><div class="panel h-100 donor-payments">@if(payments.Count==0){<div class="empty-state">La iglesia publicará aquí los medios de pago disponibles.</div>}else{<div class="donor-payment">@foreach(var payment in payments){
-<h3>@payment.nombre</h3>
-@if(!string.IsNullOrWhiteSpace(payment.numero_cuenta)){<div class="donor-number-row"><span class="donor-number" id="num-@payment.id">@payment.numero_cuenta</span><button type="button" class="btn btn-outline-primary btn-sm" data-copy="num-@payment.id">Copiar número</button></div>}
-@if(payment.clave_qr!=null){<a href="@Url.Action("Qr","Settings",new{id=payment.id})" target="_blank" rel="noopener"><img class="payment-qr donor-qr" src="@Url.Action("Qr","Settings",new{id=payment.id})" alt="Código QR de @payment.nombre" /></a>}
-<details class="donor-details"><summary>Ver datos de la cuenta e instrucciones</summary><p class="preserve-lines">@payment.instrucciones</p></details>
-}</div>}</div></div>
-<div class="col-lg-6"><div class="panel h-100 donor-register"><div class="eyebrow">CADA APORTE CUENTA</div><h3>Tu aporte permite continuar con nuestras labores sociales y eventos comunitarios.</h3>
-<a class="btn btn-primary btn-lg mt-3 mb-2" asp-controller="Donations" asp-action="Create">Registrar comprobante de donación</a>
-<p class="small text-secondary">Registra el pago, adjunta la captura y la administración la comprobará. Solo se muestran montos totales; las donaciones de cada persona permanecen privadas.</p>
-<div class="donor-goods"><p>Prefieres dar <strong>alimentos u otros bienes físicos</strong>? Coordina la entrega directamente con la iglesia; el personal registrará lo recibido en el almacén.</p>@if(!string.IsNullOrWhiteSpace(church.contacto)){<p class="mb-0">Contacto: <strong>@church.contacto</strong></p>}</div></div></div>
-</div></section>
+@{
+    ViewData["Title"] = "Inicio";
+    var church = (ConfiguracionIglesia)ViewBag.Church;
+    var bannerEvents = ViewBag.BannerEvents as List<Publicacion> ?? Model.Where(x => x.tipo == TipoPublicacion.Evento && !x.cancelado).Take(4).ToList();
+    var avisos = ViewBag.Announcements as List<Publicacion> ?? Model.Where(x => x.tipo == TipoPublicacion.Aviso).ToList();
+    var whatsapp = church.ObtenerUrlWhatsApp();
+    var culturaEs = new System.Globalization.CultureInfo("es-PE");
+}
+
+<!-- =======================================================================
+     1. CARRUSEL PRINCIPAL A ANCHO COMPLETO
+     ======================================================================= -->
+<div id="heroCarousel" class="carousel slide inst-carousel mb-4" data-bs-ride="carousel" data-bs-interval="5500" data-bs-pause="hover" data-bs-touch="true" data-bs-keyboard="true" role="region" aria-roledescription="carrusel" aria-label="Portada y próximos eventos de la iglesia">
+    <div class="carousel-indicators inst-indicators-wrap">
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active inst-indicator-btn" aria-current="true" aria-label="Diapositiva 1: Bienvenida"><span class="inst-indicator-fill"></span></button>
+        @for (int i = 0; i < bannerEvents.Count; i++)
+        {
+            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="@(i + 1)" class="inst-indicator-btn" aria-label="Diapositiva @(i + 2): @bannerEvents[i].titulo"><span class="inst-indicator-fill"></span></button>
+        }
+        <button type="button" class="inst-carousel-pause-btn" id="heroCarouselPause" aria-label="Pausar o reanudar rotación automática" title="Pausar rotación">
+            <span class="inst-pause-icon" aria-hidden="true">⏸</span>
+        </button>
+    </div>
+    <div class="carousel-inner">
+        <!-- Slide 0: Portada Institucional Principal -->
+        <div class="carousel-item active">
+            <div class="inst-slide">
+                <img src="~/imagenes/hero-comunidad.png" class="inst-slide-bg" alt="@church.nombre" />
+                <div class="inst-slide-overlay"></div>
+                <div class="inst-slide-content">
+                    <div class="row align-items-center g-4">
+                        <div class="col-lg-8">
+                            <span class="spotlight-pill mb-3"><span class="pulse-dot"></span> BIENVENIDOS A NUESTRA FAMILIA DE FE</span>
+                            <h1 class="display-5 fw-bold text-white mb-3">@church.nombre</h1>
+                            <p class="lead text-white opacity-90 mb-4">@church.informacion</p>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a class="btn btn-light btn-lg fw-semibold" asp-controller="Home" asp-action="Horarios">🕒 Horarios y Ubicación</a>
+                                <a class="btn btn-donate-hero btn-lg" asp-controller="Donations" asp-action="Create">💚 Donar</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slides dinámicos por cada Evento Próximo / Vigente -->
+        @for (int i = 0; i < bannerEvents.Count; i++)
+        {
+            var ev = bannerEvents[i];
+            var slideImg = ev.clave_imagen != null
+                ? Url.Action("Image", "Publications", new { id = ev.id })
+                : ev.titulo.Contains("Navidad", StringComparison.OrdinalIgnoreCase)
+                    ? Url.Content("~/imagenes/concierto-navidad.png")
+                    : Url.Content("~/imagenes/vigilia-adoracion.png");
+
+            <div class="carousel-item">
+                <div class="inst-slide">
+                    <img src="@slideImg" class="inst-slide-bg" alt="@ev.titulo" />
+                    <div class="inst-slide-overlay"></div>
+                    <div class="inst-slide-content">
+                        <div class="row align-items-center g-4">
+                            <div class="col-lg-8">
+                                <span class="spotlight-pill mb-3"><span class="pulse-dot"></span> PRÓXIMO EVENTO</span>
+                                <h2 class="display-6 fw-bold text-white mb-2">@ev.titulo</h2>
+                                @if (ev.fecha_inicio_evento.HasValue || !string.IsNullOrWhiteSpace(ev.lugar))
+                                {
+                                    <div class="d-flex flex-wrap gap-2 mb-3">
+                                        @if (ev.fecha_inicio_evento.HasValue)
+                                        {
+                                            <span class="badge text-bg-warning-subtle text-warning-emphasis d-inline-flex align-items-center gap-1 py-1 px-2 fw-semibold border border-warning-subtle">
+                                                🗓️ @ev.fecha_inicio_evento.Value.ToString("ddd dd MMM yyyy · HH:mm 'h'", culturaEs)
+                                            </span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(ev.lugar))
+                                        {
+                                            <span class="badge text-bg-dark text-white d-inline-flex align-items-center gap-1 py-1 px-2 fw-normal border border-secondary">
+                                                📍 @ev.lugar
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                <p class="text-white opacity-90 mb-3 line-clamp-2">@ev.contenido</p>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-light fw-semibold" data-bs-toggle="modal" data-bs-target="#event-@ev.id">Ver detalles</button>
+                                    <a class="btn btn-donate-hero" asp-controller="Donations" asp-action="Create" asp-route-evento="@ev.id">Ofrendar / Apoyar</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    <button class="carousel-control-prev inst-carousel-btn inst-carousel-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev" aria-label="Diapositiva anterior">
+        <span class="inst-carousel-arrow" aria-hidden="true">‹</span>
+        <span class="visually-hidden">Anterior</span>
+    </button>
+    <button class="carousel-control-next inst-carousel-btn inst-carousel-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next" aria-label="Diapositiva siguiente">
+        <span class="inst-carousel-arrow" aria-hidden="true">›</span>
+        <span class="visually-hidden">Siguiente</span>
+    </button>
+</div>
+
+<!-- =======================================================================
+     2. BLOQUE CENTRAL EQUILIBRADO: Próximos Eventos (Izquierda) + Avisos (Derecha)
+     ======================================================================= -->
+<div class="row g-4 mb-4 align-items-stretch">
+    <!-- Columna Izquierda (8 cols): Próximos Eventos -->
+    <div class="col-lg-8">
+        <div class="panel h-100 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                <div>
+                    <div class="eyebrow">AGENDA DE LA COMUNIDAD</div>
+                    <h2 class="h4 mb-0">🗓️ Próximos Eventos</h2>
+                </div>
+                <a class="btn btn-outline-primary btn-sm" asp-controller="Home" asp-action="Eventos">Ver todos →</a>
+            </div>
+            @if (bannerEvents.Count == 0)
+            {
+                <div class="empty-state text-center py-4 my-auto">
+                    <p class="text-secondary mb-0">Por ahora no hay eventos próximos programados. Te esperamos en nuestros cultos semanales.</p>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var ev in bannerEvents.Take(3))
+                    {
+                        var cardImg = ev.clave_imagen != null
+                            ? Url.Action("Image", "Publications", new { id = ev.id })
+                            : ev.titulo.Contains("Navidad", StringComparison.OrdinalIgnoreCase)
+                                ? Url.Content("~/imagenes/concierto-navidad.png")
+                                : Url.Content("~/imagenes/vigilia-adoracion.png");
+                        <article class="border rounded-4 overflow-hidden bg-white shadow-sm">
+                            <div class="row g-0 align-items-stretch">
+                                <div class="col-sm-4 position-relative" style="min-height: 145px;">
+                                    <img src="@cardImg" alt="@ev.titulo" class="w-100 h-100 object-fit-cover" loading="lazy" />
+                                </div>
+                                <div class="col-sm-8 p-3 d-flex flex-column">
+                                    <div class="d-flex flex-wrap gap-2 mb-1">
+                                        @if (ev.fecha_inicio_evento.HasValue)
+                                        {
+                                            <span class="badge text-bg-primary-subtle text-primary-emphasis fw-semibold">
+                                                🗓️ @ev.fecha_inicio_evento.Value.ToString("ddd dd MMM yyyy · HH:mm 'h'", culturaEs)
+                                            </span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(ev.lugar))
+                                        {
+                                            <span class="small text-secondary">📍 @ev.lugar</span>
+                                        }
+                                    </div>
+                                    <h3 class="h6 fw-bold mb-1">@ev.titulo</h3>
+                                    <p class="small text-secondary line-clamp-2 mb-2">@ev.contenido</p>
+                                    <div class="d-flex gap-2 mt-auto">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#event-@ev.id">Ver detalles</button>
+                                        @if (!ev.cancelado)
+                                        {
+                                            <a class="btn btn-outline-success btn-sm" asp-controller="Donations" asp-action="Create" asp-route-evento="@ev.id">Ofrendar</a>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Columna Derecha (4 cols): Avisos a la Congregación -->
+    <div class="col-lg-4">
+        <div class="panel h-100 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                <div>
+                    <div class="eyebrow">COMUNICADOS OFICIALES</div>
+                    <h2 class="h5 mb-0">📢 Avisos</h2>
+                </div>
+                <a class="btn btn-outline-primary btn-sm" asp-controller="Home" asp-action="Avisos">Ver todos →</a>
+            </div>
+            @if (avisos.Count == 0)
+            {
+                <p class="small text-secondary my-auto text-center">No hay avisos recientes.</p>
+            }
+            else
+            {
+                <div class="inst-bulletin-list">
+                    @foreach (var av in avisos.Take(3))
+                    {
+                        <div class="inst-bulletin-item">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge text-bg-secondary">Aviso</span>
+                                <small class="text-secondary">@av.fecha_creacion.ToString("dd MMM yyyy", culturaEs)</small>
+                            </div>
+                            <strong class="d-block mb-1">@av.titulo</strong>
+                            <p class="small text-secondary mb-1 line-clamp-2">@av.contenido</p>
+                            <button type="button" class="btn btn-link btn-sm p-0" data-bs-toggle="modal" data-bs-target="#event-@av.id">Leer aviso →</button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- =======================================================================
+     3. FRANJA INFERIOR: Áreas de Servicio (Izquierda) + Acompañamiento y Oración (Derecha)
+     ======================================================================= -->
+<div class="row g-4 mb-2 align-items-stretch">
+    <div class="col-lg-8">
+        <div class="panel h-100 d-flex flex-column justify-content-between">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 border-bottom pb-3 mb-3">
+                <div>
+                    <div class="eyebrow">VIDA Y SERVICIO EN COMUNIDAD</div>
+                    <h2 class="h4 mb-0">Áreas de Servicio</h2>
+                </div>
+                <a class="btn btn-outline-primary btn-sm" asp-controller="Home" asp-action="Ministerios">Conocer áreas de servicio →</a>
+            </div>
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <div class="p-3 rounded-3 bg-light border h-100">
+                        <strong class="d-block mb-1">🎵 Alabanza y Adoración</strong>
+                        <p class="small text-secondary mb-0">Música, coros e instrumentos dedicados a guiar el tiempo de adoración en los cultos.</p>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="p-3 rounded-3 bg-light border h-100">
+                        <strong class="d-block mb-1">🧒 Escuela Dominical</strong>
+                        <p class="small text-secondary mb-0">Enseñanza bíblica y formación en valores para niños y adolescentes cada domingo.</p>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="p-3 rounded-3 bg-light border h-100">
+                        <strong class="d-block mb-1">📦 Voluntariado y Almacén Solidario</strong>
+                        <p class="small text-secondary mb-0">Organización y entrega de víveres y apoyo a familias vulnerables de nuestra comunidad.</p>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="p-3 rounded-3 bg-light border h-100">
+                        <strong class="d-block mb-1">💬 Evangelismo y Consejería</strong>
+                        <p class="small text-secondary mb-0">Visitas, orientación familiar y cadenas de oración por las personas en necesidad.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="panel inst-pastoral-box h-100 d-flex flex-column justify-content-center p-4">
+            <div class="eyebrow text-white opacity-75">ACOMPAÑAMIENTO Y ORACIÓN</div>
+            <h3 class="h4 text-white mt-1 mb-2">¿Necesitas consejería o presentar una petición de oración?</h3>
+            <p class="small text-white opacity-90 mb-4">Nuestra comunidad ora por tu familia y te acompaña en todo momento. Escríbenos con confianza o visítanos en nuestros cultos.</p>
+            <div class="d-flex flex-wrap gap-2 mt-auto">
+                @if (whatsapp != null)
+                {
+                    <a class="btn btn-light btn-sm fw-semibold" href="@whatsapp" target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>
+                }
+                <a class="btn btn-outline-light btn-sm" asp-controller="Home" asp-action="Horarios">Ver horarios de culto</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- =======================================================================
+     4. MODAL AUTOMÁTICO DEL PRÓXIMO EVENTO DESTACADO + MODALES DE DETALLES
+     ======================================================================= -->
+@{
+    var eventoDestacado = bannerEvents.FirstOrDefault();
+    var itemsParaModal = bannerEvents.Concat(avisos).GroupBy(x => x.id).Select(g => g.First()).ToList();
+}
+@if (eventoDestacado != null)
+{
+    var imgDestacado = eventoDestacado.clave_imagen != null
+        ? Url.Action("Image", "Publications", new { id = eventoDestacado.id })
+        : eventoDestacado.titulo.Contains("Navidad", StringComparison.OrdinalIgnoreCase)
+            ? Url.Content("~/imagenes/concierto-navidad.png")
+            : Url.Content("~/imagenes/vigilia-adoracion.png");
+
+    <div class="modal fade" id="featured-event-spotlight" tabindex="-1" aria-labelledby="spotlight-title" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content spotlight-modal-content">
+                <div class="spotlight-modal-banner">
+                    <img src="@imgDestacado" alt="@eventoDestacado.titulo" />
+                    <div class="spotlight-modal-overlay">
+                        <span class="spotlight-pill"><span class="pulse-dot"></span> PRÓXIMO EVENTO DE LA IGLESIA</span>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                </div>
+                <div class="modal-body p-4">
+                    <h2 class="h3 fw-bold mb-2" id="spotlight-title">@eventoDestacado.titulo</h2>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        @if (eventoDestacado.fecha_inicio_evento.HasValue)
+                        {
+                            <span class="badge text-bg-primary-subtle text-primary-emphasis py-2 px-3">
+                                🗓️ @eventoDestacado.fecha_inicio_evento.Value.ToString("dddd dd 'de' MMMM yyyy · HH:mm 'h'", culturaEs)
+                            </span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(eventoDestacado.lugar))
+                        {
+                            <span class="badge text-bg-light border text-dark py-2 px-3">
+                                📍 @eventoDestacado.lugar
+                            </span>
+                        }
+                    </div>
+                    <p class="text-secondary preserve-lines mb-4">@eventoDestacado.contenido</p>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3 border-top">
+                        @if (!string.IsNullOrWhiteSpace(eventoDestacado.lugar))
+                        {
+                            <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=@Uri.EscapeDataString(eventoDestacado.lugar)">
+                                🗺️ Ver ubicación en Google Maps
+                            </a>
+                        }
+                        else
+                        {
+                            <span></span>
+                        }
+                        <div class="d-flex flex-wrap gap-2">
+                            <a class="btn btn-success fw-semibold" asp-controller="Donations" asp-action="Create" asp-route-evento="@eventoDestacado.id">
+                                💚 Ofrendar / Apoyar este evento
+                            </a>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+@foreach (var item in itemsParaModal)
+{
+    <partial name="_EventModal" model="item" />
+}

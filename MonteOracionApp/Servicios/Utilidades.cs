@@ -24,6 +24,16 @@ public static class HoraIglesia
 
 public static class Operaciones
 {
+    public static string? ObtenerUrlWhatsApp(this ConfiguracionIglesia? iglesia)
+    {
+        if (string.IsNullOrWhiteSpace(iglesia?.contacto)) return null;
+        var soloDigitos = System.Text.RegularExpressions.Regex.Replace(iglesia.contacto, "[^0-9]", "");
+        if (soloDigitos.Length == 11 && soloDigitos.StartsWith("519"))
+            return $"https://wa.me/{soloDigitos}";
+        var match = System.Text.RegularExpressions.Regex.Match(soloDigitos, @"9\d{8}");
+        return match.Success ? $"https://wa.me/51{match.Value}" : null;
+    }
+
     public static async Task GuardarOperacionAsync(this ContextoBaseDatos db)
     {
         try { await db.SaveChangesAsync(); }
@@ -85,6 +95,15 @@ public sealed class ExpansorVistasEspanol : IViewLocationExpander
         ["Edit"] = "Editar",
         ["Payments"] = "MediosPago",
         ["Payment"] = "MedioPago",
+        ["QuienesSomos"] = "QuienesSomos",
+        ["Ministerios"] = "Ministerios",
+        ["Eventos"] = "Eventos",
+        ["Avisos"] = "Avisos",
+        ["ObraSocial"] = "ObraSocial",
+        ["Horarios"] = "Horarios",
+        ["Events"] = "Eventos",
+        ["About"] = "QuienesSomos",
+        ["Ministries"] = "Ministerios",
         ["_Layout"] = "_Diseno",
         ["_LoginPartial"] = "_AccesoParcial",
         ["_Pagination"] = "_Paginacion",

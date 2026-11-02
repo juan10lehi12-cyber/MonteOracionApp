@@ -56,7 +56,7 @@ public class PublicationsController(ContextoBaseDatos db, IAlmacenamientoArchivo
         var p = id == 0 ? new Publicacion() : await db.Publicaciones.FindAsync(id); if (p == null) return NotFound();
         if (p.cancelado) { TempData["Error"] = "El evento cancelado conserva su información."; return RedirectToAction(nameof(Index)); }
         ArchivoGuardado? subido = null; var anterior = p.clave_imagen;
-        try { if (image != null) subido = await almacenamiento.GuardarAsync(image, true); } catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); formulario.id = id; return View(formulario); }
+        try { if (image != null) subido = await almacenamiento.GuardarAsync(image, true, "Eventos"); } catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); formulario.id = id; return View(formulario); }
         if (formulario.tipo == TipoPublicacion.Evento && subido == null && p.clave_imagen == null) { ModelState.AddModelError("", "Adjunta la imagen del evento."); formulario.id = id; return View(formulario); }
         p.tipo = formulario.tipo; p.titulo = formulario.titulo.Trim(); p.contenido = formulario.contenido.Trim(); p.publicado = formulario.publicado;
         p.fecha_inicio_evento = formulario.tipo == TipoPublicacion.Evento ? formulario.fecha_inicio_evento : null; p.fecha_fin_evento = formulario.tipo == TipoPublicacion.Evento ? formulario.fecha_fin_evento : null; p.lugar = formulario.tipo == TipoPublicacion.Evento ? formulario.lugar?.Trim() : null;

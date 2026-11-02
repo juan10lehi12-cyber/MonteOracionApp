@@ -14,6 +14,7 @@ public class DonationsController(ContextoBaseDatos db, IServicioDonaciones servi
 
     private async Task CargarMediosPago()
     {
+        ViewBag.Church = await db.ConfiguracionesIglesia.AsNoTracking().SingleOrDefaultAsync() ?? new ConfiguracionIglesia();
         ViewBag.Payments = await db.MediosPago.AsNoTracking().Where(x => x.activo).OrderBy(x => x.nombre).ToListAsync();
         var hoyLima = DateTime.UtcNow.AddHours(-5).Date;
         ViewBag.Events = await db.Publicaciones.AsNoTracking()

@@ -3,4 +3,6 @@
 @if(Model.clave_imagen!=null){<img src="@Url.Action("Image","Publications",new{id=Model.id})" alt="@Model.titulo" class="event-modal-image mb-3" />}
 @if(Model.cancelado){<div class="alert alert-warning">Este evento está cancelado.</div>}
 @if(Model.fecha_inicio_evento.HasValue){<p><strong>Inicio:</strong> @Model.fecha_inicio_evento.Value.ToString("dd/MM/yyyy HH:mm") (Lima)</p><p><strong>Fin:</strong> @Model.fecha_fin_evento?.ToString("dd/MM/yyyy HH:mm")</p><p><strong>Lugar:</strong> @Model.lugar</p>@if(!string.IsNullOrWhiteSpace(Model.lugar)){<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=@Uri.EscapeDataString(Model.lugar)">🗺️ Cómo llegar (Google Maps)</a>}}
-<p class="preserve-lines">@Model.contenido</p></div></div></div></div>
+<p class="preserve-lines">@Model.contenido</p>
+@if(!Model.cancelado && Model.tipo == TipoPublicacion.Evento && (Model.fecha_fin_evento ?? Model.fecha_inicio_evento) >= HoraIglesia.Ahora){<div class="mt-3 pt-2 border-top text-end"><a class="btn btn-success btn-sm" asp-controller="Donations" asp-action="Create" asp-route-evento="@Model.id">Ofrendar / Apoyar esta actividad</a></div>}
+</div></div></div></div>
