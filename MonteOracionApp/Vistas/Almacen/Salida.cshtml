@@ -1,134 +1,453 @@
 @model FormularioSalidaAlmacen
 @{
     ViewData["Title"] = "Registrar salida de almacén";
-    var lots = (List<Lote>)ViewBag.Lots;
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var lotsGeneral = ViewBag.LotsGeneral as List<Lote> ?? [];
+    var lotsEventos = ViewBag.LotsEventos as List<Lote> ?? [];
+    var categoriasGeneral = ViewBag.CategoriasStockGeneral as List<string> ?? [];
     var eventosSalida = ViewBag.EventosSalida as List<Publicacion> ?? [];
     var eventoSelId = ViewBag.EventoSeleccionadoId as int?;
-    var lotesConEvento = lots.Where(x => x.donacion_bien?.donacion?.id_evento != null).ToList();
-    var conteoPorEvento = lotesConEvento
+    var esReintento = ViewBag.EsReintento as bool? ?? false;
+    var evActual = eventosSalida.FirstOrDefault(x => x.id == eventoSelId);
+    var conteoPorEvento = lotsEventos
+        .Where(x => x.donacion_bien?.donacion?.id_evento != null)
         .GroupBy(x => x.donacion_bien!.donacion!.id_evento!.Value)
         .ToDictionary(g => g.Key, g => g.Count());
+    var lotesEventoActual = eventoSelId.HasValue
+        ? lotsEventos.Where(x => x.donacion_bien?.donacion?.id_evento == eventoSelId.Value && x.cantidad_actual > 0).ToList()
+        : new List<Lote>();
 }
-<section class="panel form-panel">
-    <div class="eyebrow">GESTIÓN DE ALMACÉN</div>
-    <h1>Registrar salida</h1>
-    <p>Elige si la salida es para un Evento de la iglesia (cargando automáticamente lo acumulado) o para uso general / apoyo social.</p>
 
-    <!-- Paso 1 unificado: ¿Para qué es la salida? -->
-    <div class="p-3 mb-4 rounded-3 bg-light border">
-        <label class="form-label fw-semibold d-block mb-2">1. ¿Para qué es esta salida de almacén?</label>
-        <div class="d-flex flex-wrap gap-2 mb-3">
-            <a class="btn btn-sm @(!eventoSelId.HasValue ? "btn-primary" : "btn-outline-secondary")" asp-action="Exit">
-                ⛪ Uso general / Apoyo social
-            </a>
-            <button class="btn btn-sm @(eventoSelId.HasValue ? "btn-primary" : "btn-outline-secondary")" type="button" data-bs-toggle="collapse" data-bs-target="#bloqueSelectorEvento" aria-expanded="@(eventoSelId.HasValue ? "true" : "false")">
-                🗓️ Para un Evento de la iglesia (sacar todo lo acumulado)
-            </button>
-        </div>
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">GESTIÓN DE ALMACÉN</div>
+        <h1>Registrar salida de existencias</h1>
+        <p class="mb-0">El stock del <strong>Almacén General de la Iglesia</strong> y el de <strong>Eventos</strong> están separados para evitar cruces de inventario.</p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Index" asp-route-destino="@(eventoSelId.HasValue ? eventoSelId.Value.ToString() : "general")">← Volver a existencias</a>
+</div>
 
-        <div class="collapse @(eventoSelId.HasValue ? "show" : "")" id="bloqueSelectorEvento">
-            <form method="get" asp-action="Exit" class="row g-2 align-items-end pt-2 border-top">
-                <div class="col-md-8">
-                    <label for="eventoSelector" class="form-label small fw-semibold mb-1">Selecciona el Evento para cargar sus bienes acumulados:</label>
-                    <select id="eventoSelector" name="evento" class="form-select form-select-sm" onchange="if(this.value) this.form.submit();">
-                        <option value="">— Selecciona un evento —</option>
-                        @foreach (var ev in eventosSalida)
-                        {
-                            var cantItems = conteoPorEvento.GetValueOrDefault(ev.id, 0);
-                            <option value="@ev.id" selected="@(eventoSelId == ev.id)">
-                                🗓️ @ev.titulo @(cantItems > 0 ? $"({cantItems} lote(s) acumulados en almacén)" : "(sin lotes exclusivos)")
-                            </option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-4 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary btn-sm">Cargar bienes del evento</button>
-                </div>
+<!-- 1. Selector de Cuenta de Salida: Iglesia vs Evento -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <a asp-action="Exit" class="panel p-3 d-flex justify-content-between align-items-center text-decoration-none h-100 @(!eventoSelId.HasValue ? "border-primary border-2 shadow-sm bg-primary-subtle" : "border text-reset")">
+            <div>
+                <span class="badge @(!eventoSelId.HasValue ? "text-bg-primary" : "text-bg-secondary") mb-1">OPCIÓN 1 · STOCK IGLESIA</span>
+                <h2 class="h5 fw-bold mb-0 text-dark">⛪ Salida del Almacén General</h2>
+                <small class="text-secondary">Canastas solidarias, comedor o uso propio (no toca lo de eventos)</small>
+            </div>
+            <strong class="fs-3 text-primary ms-3">@lotsGeneral.Count</strong>
+        </a>
+    </div>
+    <div class="col-md-6">
+        <div class="panel p-3 h-100 @(eventoSelId.HasValue ? "border-success border-2 shadow-sm bg-success-subtle" : "border")">
+            <span class="badge @(eventoSelId.HasValue ? "text-bg-success" : "text-bg-secondary") mb-1">OPCIÓN 2 · STOCK DE EVENTOS</span>
+            <h2 class="h5 fw-bold mb-1 text-dark">🗓️ Despachar Bienes de un Evento</h2>
+            <form method="get" asp-action="Exit" class="d-flex gap-2 mt-2">
+                <select name="evento" class="form-select form-select-sm" onchange="if(this.value) this.form.submit();">
+                    <option value="">— Selecciona el evento a despachar —</option>
+                    @foreach (var ev in eventosSalida)
+                    {
+                        var cantItems = conteoPorEvento.GetValueOrDefault(ev.id, 0);
+                        <option value="@ev.id" selected="@(eventoSelId == ev.id)">
+                            🗓️ @ev.titulo (@cantItems producto(s) reservados)
+                        </option>
+                    }
+                </select>
+                <button type="submit" class="btn btn-success btn-sm text-nowrap">Cargar</button>
             </form>
-            @if (eventoSelId.HasValue)
-            {
-                var cantCargados = Model.lineas.Count(x => x.id_lote != 0 && x.cantidad > 0);
-                if (cantCargados > 0)
+        </div>
+    </div>
+</div>
+
+<section class="panel form-panel">
+    <form method="post" asp-action="Exit" id="formSalida">
+        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+        
+        @if (eventoSelId.HasValue)
+        {
+            <input type="hidden" name="evento" value="@eventoSelId" />
+        }
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label asp-for="destino" class="form-label fw-semibold">
+                    Destino o actividad que recibe <span class="text-danger">*</span>
+                </label>
+                @if (eventoSelId.HasValue)
                 {
-                    <div class="alert alert-success py-2 px-3 mt-2 mb-0 small">
-                        ✓ Se cargaron automáticamente <strong>@cantCargados producto(s)</strong> acumulados para este evento. Revisa las cantidades y presiona <strong>Registrar salida</strong>.
-                    </div>
+                    <input asp-for="destino" class="form-control bg-light" readonly />
+                    <div class="form-text small text-muted">Amarrado automáticamente al evento seleccionado.</div>
                 }
                 else
                 {
-                    <div class="alert alert-warning py-2 px-3 mt-2 mb-0 small">
-                        Este evento aún no tiene víveres exclusivos acumulados con visto bueno en el almacén, pero puedes elegir productos del stock general abajo.
-                    </div>
+                    <input asp-for="destino" class="form-control" list="destinosSugeridos" maxlength="160" placeholder="Ej.: Canasta solidaria familiar, Comedor..." autocomplete="off" required />
+                    <datalist id="destinosSugeridos">
+                        <option value="Canasta solidaria familiar"></option>
+                        <option value="Apoyo social comunitario"></option>
+                        <option value="Comedor solidario"></option>
+                        <option value="Uso interno del templo"></option>
+                    </datalist>
                 }
-            }
-        </div>
-    </div>
-
-    <form method="post" asp-action="Exit">
-        <div asp-validation-summary="All" class="text-danger"></div>
-        <input asp-for="id_comando" type="hidden" />
-        <div class="row g-3 mb-3">
-            <div class="col-md-6">
-                <label asp-for="destino" class="form-label fw-semibold">2. Destino o motivo de la salida</label>
-                <input asp-for="destino" class="form-control" list="destinosSugeridos" placeholder="Ej.: Canasta solidaria familiar, Comedor, Evento..." autocomplete="off" />
-                <datalist id="destinosSugeridos">
-                    <option value="Canasta solidaria familiar"></option>
-                    <option value="Apoyo social comunitario"></option>
-                    <option value="Comedor solidario"></option>
-                    <option value="Baja por deterioro o vencimiento"></option>
-                    @foreach (var ev in eventosSalida)
-                    {
-                        <option value="Evento: @ev.titulo"></option>
-                    }
-                </datalist>
             </div>
             <div class="col-md-6">
-                <label asp-for="detalle" class="form-label fw-semibold">Detalle o responsable (opcional)</label>
-                <input asp-for="detalle" class="form-control" placeholder="Ej.: Entrega a familias vulnerables o comité del evento" autocomplete="off" />
+                <label asp-for="detalle" class="form-label fw-semibold">
+                    Responsable o nota adicional <span class="@(eventoSelId.HasValue ? "text-primary fw-semibold" : "text-secondary fw-normal small")">@(eventoSelId.HasValue ? "(Indica quién recibe)" : "(opcional)")</span>
+                </label>
+                <input asp-for="detalle" class="form-control" maxlength="500" placeholder="Ej.: Entregado al coordinador Juan Pérez para la cocina de la vigilia" autocomplete="off" />
             </div>
         </div>
 
-        <p class="mb-2 fw-semibold">3. Productos a retirar del almacén <small class="text-secondary fw-normal">(Completa solo las filas necesarias)</small></p>
-        <div class="panel table-responsive mb-3">
-            <table class="table align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Producto · Ubicación · Destino (disponible)</th>
-                        <th style="width:160px">Cantidad a retirar</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (var i = 0; i < Model.lineas.Count; i++)
-                    {
-                        <tr>
-                            <td>
-                                <select asp-for="lineas[i].id_lote" class="form-select">
-                                    <option value="0">— Seleccionar producto en stock —</option>
-                                    @foreach (var l in lots)
-                                    {
-                                        var evNombre = l.donacion_bien?.donacion?.evento?.titulo;
-                                        var etiquetaDestino = evNombre != null ? $"[🗓️ {evNombre}]" : "[⛪ General]";
-                                        <option value="@l.id" selected="@(Model.lineas[i].id_lote == l.id)">
-                                            @l.producto.nombre · @(string.IsNullOrWhiteSpace(l.ubicacion) ? "Sin ubicación" : l.ubicacion) @etiquetaDestino (Disponible: @l.cantidad_actual.ToString("0.##") @l.producto.unidad)
-                                        </option>
-                                    }
-                                </select>
-                            </td>
-                            <td>
-                                <input asp-for="lineas[i].cantidad" class="form-control" type="number" min="0.01" step="0.01" placeholder="0.00" />
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-        @if (lots.Count == 0)
+        @if (eventoSelId.HasValue)
         {
-            <p class="text-secondary">No hay existencias disponibles con visto bueno.</p>
+            <!-- ===== CASO A: BANDEJA EXCLUSIVA DEL EVENTO ===== -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <h2 class="h5 fw-bold mb-0">📦 Bienes reservados para: <span class="text-success">@evActual?.titulo</span></h2>
+                <span class="badge text-bg-success">@lotesEventoActual.Count producto(s) acumulados</span>
+            </div>
+
+            @if (lotesEventoActual.Count == 0)
+            {
+                <div class="alert alert-warning py-3 px-3 mb-0">
+                    ℹ️ Este evento todavía no tiene bienes físicos reservados con visto bueno.
+                    Si deseas retirar productos del stock general de la iglesia, <a asp-action="Exit" class="fw-bold">cambia a Salida del Almacén General aquí</a>.
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-success py-2 px-3 mb-3 small d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <span>✓ Cantidades listas al <strong>100%</strong>. Desmarca lo que no vaya a salir hoy o ajusta la cantidad.</span>
+                    <span class="d-flex gap-3">
+                        <button type="button" class="btn btn-sm btn-link p-0 text-success fw-bold text-decoration-none" data-marcar-evento="true">Marcar todos</button>
+                        <button type="button" class="btn btn-sm btn-link p-0 text-secondary fw-bold text-decoration-none" data-marcar-evento="false">Desmarcar todos</button>
+                    </span>
+                </div>
+
+                <div class="table-responsive mb-4 border rounded-3">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light" style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                            <tr style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">
+                                <th style="width: 48px;" class="text-center py-3">Sale</th>
+                                <th class="py-3" style="min-width: 220px;">Producto / Categoría</th>
+                                <th class="py-3">Ubicación</th>
+                                <th class="text-end py-3 pe-3" style="width: 150px;">Stock reservado</th>
+                                <th class="py-3 pe-3" style="width: 200px;">Cantidad a retirar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var i = 0; i < lotesEventoActual.Count; i++)
+                            {
+                                var l = lotesEventoActual[i];
+                                var lineaPrevia = Model.lineas.FirstOrDefault(x => x.id_lote == l.id);
+                                var marcado = !esReintento || lineaPrevia != null;
+                                var cantidadMostrada = lineaPrevia?.cantidad ?? l.cantidad_actual;
+                                <tr class="js-fila-evento @(marcado ? "" : "opacity-50")">
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input js-evento-check" checked="@marcado" aria-label="Incluir @l.producto.nombre" />
+                                    </td>
+                                    <td class="py-2">
+                                        <input type="hidden" class="js-evento-campo" name="lineas[@i].id_lote" value="@l.id" disabled="@(!marcado)" />
+                                        <div class="fw-bold text-dark fs-6">@l.producto.nombre</div>
+                                        <div class="small" style="color: #64748b; font-size: 0.82rem;">@l.producto.categoria</div>
+                                    </td>
+                                    <td class="small" style="color: #475569;">
+                                        📍 @(string.IsNullOrWhiteSpace(l.ubicacion) ? "Almacén Central" : l.ubicacion)
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <div class="d-inline-flex align-items-baseline justify-content-end" style="font-variant-numeric: tabular-nums;">
+                                            <span class="fs-6 fw-bold text-success">@l.cantidad_actual.ToString("0.##", inv)</span>
+                                            <span class="text-secondary fw-semibold small ms-1" style="min-width: 2.8rem; text-align: left;">@l.producto.unidad</span>
+                                        </div>
+                                    </td>
+                                    <td class="pe-3">
+                                        <div class="input-group input-group-sm" style="max-width: 170px;">
+                                            <input name="lineas[@i].cantidad"
+                                                   class="form-control js-evento-campo fw-bold text-end pe-2"
+                                                   type="number"
+                                                   min="0.01"
+                                                   max="@l.cantidad_actual.ToString("0.##", inv)"
+                                                   step="0.01"
+                                                   value="@cantidadMostrada.ToString("0.##", inv)"
+                                                   disabled="@(!marcado)"
+                                                   required
+                                                   style="font-variant-numeric: tabular-nums; border-right: 0;" />
+                                            <span class="input-group-text bg-light text-secondary fw-semibold small" style="border-left: 0; min-width: 3rem; justify-content: center;">
+                                                @l.producto.unidad
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg fw-semibold d-inline-flex align-items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-truck" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M0 3.5A1.5 1.5 0 0 1 1.5 2h9A1.5 1.5 0 0 1 12 3.5V5h1.02a1.5 1.5 0 0 1 1.17.563l1.481 1.85a1.5 1.5 0 0 1 .329.938V10.5a1.5 1.5 0 0 1-1.5 1.5H14a2 2 0 1 1-4 0H5a2 2 0 1 1-3.998-.085A1.5 1.5 0 0 1 0 10.5zm1.294 7.456A2 2 0 0 1 4.732 11h5.536a2 2 0 0 1 .732.75H13.5a.5.5 0 0 0 .5-.5V8.5h-2a.5.5 0 0 1-.5-.5v-1h-1V10.5a.5.5 0 0 1-1 0V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .294.456M12 10a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-9 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/>
+                        </svg>
+                        <span>Despachar bienes del evento</span>
+                    </button>
+                    <a class="btn btn-outline-secondary btn-lg" asp-action="Index" asp-route-destino="@eventoSelId">Cancelar</a>
+                </div>
+            }
         }
-        <div class="d-flex gap-2">
-            <button class="btn btn-primary">Registrar salida</button>
-            <a class="btn btn-outline-secondary" asp-action="Index">Cancelar</a>
-        </div>
+        else
+        {
+            <!-- ===== CASO B: SALIDA EXCLUSIVA DEL ALMACÉN GENERAL DE LA IGLESIA ===== -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <h2 class="h5 fw-bold mb-0">⛪ Productos a retirar del Almacén General de la Iglesia</h2>
+                <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" id="btnAgregarFila">➕ Agregar otro producto</button>
+            </div>
+
+            @if (lotsGeneral.Count == 0)
+            {
+                <div class="alert alert-secondary mb-0">
+                    No hay existencias disponibles en el Almacén General de la Iglesia en este momento.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive mb-3 border rounded-3">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light" style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                            <tr style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">
+                                <th class="ps-3 py-3" style="width: 25%;">Filtrar por categoría</th>
+                                <th class="py-3">Producto en stock general</th>
+                                <th class="text-center py-3" style="width: 150px;">Stock disponible</th>
+                                <th class="py-3" style="width: 190px;">Cantidad a retirar</th>
+                                <th class="pe-3 py-3 text-center" style="width: 48px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="filasSalida">
+                            @for (var i = 0; i < Model.lineas.Count; i++)
+                            {
+                                var lotePre = lotsGeneral.FirstOrDefault(x => x.id == Model.lineas[i].id_lote);
+                                var dispInicial = lotePre?.cantidad_actual.ToString("0.##", inv) ?? "";
+                                var unidadInicial = lotePre?.producto.unidad ?? "—";
+                                <tr class="js-fila-salida">
+                                    <td class="ps-3">
+                                        <select class="form-select form-select-sm js-filtro-cat">
+                                            <option value="">📋 Todas las categorías</option>
+                                            @foreach (var cat in categoriasGeneral)
+                                            {
+                                                <option value="@cat" selected="@(lotePre?.producto.categoria == cat)">@cat</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="lineas[@i].id_lote" class="form-select form-select-sm js-lote-select">
+                                            <option value="0">— Selecciona producto —</option>
+                                            @foreach (var l in lotsGeneral)
+                                            {
+                                                <option value="@l.id"
+                                                        selected="@(Model.lineas[i].id_lote == l.id)"
+                                                        data-categoria="@l.producto.categoria"
+                                                        data-disponible="@l.cantidad_actual.ToString("0.##", inv)"
+                                                        data-unidad="@l.producto.unidad"
+                                                        data-ubicacion="@(string.IsNullOrWhiteSpace(l.ubicacion) ? "Almacén Central" : l.ubicacion)">
+                                                    @l.producto.nombre (@l.cantidad_actual.ToString("0.##", inv) @l.producto.unidad) — 📍 @(string.IsNullOrWhiteSpace(l.ubicacion) ? "Almacén Central" : l.ubicacion)
+                                                </option>
+                                            }
+                                        </select>
+                                        <div class="small mt-1 js-lote-info text-secondary">
+                                            @if (lotePre != null)
+                                            {
+                                                <span class="text-success fw-semibold">✓ Disponible: @dispInicial @unidadInicial</span>
+                                                <span class="text-secondary ms-1">· 📍 @(string.IsNullOrWhiteSpace(lotePre.ubicacion) ? "Almacén Central" : lotePre.ubicacion)</span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td class="text-center align-middle js-col-disponible" style="width: 150px;">
+                                        <div class="js-disp-container @(lotePre == null ? "d-none" : "")">
+                                            <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle fs-6">
+                                                <span class="js-disp-valor">@dispInicial</span> <span class="js-disp-unidad small">@unidadInicial</span>
+                                            </span>
+                                        </div>
+                                        <span class="text-muted small js-disp-vacio @(lotePre != null ? "d-none" : "")">—</span>
+                                    </td>
+                                    <td style="width: 190px;">
+                                        <div class="input-group input-group-sm">
+                                            <input name="lineas[@i].cantidad"
+                                                   value="@Model.lineas[i].cantidad?.ToString("0.##", inv)"
+                                                   class="form-control fw-bold text-end pe-2 js-lote-cantidad"
+                                                   type="number"
+                                                   min="0.01"
+                                                   max="@(lotePre != null ? dispInicial : "")"
+                                                   step="0.01"
+                                                   placeholder="0.00"
+                                                   style="font-variant-numeric: tabular-nums; border-right: 0;" />
+                                            <span class="input-group-text bg-light text-secondary fw-semibold small js-lote-unidad" style="border-left: 0; min-width: 3.2rem; justify-content: center;">
+                                                @unidadInicial
+                                            </span>
+                                        </div>
+                                        <div class="small text-danger js-lote-error d-none mt-1" style="font-size: 0.72rem;"></div>
+                                    </td>
+                                    <td class="pe-3 text-center" style="width: 48px;">
+                                        <button type="button" class="btn btn-sm btn-outline-danger js-quitar-fila" title="Quitar fila">✕</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg fw-semibold d-inline-flex align-items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-box-arrow-up-right" viewBox="0 0 16 16" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5"/>
+                            <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0z"/>
+                        </svg>
+                        <span>Registrar salida de existencias</span>
+                    </button>
+                    <a class="btn btn-outline-secondary btn-lg" asp-action="Index" asp-route-destino="general">Cancelar</a>
+                </div>
+            }
+        }
     </form>
 </section>
+
+@section Scripts {
+    <script>
+        (function () {
+            function aplicarCheck(chk) {
+                const fila = chk.closest('tr');
+                fila.querySelectorAll('.js-evento-campo').forEach(c => c.disabled = !chk.checked);
+                fila.classList.toggle('opacity-50', !chk.checked);
+            }
+            document.querySelectorAll('.js-evento-check').forEach(chk => chk.addEventListener('change', () => aplicarCheck(chk)));
+            document.querySelectorAll('[data-marcar-evento]').forEach(btn => btn.addEventListener('click', () => {
+                const valor = btn.dataset.marcarEvento === 'true';
+                document.querySelectorAll('.js-evento-check').forEach(chk => { chk.checked = valor; aplicarCheck(chk); });
+            }));
+
+            const cuerpo = document.getElementById('filasSalida');
+            function filtrarPorCategoria(fila) {
+                const cat = fila.querySelector('.js-filtro-cat').value;
+                const sel = fila.querySelector('.js-lote-select');
+                Array.from(sel.options).forEach(opt => {
+                    if (opt.value === '0') return;
+                    const visible = !cat || opt.dataset.categoria === cat;
+                    opt.hidden = !visible;
+                    if (!visible && opt.selected) sel.value = '0';
+                });
+                actualizarFila(fila);
+            }
+
+            function actualizarFila(fila) {
+                const sel = fila.querySelector('.js-lote-select');
+                const cant = fila.querySelector('.js-lote-cantidad');
+                const uni = fila.querySelector('.js-lote-unidad');
+                const info = fila.querySelector('.js-lote-info');
+                const dispCont = fila.querySelector('.js-disp-container');
+                const dispVal = fila.querySelector('.js-disp-valor');
+                const dispUni = fila.querySelector('.js-disp-unidad');
+                const dispVac = fila.querySelector('.js-disp-vacio');
+                const err = fila.querySelector('.js-lote-error');
+                const opt = sel.selectedOptions[0];
+
+                if (!opt || opt.value === '0') {
+                    cant.removeAttribute('max');
+                    uni.textContent = '—';
+                    if (info) info.innerHTML = '';
+                    if (dispCont) dispCont.classList.add('d-none');
+                    if (dispVac) dispVac.classList.remove('d-none');
+                    if (err) { err.textContent = ''; err.classList.add('d-none'); }
+                    cant.classList.remove('is-invalid');
+                    return;
+                }
+
+                const disp = opt.dataset.disponible;
+                const unidad = opt.dataset.unidad;
+                const ubicacion = opt.dataset.ubicacion;
+
+                cant.max = disp;
+                uni.textContent = unidad;
+                if (info) {
+                    info.innerHTML = '<span class="text-success fw-semibold">✓ Disponible: ' + disp + ' ' + unidad + '</span> · <span class="text-secondary">📍 ' + ubicacion + '</span>';
+                }
+                if (dispVal && dispUni && dispCont && dispVac) {
+                    dispVal.textContent = disp;
+                    dispUni.textContent = unidad;
+                    dispCont.classList.remove('d-none');
+                    dispVac.classList.add('d-none');
+                }
+                validarCantidad(cant);
+            }
+
+            function validarCantidad(cantInput) {
+                const fila = cantInput.closest('tr');
+                const err = fila.querySelector('.js-lote-error');
+                if (!err) return;
+                const maxVal = parseFloat(cantInput.max);
+                const val = parseFloat(cantInput.value);
+                if (!isNaN(maxVal) && !isNaN(val) && val > maxVal) {
+                    err.textContent = '⚠️ Supera stock disponible (' + maxVal + ')';
+                    err.classList.remove('d-none');
+                    cantInput.classList.add('is-invalid');
+                } else {
+                    err.classList.add('d-none');
+                    cantInput.classList.remove('is-invalid');
+                }
+            }
+
+            if (cuerpo) {
+                cuerpo.addEventListener('change', e => {
+                    if (e.target.classList.contains('js-filtro-cat')) filtrarPorCategoria(e.target.closest('tr'));
+                    if (e.target.classList.contains('js-lote-select')) actualizarFila(e.target.closest('tr'));
+                });
+                cuerpo.addEventListener('input', e => {
+                    if (e.target.classList.contains('js-lote-cantidad')) validarCantidad(e.target);
+                });
+                cuerpo.addEventListener('click', e => {
+                    const btn = e.target.closest('.js-quitar-fila');
+                    if (!btn) return;
+                    const fila = btn.closest('tr');
+                    const totalVisibles = cuerpo.querySelectorAll('.js-fila-salida').length;
+                    if (totalVisibles > 1) {
+                        fila.remove();
+                        cuerpo.querySelectorAll('.js-fila-salida').forEach((f, idx) => {
+                            f.querySelectorAll('[name]').forEach(c => {
+                                c.name = c.name.replace(/lineas\[\d+\]/, 'lineas[' + idx + ']');
+                            });
+                        });
+                    } else {
+                        fila.querySelector('.js-filtro-cat').value = '';
+                        fila.querySelector('.js-lote-select').value = '0';
+                        fila.querySelector('.js-lote-cantidad').value = '';
+                        actualizarFila(fila);
+                    }
+                });
+
+                document.getElementById('btnAgregarFila')?.addEventListener('click', () => {
+                    const filas = cuerpo.querySelectorAll('.js-fila-salida');
+                    const nuevoIndice = filas.length;
+                    const nueva = filas[0].cloneNode(true);
+                    nueva.querySelectorAll('[name]').forEach(c => {
+                        c.name = c.name.replace(/lineas\[\d+\]/, 'lineas[' + nuevoIndice + ']');
+                    });
+                    nueva.querySelector('.js-filtro-cat').value = '';
+                    const sel = nueva.querySelector('.js-lote-select');
+                    sel.value = '0';
+                    Array.from(sel.options).forEach(o => o.hidden = false);
+                    const cant = nueva.querySelector('.js-lote-cantidad');
+                    cant.value = '';
+                    cant.classList.remove('is-invalid');
+                    cuerpo.appendChild(nueva);
+                    actualizarFila(nueva);
+                });
+
+                cuerpo.querySelectorAll('.js-fila-salida').forEach(actualizarFila);
+            }
+
+            document.getElementById('formSalida')?.addEventListener('submit', e => {
+                const elegidos = Array.from(document.querySelectorAll('.js-lote-select')).map(s => s.value).filter(v => v !== '0');
+                if (new Set(elegidos).size !== elegidos.length) {
+                    e.preventDefault();
+                    alert('Elegiste el mismo producto en dos filas. Suma la cantidad en una sola fila.');
+                }
+            });
+        })();
+    </script>
+}

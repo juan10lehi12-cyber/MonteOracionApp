@@ -1,19 +1,47 @@
 @model MedioPago
 @{ ViewData["Title"] = Model.id == 0 ? "Nuevo Medio de Pago" : "Editar Medio de Pago"; }
 
-<h1 class="h3 mb-3">@ViewData["Title"]</h1>
-<form method="post" enctype="multipart/form-data" class="card shadow-sm" style="max-width:600px">
-    <div class="card-body">
-        <input type="hidden" asp-for="id" />
-        <input type="hidden" asp-for="clave_qr" />
-        <div class="mb-3"><label class="form-label">Nombre (ej. Yape, Plin, BCP)</label><input asp-for="nombre" class="form-control" required /></div>
-        <div class="mb-3"><label class="form-label">Número / CCI / Teléfono</label><input asp-for="numero_cuenta" class="form-control" /></div>
-        <div class="mb-3"><label class="form-label">Instrucciones / Titular</label><input asp-for="instrucciones" class="form-control" /></div>
-        <div class="mb-3"><label class="form-label">Imagen QR (PNG/JPG)</label><input type="file" name="qr" class="form-control" accept=".jpg,.jpeg,.png" /></div>
-        <div class="form-check"><input asp-for="activo" class="form-check-input" /><label asp-for="activo" class="form-check-label">Visible en portal público</label></div>
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">ADMINISTRACIÓN</div>
+        <h1>@ViewData["Title"]</h1>
     </div>
-    <div class="card-footer text-end">
-        <a asp-action="Payments" class="btn btn-link">Cancelar</a>
-        <button class="btn btn-primary">Guardar</button>
+    <a asp-action="Payments" class="btn btn-outline-secondary btn-sm">← Volver a medios de pago</a>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="panel form-panel" style="max-width:620px">
+    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+    <input type="hidden" asp-for="id" />
+    <input type="hidden" asp-for="clave_qr" />
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Nombre (ej. Yape, Plin, BCP)</label>
+        <input asp-for="nombre" class="form-control" placeholder="Ej.: Yape, Plin, Cuenta BCP Soles" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Número / CCI / Teléfono</label>
+        <input asp-for="numero_cuenta" class="form-control" placeholder="Ej.: 987 654 321 o N° de cuenta" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Instrucciones / Titular</label>
+        <input asp-for="instrucciones" class="form-control" placeholder="Ej.: Titular: Iglesia Monte de Oración" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Imagen QR (PNG/JPG)</label>
+        <input type="file" name="qr" class="form-control" accept=".jpg,.jpeg,.png" />
+        @if (!string.IsNullOrEmpty(Model.clave_qr))
+        {
+            <div class="mt-2 p-2 border rounded bg-light d-inline-flex align-items-center gap-2">
+                <img src="@Url.Action("Qr", new { id = Model.id })" alt="QR actual" style="width:48px;height:48px;object-fit:contain;" class="border rounded bg-white p-1" />
+                <small class="text-secondary">QR actual registrado. Sube otro solo si deseas reemplazarlo.</small>
+            </div>
+        }
+    </div>
+    <div class="form-check">
+        <input asp-for="activo" class="form-check-input" />
+        <label asp-for="activo" class="form-check-label fw-semibold">Visible en portal público para donar</label>
+    </div>
+    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+        <a asp-action="Payments" class="btn btn-outline-secondary">Cancelar</a>
+        <button class="btn btn-primary">Guardar medio de pago</button>
     </div>
 </form>

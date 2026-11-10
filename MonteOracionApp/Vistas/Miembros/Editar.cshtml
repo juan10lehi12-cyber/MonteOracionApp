@@ -15,9 +15,9 @@
     <div class="row g-3">
         <div class="col-md-6"><label class="form-label fw-semibold">Nombres</label><input asp-for="nombres" class="form-control" required /></div>
         <div class="col-md-6"><label class="form-label fw-semibold">Apellidos</label><input asp-for="apellidos" class="form-control" required /></div>
-        <div class="col-md-4"><label class="form-label fw-semibold">DNI (8 dígitos)</label><input asp-for="dni" class="form-control" maxlength="8" /></div>
+        <div class="col-md-4"><label class="form-label fw-semibold">DNI (8 dígitos) <span class="text-danger">*</span></label><input asp-for="dni" class="form-control" maxlength="8" required /></div>
         <div class="col-md-4"><label class="form-label fw-semibold">Teléfono</label><input asp-for="telefono" class="form-control" /></div>
-        <div class="col-md-4"><label class="form-label fw-semibold">Fecha de nacimiento</label><input asp-for="fecha_nacimiento" type="date" class="form-control" /></div>
+        <div class="col-md-4"><label class="form-label fw-semibold">Fecha de nacimiento</label><input asp-for="fecha_nacimiento" type="date" asp-format="{0:yyyy-MM-dd}" class="form-control" /></div>
         <div class="col-12"><label class="form-label fw-semibold">Dirección</label><input asp-for="direccion" class="form-control" /></div>
     </div>
     <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">

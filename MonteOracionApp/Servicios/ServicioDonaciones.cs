@@ -8,8 +8,8 @@ public interface IServicioDonaciones
 {
     Task<Donacion> RegistrarWebAsync(FormularioDonacionWeb formulario, string? idUsuario);
     Task<Donacion> RegistrarRecepcionAsync(FormularioRecepcionDonacion formulario, string idAdministrador);
-    Task ReemplazarFotoBienAsync(int id, IFormFile foto, byte[] version, string idAdministrador);
-    Task DecidirAsync(int id, EstadoDonacion estado, string? motivo, string idAdministrador, byte[] version, int? idCongregante = null);
+    Task ReemplazarFotoBienAsync(int id, IFormFile foto, string idAdministrador);
+    Task DecidirAsync(int id, EstadoDonacion estado, string? motivo, string idAdministrador, int? idCongregante = null);
 }
 
 public class ServicioDonaciones(ContextoBaseDatos db, IAlmacenamientoArchivos almacenamiento, ServicioAlmacen almacen) : IServicioDonaciones
@@ -31,13 +31,14 @@ public class ServicioDonaciones(ContextoBaseDatos db, IAlmacenamientoArchivos al
         Publicacion? modeloEvento = null;
         var operacion = formulario.numero_operacion.Trim().ToUpperInvariant();
         if (!System.Text.RegularExpressions.Regex.IsMatch(operacion, "^[A-Z0-9-]{4,20}$")) throw new InvalidOperationException("El número de operación admite de 4 a 20 caracteres (letras, números o guiones).");
-        if (await db.Donaciones.AnyAsync(x => x.id_medio_pago == medioPago.id && x.fecha_recepcion_pago == formulario.fecha_pago.Date && x.numero_operacion == operacion)) throw new InvalidOperationException("Esta operación ya fue registrada para ese medio y fecha. Consulta con la administración.");
+        if (await db.Donaciones.AnyAsync(x => x.id_medio_pago == medioPago.id && x.numero_operacion == operacion)) throw new InvalidOperationException("Esta operación ya fue registrada para ese medio de pago. Consulta con la administración.");
         if (formulario.id_evento.HasValue)
         {
             modeloEvento = await db.Publicaciones.SingleOrDefaultAsync(x => x.id == formulario.id_evento)
                 ?? throw new InvalidOperationException("El evento indicado no está disponible.");
+            var finEvento = modeloEvento.fecha_fin_evento ?? modeloEvento.fecha_inicio_evento;
             if (modeloEvento.tipo != TipoPublicacion.Evento || !modeloEvento.publicado || modeloEvento.cancelado
-                || modeloEvento.fecha_inicio_evento is null || modeloEvento.fecha_inicio_evento.Value.Date < formulario.fecha_pago.Date)
+                || finEvento is null || finEvento.Value.Date < formulario.fecha_pago.Date)
                 throw new InvalidOperationException("El evento indicado no está aceptando donaciones.");
         }
         if (formulario.comprobante == null) throw new InvalidOperationException("El comprobante es obligatorio.");
@@ -48,7 +49,7 @@ public class ServicioDonaciones(ContextoBaseDatos db, IAlmacenamientoArchivos al
             tipo_donante = congregante != null ? TipoDonante.Congregante : TipoDonante.Anonimo,
             id_congregante = congregante?.id, nombre_externo = null, contacto_externo = null,
             monto = formulario.monto, id_medio_pago = medioPago.id, nombre_medio_pago = medioPago.nombre, numero_operacion = operacion,
-            id_evento = modeloEvento?.id, fecha_recepcion_pago = formulario.fecha_pago.Date, clave_comprobante = archivo.clave, tipo_contenido_comprobante = archivo.tipo_contenido, id_usuario_registro = null, digital = true
+            id_evento = modeloEvento?.id, fecha_recepcion_pago = formulario.fecha_pago.Date, clave_comprobante = archivo.clave, tipo_contenido_comprobante = archivo.tipo_contenido, id_usuario = null, digital = true
         };
         db.Donaciones.Add(donacion);
         try { await db.SaveChangesAsync(); }
@@ -76,8 +77,10 @@ public class ServicioDonaciones(ContextoBaseDatos db, IAlmacenamientoArchivos al
                     var completo = formulario.NewMemberName.Trim();
                     var corte = completo.IndexOf(' ');
                     var nombres = corte > 0 ? completo[..corte] : completo;
-                    var apellidos = corte > 0 ? completo[(corte + 1)..] : "";
-                    creado = new Congregante { nombres = nombres, apellidos = apellidos, dni = formulario.NewMemberDni, telefono = formulario.NewMemberPhone };
+                    var apellidos = corte > 0 ? completo[(corte + 1)..].Trim() : "-";
+                    var dniLimpio = string.IsNullOrWhiteSpace(formulario.NewMemberDni) ? null : formulario.NewMemberDni.Trim();
+                    var telLimpio = string.IsNullOrWhiteSpace(formulario.NewMemberPhone) ? null : formulario.NewMemberPhone.Trim();
+                    creado = new Congregante { nombres = nombres, apellidos = apellidos, dni = dniLimpio, telefono = telLimpio };
                     db.Congregantes.Add(creado);
                 }
                 await db.SaveChangesAsync();
@@ -93,12 +96,16 @@ public class ServicioDonaciones(ContextoBaseDatos db, IAlmacenamientoArchivos al
             id_congregante = formulario.DonorKind == TipoDonante.Congregante ? idCongregante : null,
             nombre_externo = formulario.DonorKind == TipoDonante.Externo ? formulario.ExternalName?.Trim() : null,
             contacto_externo = formulario.DonorKind == TipoDonante.Externo ? formulario.ExternalContact?.Trim() : null,
-            fecha_recepcion_pago = formulario.ReceivedOn.Date, id_usuario_registro = idAdministrador
+            fecha_recepcion_pago = formulario.ReceivedOn.Date, id_usuario = idAdministrador
         };
         if (formulario.EventId.HasValue)
         {
-            var ev = await db.Publicaciones.SingleOrDefaultAsync(x => x.id == formulario.EventId.Value && x.tipo == TipoPublicacion.Evento && !x.cancelado)
+            var ev = await db.Publicaciones.SingleOrDefaultAsync(x => x.id == formulario.EventId.Value
+                && x.tipo == TipoPublicacion.Evento && x.publicado && !x.cancelado)
                 ?? throw new InvalidOperationException("El evento seleccionado no está disponible.");
+            var finEvento = ev.fecha_fin_evento ?? ev.fecha_inicio_evento;
+            if (finEvento is not null && finEvento.Value.Date < formulario.ReceivedOn.Date)
+                throw new InvalidOperationException("El evento seleccionado ya finalizó. Elige otro destino o registra el aporte como general.");
             d.id_evento = ev.id;
         }
         if (formulario.Kind == TipoDonacion.Dinero)
@@ -108,25 +115,44 @@ public class ServicioDonaciones(ContextoBaseDatos db, IAlmacenamientoArchivos al
         }
         else
         {
-            var items = formulario.Items.Where(x => x.ProductId.HasValue || x.Quantity.HasValue || !string.IsNullOrWhiteSpace(x.NewProductName)).ToList();
-            if (items.Count is 0 or > 50 || items.Any(x => (x.ProductId == null && string.IsNullOrWhiteSpace(x.NewProductName)) || x.Quantity is null or <= 0 or > 9999999999.99m || decimal.Round(x.Quantity.Value, 2) != x.Quantity)) throw new InvalidOperationException("Registra de 1 a 50 bienes: elige del catálogo o escribe un producto nuevo, con cantidad positiva y máximo dos decimales.");
+            var items = formulario.Items
+                .Where(x => !string.IsNullOrWhiteSpace(x.Description) || !string.IsNullOrWhiteSpace(x.NewProductName) || x.ProductId.HasValue)
+                .ToList();
+            if (items.Count is 0 or > 50)
+                throw new InvalidOperationException("Registra de 1 a 50 bienes describiendo lo que entrega el donante.");
+
             foreach (var it in items)
             {
-                if (it.ProductId != null) continue;
-                var nombre = it.NewProductName!.Trim();
-                var unidad = string.IsNullOrWhiteSpace(it.NewProductUnit) ? "unidad" : it.NewProductUnit.Trim();
-                var producto = await db.Productos.SingleOrDefaultAsync(p => p.nombre == nombre && p.unidad == unidad);
-                if (producto == null)
+                var desc = !string.IsNullOrWhiteSpace(it.Description) ? it.Description.Trim() : (it.NewProductName?.Trim() ?? "Bien por clasificar");
+                var cantidad = it.Quantity is > 0 and <= 9999999999.99m ? it.Quantity.Value : 1m;
+                var unidad = !string.IsNullOrWhiteSpace(it.Unit) ? it.Unit.Trim() : (!string.IsNullOrWhiteSpace(it.NewProductUnit) ? it.NewProductUnit.Trim() : "unidad");
+
+                int idProd;
+                if (it.ProductId.HasValue && await db.Productos.AnyAsync(p => p.id == it.ProductId.Value && p.activo))
                 {
-                    producto = new Producto { nombre = nombre, unidad = unidad };
-                    db.Productos.Add(producto);
+                    idProd = it.ProductId.Value;
                 }
-                await db.SaveChangesAsync();
-                it.ProductId = producto.id;
+                else
+                {
+                    var prod = await db.Productos.FirstOrDefaultAsync(p => p.nombre == desc && p.unidad == unidad);
+                    if (prod == null)
+                    {
+                        prod = new Producto { nombre = desc, unidad = unidad, categoria = "Por Clasificar" };
+                        db.Productos.Add(prod);
+                        await db.SaveChangesAsync();
+                    }
+                    idProd = prod.id;
+                }
+
+                d.bienes.Add(new DonacionBien
+                {
+                    id_producto = idProd,
+                    descripcion = desc,
+                    cantidad = cantidad,
+                    unidad = unidad
+                });
             }
-            d.bienes = items.GroupBy(x => x.ProductId)
-                .Select(g => new DonacionBien { id_producto = g.Key, cantidad = g.Sum(x => x.Quantity!.Value) })
-                .ToList();
+
             await almacen.RecibirDonacionAsync(d, idAdministrador);
         }
         d.decisiones.Add(new() { id_administrador = idAdministrador, estado = EstadoDonacion.Aprobada, motivo = "Recepción presencial confirmada." });
@@ -135,7 +161,7 @@ public class ServicioDonaciones(ContextoBaseDatos db, IAlmacenamientoArchivos al
         return d;
     }
 
-    public async Task DecidirAsync(int id, EstadoDonacion estado, string? motivo, string idAdministrador, byte[] version, int? idCongregante = null)
+    public async Task DecidirAsync(int id, EstadoDonacion estado, string? motivo, string idAdministrador, int? idCongregante = null)
     {
         await using var transaccion = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         var d = await db.Donaciones.SingleOrDefaultAsync(x => x.id == id) ?? throw new InvalidOperationException("Donación no encontrada.");
@@ -166,14 +192,14 @@ public class ServicioDonaciones(ContextoBaseDatos db, IAlmacenamientoArchivos al
                 motivo = $"Vinculada a la ficha del congregante #{congregante.id} durante la revisión."
             });
         }
-        db.Entry(d).Property(x => x.version).OriginalValue = version;
+
         d.estado = estado;
         d.decisiones.Add(new() { estado = estado, motivo = motivo?.Trim(), id_administrador = idAdministrador });
         try { await db.SaveChangesAsync(); await transaccion.CommitAsync(); }
         catch (DbUpdateConcurrencyException) { throw new InvalidOperationException("Otro administrador ya modificó esta donación. Actualiza la página."); }
     }
 
-    public async Task ReemplazarFotoBienAsync(int id, IFormFile foto, byte[] version, string idAdministrador)
+    public async Task ReemplazarFotoBienAsync(int id, IFormFile foto, string idAdministrador)
     {
         var d = await db.Donaciones.SingleOrDefaultAsync(x => x.id == id)
             ?? throw new InvalidOperationException("Donación no encontrada.");
@@ -181,7 +207,7 @@ public class ServicioDonaciones(ContextoBaseDatos db, IAlmacenamientoArchivos al
             throw new InvalidOperationException("Solo puedes cambiar la foto de bienes con recepción aprobada.");
         var subido = await almacenamiento.GuardarAsync(foto, soloImagen: true);
         var claveAnterior = d.clave_comprobante;
-        db.Entry(d).Property(x => x.version).OriginalValue = version;
+
         d.clave_comprobante = subido.clave;
         d.tipo_contenido_comprobante = subido.tipo_contenido;
         d.decisiones.Add(new() { id_administrador = idAdministrador, estado = d.estado, motivo = "Foto del bien recibido actualizada." });

@@ -9,40 +9,73 @@
     <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver a personal</a>
 </div>
 
-<form method="post" class="panel form-panel" style="max-width:620px">
+<form method="post" class="panel form-panel" style="max-width:660px">
     <div asp-validation-summary="All" class="text-danger mb-2"></div>
     <input type="hidden" asp-for="id_usuario" />
+    <input type="hidden" asp-for="personal" />
+
     <div class="mb-3">
         <label class="form-label fw-semibold">Nombre completo</label>
-        <input asp-for="nombre_completo" class="form-control" required />
+        <input asp-for="nombre_completo" class="form-control" placeholder="Ej.: Juan Pérez Morales" required />
     </div>
+
     <div class="mb-3">
         <label class="form-label fw-semibold">Cargo / Área de apoyo</label>
-        <input asp-for="cargo" class="form-control" placeholder="Ej.: Coordinador de Almacén, Tesorería..." />
+        <input asp-for="cargo" class="form-control" placeholder="Ej.: Director / Pastor, Recepcionista, Encargado de Almacén..." />
     </div>
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Correo electrónico (usuario de acceso)</label>
-        <input asp-for="correo" type="email" class="form-control" required />
+
+    <div class="row g-2 mb-3">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Nombre de usuario (para ingresar al sistema) <span class="text-danger">*</span></label>
+            <input asp-for="usuario" class="form-control" placeholder="Ej.: recepcion, almacen, pastor" required autocomplete="off" />
+            <small class="text-secondary d-block mt-1">Fácil de recordar: sin espacios ni arroba. Con este usuario iniciará sesión.</small>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Correo electrónico <span class="text-secondary fw-normal small">(opcional)</span></label>
+            <input asp-for="correo" type="email" class="form-control" placeholder="Ej.: correo@gmail.com (opcional)" />
+            <small class="text-secondary d-block mt-1">Opcional. Si no tiene, el sistema le asigna uno interno.</small>
+        </div>
     </div>
+
     <div class="mb-3">
         <label class="form-label fw-semibold">Contraseña @(string.IsNullOrEmpty(Model.id_usuario) ? "(obligatoria)" : "(dejar en blanco para mantener la actual)")</label>
-        <input asp-for="clave" type="password" class="form-control" autocomplete="new-password" />
+        <input asp-for="clave" type="password" class="form-control" autocomplete="new-password" minlength="10" placeholder="Mínimo 10 caracteres, con mayúscula, minúscula, número y símbolo" />
     </div>
+
     <div class="mb-3">
-        <label class="form-label fw-semibold d-block">Roles asignados</label>
-        <div class="form-check form-check-inline">
-            <input asp-for="administrador" class="form-check-input" />
-            <label asp-for="administrador" class="form-check-label">Administrador (acceso total)</label>
-        </div>
-        <div class="form-check form-check-inline">
-            <input asp-for="personal" class="form-check-input" />
-            <label asp-for="personal" class="form-check-label">Personal (donaciones y almacén)</label>
+        <label class="form-label fw-semibold d-block mb-2">Rol y módulos que podrá ver esta persona</label>
+        <div class="d-flex flex-column gap-2 p-3 bg-light rounded-3 border">
+            <div class="form-check">
+                <input asp-for="administrador" class="form-check-input" id="rol-admin" />
+                <label asp-for="administrador" class="form-check-label fw-semibold" for="rol-admin">
+                    👑 Administrador / Director (Acceso total)
+                </label>
+                <small class="d-block text-secondary">Ve todo el sistema, aprueba pagos bancarios/Yape, gestiona eventos, miembros, usuarios y configuración.</small>
+            </div>
+            <hr class="my-1" />
+            <div class="form-check">
+                <input asp-for="recepcion" class="form-check-input" id="rol-recepcion" />
+                <label asp-for="recepcion" class="form-check-label fw-semibold" for="rol-recepcion">
+                    🛎️ Recepcionista / Secretaría (Solo Donaciones, Mensajes y Miembros)
+                </label>
+                <small class="d-block text-secondary">Registra donaciones en Mesa de Entrada, consulta donaciones, responde mensajes/peticiones de oración y registra miembros. <strong>No toca el almacén.</strong></small>
+            </div>
+            <hr class="my-1" />
+            <div class="form-check">
+                <input asp-for="almacen" class="form-check-input" id="rol-almacen" />
+                <label asp-for="almacen" class="form-check-label fw-semibold" for="rol-almacen">
+                    📦 Almacenero (Solo Gestión de Almacén)
+                </label>
+                <small class="d-block text-secondary">Da visto bueno a entradas de víveres/bienes, controla existencias, registra salidas y ve el Kardex. <strong>No ve dinero ni peticiones privadas.</strong></small>
+            </div>
         </div>
     </div>
+
     <div class="form-check">
         <input asp-for="activo" class="form-check-input" />
         <label asp-for="activo" class="form-check-label fw-semibold">Cuenta activa (permitir inicio de sesión)</label>
     </div>
+
     <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
         <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
         <button class="btn btn-primary">Guardar usuario</button>

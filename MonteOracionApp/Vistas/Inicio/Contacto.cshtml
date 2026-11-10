@@ -1,0 +1,168 @@
+@model FormularioContacto
+@{
+    ViewData["Title"] = "Contáctanos y Peticiones de Oración";
+    var church = ViewBag.Church as ConfiguracionIglesia ?? new ConfiguracionIglesia();
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Contáctanos</li>
+    </ol>
+</nav>
+
+<div class="row g-4 justify-content-center">
+    <div class="col-lg-8">
+        <section class="panel p-4 p-md-5">
+            <header class="mb-4">
+                <div class="eyebrow">ACOMPAÑAMIENTO Y ORACIÓN</div>
+                <h1 class="h2 fw-bold mb-2">Estamos para escucharte y orar por ti</h1>
+                <p class="text-secondary mb-0">
+                    Déjanos tus datos en este formulario y un pastor o miembro de nuestro equipo se comunicará contigo con mucho gusto y total reserva.
+                </p>
+            </header>
+
+            <form method="post" asp-action="Contacto" data-confirm="¿Deseas enviar tu mensaje al equipo de la iglesia?">
+                <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="nombre" class="form-label fw-semibold">1. ¿Cómo te llamas? <span class="text-danger">*</span></label>
+                        <input asp-for="nombre" class="form-control" placeholder="Escribe tu nombre y apellido" autocomplete="name" />
+                        <span asp-validation-for="nombre" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="telefono" class="form-label fw-semibold">2. Teléfono o celular de contacto <span class="text-danger">*</span></label>
+                        <input asp-for="telefono" class="form-control" placeholder="Ej. 987 654 321" inputmode="tel" autocomplete="tel" />
+                        <span asp-validation-for="telefono" class="text-danger small"></span>
+                        <small class="text-secondary d-block mt-1">Nos servirá para llamarte o escribirte.</small>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="correo" class="form-label fw-semibold">Correo electrónico <span class="text-secondary fw-normal">(opcional)</span></label>
+                    <input asp-for="correo" type="email" class="form-control" placeholder="ejemplo@correo.com" autocomplete="email" />
+                    <span asp-validation-for="correo" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold d-block mb-2">3. ¿Cuál es el motivo de tu mensaje? <span class="text-danger">*</span></label>
+                    <div class="d-flex flex-column gap-2 p-3 bg-light rounded-3 border">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="motivo" value="@TipoMotivoContacto.PeticionOracion" id="motivo-oracion" />
+                            <label class="form-check-label fw-semibold" for="motivo-oracion">
+                                🙏 Petición de oración por mí o mi familia
+                            </label>
+                            <small class="d-block text-secondary">Si estás pasando por una dificultad de salud, familiar, laboral o espiritual.</small>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="motivo" value="@TipoMotivoContacto.Consejeria" id="motivo-consejeria" />
+                            <label class="form-check-label fw-semibold" for="motivo-consejeria">
+                                💬 Consejería pastoral o espiritual
+                            </label>
+                            <small class="d-block text-secondary">Orientación y acompañamiento bíblico con los pastores.</small>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="motivo" value="@TipoMotivoContacto.Informacion" id="motivo-info" />
+                            <label class="form-check-label fw-semibold" for="motivo-info">
+                                🕒 Información sobre los cultos y actividades
+                            </label>
+                            <small class="d-block text-secondary">Horarios, ministerios de niños, jóvenes, damas o varones.</small>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="motivo" value="@TipoMotivoContacto.Servir" id="motivo-servir" />
+                            <label class="form-check-label fw-semibold" for="motivo-servir">
+                                🤝 Deseo integrarme o servir como voluntario
+                            </label>
+                            <small class="d-block text-secondary">Quiero apoyar en la obra social, almacén, música o bienvenida.</small>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="motivo" value="@TipoMotivoContacto.Otro" id="motivo-otro" />
+                            <label class="form-check-label" for="motivo-otro">
+                                📝 Otro motivo
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold d-block mb-2">4. ¿Cómo prefieres que nos comuniquemos contigo?</label>
+                    <div class="d-flex flex-wrap gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="preferencia" value="@PreferenciaContacto.WhatsApp" id="pref-wa" />
+                            <label class="form-check-label" for="pref-wa">💬 Por mensaje de WhatsApp</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="preferencia" value="@PreferenciaContacto.Llamada" id="pref-call" />
+                            <label class="form-check-label" for="pref-call">📞 Por llamada telefónica</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" asp-for="preferencia" value="@PreferenciaContacto.Indiferente" id="pref-indif" />
+                            <label class="form-check-label" for="pref-indif">🤝 Cualquiera de las dos</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="mensaje" class="form-label fw-semibold">5. Cuéntanos tu mensaje o petición de oración <span class="text-danger">*</span></label>
+                    <textarea asp-for="mensaje" rows="5" class="form-control" placeholder="Escribe aquí con total libertad lo que necesitas o estás atravesando..."></textarea>
+                    <span asp-validation-for="mensaje" class="text-danger small"></span>
+                </div>
+
+                <div class="p-3 bg-light rounded-3 border small text-secondary mb-4">
+                    🔒 <strong>Privacidad y confidencialidad:</strong> Tu mensaje y datos de contacto son tratados con absoluta reserva y respeto. Solo serán leídos por los pastores y el equipo de intercesión autorizado de la iglesia.
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100 fw-semibold">
+                    ✉️ Enviar formulario
+                </button>
+            </form>
+        </section>
+    </div>
+
+    <div class="col-lg-4">
+        <aside class="panel p-4 mb-3">
+            <h2 class="h5 fw-bold mb-3">⛪ @church.nombre</h2>
+            <p class="small text-secondary mb-3">@church.informacion</p>
+
+            @if (!string.IsNullOrWhiteSpace(church.direccion))
+            {
+                <div class="mb-3 small">
+                    <strong>📍 Dirección:</strong>
+                    <div class="text-secondary">@church.direccion</div>
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(church.contacto))
+            {
+                <div class="mb-3 small">
+                    <strong>📞 Teléfono:</strong>
+                    <div class="text-secondary">@church.contacto</div>
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(church.horarios))
+            {
+                <div class="mb-3 small">
+                    <strong>🕒 Horarios de culto:</strong>
+                    <div class="preserve-lines text-secondary">@church.horarios</div>
+                </div>
+            }
+
+            <div class="d-grid gap-2 mt-4">
+                <a class="btn btn-outline-secondary btn-sm" asp-controller="Home" asp-action="Horarios">
+                    🗺️ Ver ubicación en el mapa
+                </a>
+            </div>
+        </aside>
+
+        <div class="p-4 rounded-3 text-white" style="background: linear-gradient(135deg, #20392f 0%, #285943 100%);">
+            <h3 class="h6 text-uppercase fw-bold text-white-50 mb-2">Palabra de esperanza</h3>
+            <p class="small fst-italic mb-2">
+                «No se inquieten por nada; más bien, en toda ocasión, con oración y ruego, presenten sus peticiones a Dios y denle gracias.»
+            </p>
+            <div class="small fw-semibold text-white-50 text-end">— Filipenses 4:6</div>
+        </div>
+    </div>
+</div>

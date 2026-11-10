@@ -1,9 +1,23 @@
 @model FormularioAcceso
-@{ ViewData["Title"] = "Ingresar"; }
-<section class="panel narrow"><div class="eyebrow">TU COMUNIDAD</div><h1>Ingresa a tu cuenta</h1><p class="text-secondary">Consulta tus donaciones y mantente cerca de la iglesia.</p>
-<form method="post" asp-action="Login"><div asp-validation-summary="All" class="text-danger" role="alert"></div>
-    <input asp-for="url_retorno" type="hidden" />
-    <div class="mb-3"><label asp-for="correo"></label><input asp-for="correo" class="form-control" autocomplete="username" /></div>
-    <div class="mb-3"><label asp-for="clave"></label><input asp-for="clave" class="form-control" autocomplete="current-password" /></div>
-    <button class="btn btn-primary w-100" type="submit">Ingresar</button>
-</form><p class="small text-secondary mt-3 mb-0">Para obtener una cuenta o recuperar tu acceso, comunícate con el administrador de la iglesia.</p></section>
+@{ ViewData["Title"] = "Acceso del personal"; }
+
+<section class="panel narrow">
+    <div class="eyebrow">GESTIÓN INTERNA</div>
+    <h1>Acceso del personal</h1>
+    <p class="text-secondary">Ingresa con tu usuario y contraseña para acceder al panel de administración.</p>
+
+    <form method="post" asp-action="Login">
+        <div asp-validation-summary="All" class="text-danger mb-3" role="alert"></div>
+        <input asp-for="url_retorno" type="hidden" />
+        <div class="mb-3">
+            <label asp-for="usuario" class="form-label fw-semibold">Usuario</label>
+            <input asp-for="usuario" class="form-control form-control-lg" autocomplete="username" placeholder="Ej.: admin, pastor o tu_usuario" required autofocus />
+        </div>
+        <div class="mb-3">
+            <label asp-for="clave" class="form-label fw-semibold">Contraseña</label>
+            <input asp-for="clave" class="form-control form-control-lg" autocomplete="current-password" placeholder="Tu contraseña" required />
+        </div>
+        <button class="btn btn-primary w-100 btn-lg" type="submit">Ingresar al sistema</button>
+    </form>
+    <p class="small text-secondary mt-3 mb-0">Para obtener una cuenta o restablecer tu contraseña, comunícate con el administrador de la iglesia.</p>
+</section>

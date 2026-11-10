@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,8 @@ namespace MonteOracionApp.Controladores;
 [Authorize(Roles = Roles.Administrador)]
 public class SettingsController(ContextoBaseDatos db, IAlmacenamientoArchivos almacenamiento) : Controller
 {
+    private string? IdUsuario => User.FindFirstValue(ClaimTypes.NameIdentifier);
+
     [HttpGet] public async Task<IActionResult> Index() => View(await db.ConfiguracionesIglesia.SingleOrDefaultAsync() ?? new ConfiguracionIglesia());
 
     [HttpPost]
@@ -17,6 +20,7 @@ public class SettingsController(ContextoBaseDatos db, IAlmacenamientoArchivos al
         if (!ModelState.IsValid) return View(formulario);
         var s = await db.ConfiguracionesIglesia.SingleOrDefaultAsync(); if (s == null) { s = new(); db.ConfiguracionesIglesia.Add(s); }
         s.nombre = formulario.nombre.Trim(); s.informacion = formulario.informacion.Trim(); s.direccion = formulario.direccion?.Trim(); s.contacto = formulario.contacto?.Trim(); s.horarios = formulario.horarios?.Trim();
+        s.id_usuario = IdUsuario;
         await db.SaveChangesAsync(); TempData["Success"] = "Información actualizada."; return RedirectToAction(nameof(Index));
     }
 
@@ -37,6 +41,7 @@ public class SettingsController(ContextoBaseDatos db, IAlmacenamientoArchivos al
             p.clave_qr = subido.clave; p.tipo_contenido_qr = subido.tipo_contenido;
         }
         p.nombre = formulario.nombre.Trim(); p.instrucciones = formulario.instrucciones.Trim(); p.numero_cuenta = formulario.numero_cuenta?.Trim(); p.activo = formulario.activo;
+        p.id_usuario = IdUsuario;
         if (id == 0) db.MediosPago.Add(p);
         try { await db.SaveChangesAsync(); } catch { if (subido != null) almacenamiento.Eliminar(subido.clave); throw; }
         if (subido != null && anterior != null) almacenamiento.Eliminar(anterior);
@@ -47,7 +52,7 @@ public class SettingsController(ContextoBaseDatos db, IAlmacenamientoArchivos al
     public async Task<IActionResult> Qr(int id)
     {
         var p = await db.MediosPago.AsNoTracking().SingleOrDefaultAsync(x => x.id == id && x.activo);
-        if (p?.clave_qr == null) return NotFound();
+        if (p?.clave_qr == null || !almacenamiento.Existe(p.clave_qr)) return NotFound();
         Response.Headers.CacheControl = "no-store"; return File(almacenamiento.Abrir(p.clave_qr), p.tipo_contenido_qr!);
     }
 }

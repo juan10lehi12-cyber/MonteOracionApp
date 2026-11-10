@@ -1,8 +1,8 @@
 @model FormularioClave
 @{ ViewData["Title"] = "Cambiar contraseña"; }
-<section class="panel narrow"><h1>Cambiar contraseña</h1><p>Usa al menos 10 caracteres.</p>
+<section class="panel narrow"><div class="eyebrow">MI CUENTA</div><h1>Cambiar contraseña</h1><p class="text-secondary">Ingresa tu contraseña actual y define una nueva de al menos 10 caracteres, con mayúscula, minúscula, número y símbolo.</p>
 <form asp-action="Password" method="post"><div asp-validation-summary="All" class="text-danger"></div>
 <div class="mb-3"><label asp-for="clave_actual"></label><input class="form-control" asp-for="clave_actual" autocomplete="current-password" /></div>
-<div class="mb-3"><label asp-for="clave_nueva"></label><input class="form-control" asp-for="clave_nueva" autocomplete="new-password" /></div>
+<div class="mb-3"><label asp-for="clave_nueva"></label><input class="form-control" asp-for="clave_nueva" autocomplete="new-password" minlength="10" /></div>
 <div class="mb-3"><label asp-for="confirmar_clave"></label><input class="form-control" asp-for="confirmar_clave" autocomplete="new-password" /></div>
 <button class="btn btn-primary">Guardar contraseña</button></form></section>

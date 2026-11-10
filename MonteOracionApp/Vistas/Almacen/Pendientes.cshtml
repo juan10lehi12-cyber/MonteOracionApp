@@ -1,102 +1,461 @@
 @model List<Lote>
 @{
-    ViewData["Title"] = "Visto bueno de entradas";
+    ViewData["Title"] = "Visto bueno de entradas y catalogación";
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var total = (int)(ViewBag.Total ?? Model.Count);
     var names = (Dictionary<string, string>)ViewBag.Names;
+    var products = ViewBag.Products as List<Producto> ?? [];
+    var events = ViewBag.Events as List<Publicacion> ?? [];
+    var categorias = ViewBag.Categorias as List<string> ?? [];
+    var catalogoJson = System.Text.Json.JsonSerializer.Serialize(
+        products.Select(p => new { id = p.id, nombre = p.nombre, categoria = p.categoria, unidad = p.unidad })
+    );
 }
+
 <div class="section-heading">
     <div>
         <div class="eyebrow">GESTIÓN DE ALMACÉN</div>
         <h1>Visto bueno de entradas</h1>
-        <p class="mb-0">Confirma que los bienes donados están en el almacén, indica su ubicación y adjunta foto si lo deseas, o anula la entrada si no llegaron.</p>
+        <p class="mb-0">Lee lo que escribieron en recepción, elige la <strong>Categoría</strong> y el <strong>Producto</strong> del desplegable (o separa en varias filas si entregaron varios artículos juntos) y confirma su ingreso al stock.</p>
     </div>
-    <a class="btn btn-outline-secondary" asp-action="Index">Ver existencias →</a>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#catalogoModal">
+            🗂️ Catálogo de productos
+        </button>
+        <a class="btn btn-outline-secondary" asp-action="Index">Ver existencias →</a>
+    </div>
 </div>
+
+<datalist id="ubicacionesSugeridas">
+    <option value="Almacén Central"></option>
+    <option value="Estante A · Alimentos"></option>
+    <option value="Estante B · Aseo y Limpieza"></option>
+    <option value="Estante C · Ropa y Abrigo"></option>
+    <option value="Depósito de Mobiliario"></option>
+    <option value="Cabina de Sonido / Templo"></option>
+</datalist>
 
 @if (Model.Count == 0)
 {
-    <div class="empty-state">No hay entradas pendientes de visto bueno.</div>
+    <div class="panel text-center py-5">
+        <span class="fs-1 d-block mb-2">✅</span>
+        <h2 class="h5 fw-bold">No hay entradas pendientes de visto bueno</h2>
+        <p class="text-secondary mb-3">Todos los bienes recibidos en puerta ya fueron clasificados y sumados a su stock correspondiente.</p>
+        <a class="btn btn-primary btn-sm" asp-action="Index">Ir a existencias en almacén</a>
+    </div>
 }
 else
 {
-    <div class="panel table-responsive">
-        <table class="table align-middle mb-0">
-            <thead>
-                <tr>
-                    <th>Producto</th>
-                    <th>Cantidad</th>
-                    <th>Donación / Destino</th>
-                    <th>Registró recepción</th>
-                    <th>Ubicación, foto opcional y visto bueno</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var l in Model)
-                {
-                    var don = l.donacion_bien?.donacion;
-                    var cmdConfirm = Guid.NewGuid();
-                    var cmdReject = Guid.NewGuid();
-                    <tr>
-                        <td>
-                            <strong>@l.producto.nombre</strong><br />
-                            <small class="text-secondary">Unidad: @l.producto.unidad</small>
-                        </td>
-                        <td><strong>@l.cantidad_actual.ToString("0.##")</strong> @l.producto.unidad</td>
-                        <td>
-                            @if (don != null)
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="small text-secondary">Mostrando <strong>@Model.Count</strong> de <strong>@total</strong> entrega(s) pendientes de clasificar</span>
+    </div>
+    <div class="d-flex flex-column gap-4">
+        @foreach (var l in Model)
+        {
+            var don = l.donacion_bien?.donacion;
+            var cmdConfirm = Guid.NewGuid();
+            var cmdReject = Guid.NewGuid();
+            var notaRecepcion = l.donacion_bien?.descripcion ?? l.origen;
+
+            <div class="panel p-4 border shadow-sm js-tarjeta-pendiente">
+                <!-- Encabezado con la nota escrita en recepción -->
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 border-bottom pb-3 mb-3">
+                    <div>
+                        <span class="badge text-bg-warning mb-1">⏳ Pendiente de clasificar y guardar</span>
+                        <h2 class="h5 fw-bold mb-1 text-primary">
+                            Lo que anotaron en recepción: «@notaRecepcion»
+                        </h2>
+                        <div class="small text-secondary d-flex flex-wrap gap-3 mt-1">
+                            <span>👤 <strong>Donante:</strong> @(don?.etiqueta_donante ?? "Anónimo")</span>
+                            <span>
+                                🎯 <strong>Destino indicado:</strong>
+                                @if (don?.evento != null)
+                                {
+                                    <span class="badge text-bg-primary">🗓️ Evento: @don.evento.titulo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-light border text-dark">⛪ Almacén General de la Iglesia</span>
+                                }
+                            </span>
+                            <span>
+                                🕒 <strong>Recibió:</strong> @(l.id_usuario_pendiente != null && names.TryGetValue(l.id_usuario_pendiente, out var n) ? n : "Personal")
+                                (@l.fecha_pendiente?.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm"))
+                            </span>
+                        </div>
+                    </div>
+                    @if (don?.clave_comprobante != null)
+                    {
+                        <a asp-controller="Donations" asp-action="Receipt" asp-route-id="@don.id" target="_blank" rel="noopener" class="btn btn-outline-info btn-sm">
+                            📷 Ver foto original
+                        </a>
+                    }
+                </div>
+
+                <!-- Formulario de Desglose y Visto Bueno -->
+                <form method="post" asp-action="Confirm" asp-route-id="@l.id" enctype="multipart/form-data" class="js-form-confirmar">
+                    <input name="commandId" type="hidden" value="@cmdConfirm" />
+
+                    <!-- Destino fijado en recepción (Estático según lo indicado por el donante) -->
+                    <input type="hidden" name="eventId" value="@don?.id_evento" />
+                    <div class="p-3 mb-3 rounded-3 border @(don?.id_evento != null ? "bg-success-subtle border-success" : "bg-primary-subtle border-primary") d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <span class="badge @(don?.id_evento != null ? "text-bg-success" : "text-bg-primary") mb-1">
+                                CUENTA DE STOCK FIJADA EN RECEPCIÓN
+                            </span>
+                            @if (don?.evento != null)
                             {
-                                <div class="d-flex align-items-center gap-2">
-                                    <a asp-controller="Donations" asp-action="Details" asp-route-id="@don.id" class="fw-semibold text-decoration-none">Donación #@don.id</a>
-                                    @if (don.clave_comprobante != null)
-                                    {
-                                        <a asp-controller="Donations" asp-action="Receipt" asp-route-id="@don.id" target="_blank" rel="noopener" class="badge text-bg-info text-decoration-none" title="Ver foto del bien">📷 Ver foto</a>
-                                    }
-                                </div>
-                                <div class="mt-1">
-                                    @if (don.evento != null)
-                                    {
-                                        <span class="badge text-bg-primary-subtle text-primary-emphasis">🗓️ @don.evento.titulo</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge text-bg-light border text-dark">⛪ General (Iglesia)</span>
-                                    }
-                                </div>
+                                <h3 class="h6 fw-bold mb-0 text-success-emphasis">
+                                    🗓️ Reservado para el Evento: «@don.evento.titulo»
+                                </h3>
+                                <small class="text-secondary d-block">
+                                    El donante entregó estos bienes exclusivamente para este evento. Se sumarán a su cuenta de stock.
+                                </small>
                             }
                             else
                             {
-                                <span class="badge text-bg-light border text-dark">⛪ General (Almacén)</span>
+                                <h3 class="h6 fw-bold mb-0 text-primary-emphasis">
+                                    ⛪ Almacén General de la Iglesia
+                                </h3>
+                                <small class="text-secondary d-block">
+                                    El donante entregó estos bienes para ayuda social, comedor o uso general del templo.
+                                </small>
                             }
-                        </td>
-                        <td>
-                            @(l.id_usuario_pendiente != null && names.TryGetValue(l.id_usuario_pendiente, out var n) ? n : "-")<br />
-                            <small class="text-secondary">@l.fecha_pendiente?.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm")</small>
-                        </td>
-                        <td style="min-width: 390px;">
-                            <form method="post" asp-action="Confirm" asp-route-id="@l.id" enctype="multipart/form-data">
-                                <input name="commandId" type="hidden" value="@cmdConfirm" />
-                                <div class="d-flex gap-2 align-items-stretch">
-                                    <input name="location" maxlength="160" required class="form-control form-control-sm" placeholder="Ubicación (ej. Estante A-1)" />
-                                    <label class="btn btn-outline-secondary btn-sm text-nowrap mb-0" title="Adjuntar foto del bien recibido (opcional)">
-                                        📷 Foto
-                                        <input type="file" name="photo" accept=".jpg,.jpeg,.png" class="d-none" onchange="this.parentElement.classList.replace('btn-outline-secondary','btn-info')" />
-                                    </label>
-                                    <button type="submit" class="btn btn-success btn-sm text-nowrap">✓ Dar visto bueno</button>
-                                    <button class="btn btn-outline-danger btn-sm text-nowrap" type="button" data-bs-toggle="collapse" data-bs-target="#rechazar-@l.id" aria-expanded="false" aria-controls="rechazar-@l.id" title="Si los bienes no llegaron al almacén">
-                                        ✕ No llegó
-                                    </button>
-                                </div>
-                            </form>
-                            <div class="collapse mt-2" id="rechazar-@l.id">
-                                <form method="post" asp-action="Reject" asp-route-id="@l.id" class="p-2 bg-light border rounded-3 d-flex gap-2 align-items-center" data-confirm="¿Confirmas que estos bienes NO ingresaron al almacén? Se anulará esta entrada.">
-                                    <input name="commandId" type="hidden" value="@cmdReject" />
-                                    <input name="reason" maxlength="500" class="form-control form-control-sm" placeholder="Motivo (ej. No se entregó físicamente)" value="No llegó físicamente al almacén" required />
-                                    <button type="submit" class="btn btn-danger btn-sm text-nowrap">Confirmar anulación</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+                        </div>
+                        <span class="badge text-bg-light border text-dark fw-semibold px-2 py-1">
+                            🔒 Destino estático
+                        </span>
+                    </div>
+
+                    <!-- Paso 2: Tabla de desglose por Categoría -> Producto -->
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <label class="form-label small fw-bold mb-0">
+                            Clasifica los productos recibidos <span class="text-secondary fw-normal">(si en la nota hay varios artículos distintos, sepáralos con el botón «+ Separar otro producto»)</span>
+                        </label>
+                        <button type="button" class="btn btn-sm btn-outline-primary fw-semibold js-btn-separar">
+                            ➕ Separar / Agregar otro producto de esta entrega
+                        </button>
+                    </div>
+
+                    <div class="table-responsive border rounded-3 mb-3">
+                        <table class="table align-middle mb-0">
+                            <thead class="table-light small">
+                                <tr>
+                                    <th style="width: 24%;">Categoría</th>
+                                    <th style="width: 28%;">Producto</th>
+                                    <th style="width: 15%;">Cantidad real</th>
+                                    <th style="width: 14%;">Unidad</th>
+                                    <th style="width: 15%;">Ubicación</th>
+                                    <th style="width: 4%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="js-filas-desglose">
+                                <tr class="js-fila-item">
+                                    <td>
+                                        <select class="form-select form-select-sm js-select-categoria" required>
+                                            @foreach (var cat in categorias)
+                                            {
+                                                <option value="@cat" selected="@(cat == "Alimentos y Víveres")">@cat</option>
+                                            }
+                                            <option value="__nueva__">➕ Nueva categoría...</option>
+                                        </select>
+                                        <input type="text" class="form-control form-control-sm mt-1 d-none js-input-categoria-nueva" maxlength="80" placeholder="Escribe la nueva categoría..." />
+                                        <input type="hidden" name="items[0].categoria" class="js-hidden-categoria" value="Alimentos y Víveres" />
+                                    </td>
+                                    <td>
+                                        <select class="form-select form-select-sm js-select-producto" required></select>
+                                        <input type="text" class="form-control form-control-sm mt-1 d-none js-input-producto-nuevo" maxlength="160" placeholder="Nombre del nuevo producto..." />
+                                        <input type="hidden" name="items[0].nombre_producto" class="js-hidden-producto" value="" />
+                                    </td>
+                                    <td>
+                                        <input name="items[0].cantidad" type="number" min="0.01" step="0.01" value="@l.cantidad_actual.ToString("0.##", inv)" class="form-control form-control-sm fw-bold text-success js-input-cantidad" required />
+                                    </td>
+                                    <td>
+                                        <select name="items[0].unidad" class="form-select form-select-sm js-select-unidad">
+                                            <option value="kg">kg (kilos)</option>
+                                            <option value="unidad">unidad(es)</option>
+                                            <option value="lata">lata(s)</option>
+                                            <option value="litro">litro(s)</option>
+                                            <option value="paquete">paquete(s)</option>
+                                            <option value="saco">saco / costal</option>
+                                            <option value="caja">caja(s)</option>
+                                            <option value="tableta">tableta(s)</option>
+                                            <option value="par">par(es)</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input name="items[0].ubicacion" list="ubicacionesSugeridas" maxlength="160" class="form-control form-control-sm js-input-ubicacion" value="@(string.IsNullOrWhiteSpace(l.ubicacion) ? "Almacén Central" : l.ubicacion)" placeholder="Estante..." required />
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-danger js-quitar-item" title="Quitar fila">✕</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2 border-top">
+                        <label class="btn btn-outline-secondary btn-sm mb-0 text-truncate" style="max-width: 320px;">
+                            <span class="js-foto-texto">📷 Adjuntar foto en almacén (opcional)</span>
+                            <input type="file" name="photo" accept=".jpg,.jpeg,.png" class="d-none" onchange="const lbl = this.parentElement; const f = this.files && this.files[0]; lbl.classList.toggle('btn-info', !!f); lbl.classList.toggle('btn-outline-secondary', !f); lbl.querySelector('.js-foto-texto').textContent = f ? '📷 ' + f.name : '📷 Adjuntar foto en almacén (opcional)';" />
+                        </label>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-success fw-semibold">
+                                ✓ Dar visto bueno y sumar al stock
+                            </button>
+                            <button class="btn btn-outline-danger" type="button" data-bs-toggle="collapse" data-bs-target="#rechazar-@l.id" aria-expanded="false" aria-controls="rechazar-@l.id">
+                                ✕ No llegó físicamente
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Panel de anulación si no llegó -->
+                <div class="collapse mt-3" id="rechazar-@l.id">
+                    <form method="post" asp-action="Reject" asp-route-id="@l.id" class="p-3 bg-light border rounded-3 d-flex gap-2 align-items-center" data-confirm="¿Confirmas que estos bienes NO ingresaron al almacén? Se anulará esta entrada.">
+                        <input name="commandId" type="hidden" value="@cmdReject" />
+                        <input name="reason" maxlength="500" class="form-control form-control-sm" placeholder="Indica el motivo de anulación" value="No llegó físicamente al almacén" required />
+                        <button type="submit" class="btn btn-danger btn-sm text-nowrap">Confirmar anulación</button>
+                    </form>
+                </div>
+            </div>
+        }
     </div>
+    <partial name="_Paginacion" />
+}
+
+<!-- Modal de Catálogo de Productos y Categorías -->
+<div class="modal fade" id="catalogoModal" tabindex="-1" aria-labelledby="catalogoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5 mb-0" id="catalogoModalLabel">🗂️ Catálogo de Categorías y Productos</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-secondary mb-3">
+                    Agrega o edita los productos oficiales que aparecerán en los desplegables del almacén organizados por categoría.
+                </p>
+
+                <form method="post" asp-action="SaveCatalogProduct" class="p-3 rounded-3 bg-light border mb-3">
+                    <input type="hidden" name="origenVista" value="Pending" />
+                    <input type="hidden" name="id" id="catProdId" value="" />
+                    <strong class="d-block small text-uppercase text-secondary mb-2" id="catFormTitulo">➕ Agregar nuevo producto al desplegable</strong>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold mb-1">Categoría</label>
+                            <select name="categoria" id="catProdCategoria" class="form-select form-select-sm" onchange="document.getElementById('catNuevaWrap').classList.toggle('d-none', this.value !== '__nueva__');">
+                                @foreach (var c in categorias)
+                                {
+                                    <option value="@c">@c</option>
+                                }
+                                <option value="__nueva__">➕ Nueva categoría...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-none" id="catNuevaWrap">
+                            <label class="form-label small fw-semibold mb-1">Nombre de nueva categoría</label>
+                            <input type="text" name="nuevaCategoria" class="form-control form-control-sm" maxlength="80" placeholder="Ej.: Útiles Escolares" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold mb-1">Nombre del producto</label>
+                            <input type="text" name="nombre" id="catProdNombre" class="form-control form-control-sm" maxlength="160" placeholder="Ej.: Arroz, Micrófono, Leche..." required />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold mb-1">Unidad</label>
+                            <select name="unidad" id="catProdUnidad" class="form-select form-select-sm">
+                                <option value="kg">kg</option>
+                                <option value="unidad">unidad</option>
+                                <option value="lata">lata</option>
+                                <option value="litro">litro</option>
+                                <option value="paquete">paquete</option>
+                                <option value="saco">saco</option>
+                                <option value="caja">caja</option>
+                                <option value="tableta">tableta</option>
+                                <option value="par">par</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex gap-1">
+                            <button type="submit" class="btn btn-primary btn-sm w-100">Guardar</button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="accordion" id="acordeonCatalogo">
+                    @{ var idxCat = 0; }
+                    @foreach (var grupo in products.GroupBy(x => x.categoria).OrderBy(g => g.Key))
+                    {
+                        idxCat++;
+                        <div class="accordion-item">
+                            <h3 class="accordion-header">
+                                <button class="accordion-button @(idxCat == 1 ? "" : "collapsed") py-2 small fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#cat-collapse-@idxCat">
+                                    @grupo.Key <span class="badge text-bg-secondary ms-2">@grupo.Count()</span>
+                                </button>
+                            </h3>
+                            <div id="cat-collapse-@idxCat" class="accordion-collapse collapse @(idxCat == 1 ? "show" : "")" data-bs-parent="#acordeonCatalogo">
+                                <div class="accordion-body p-2">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        @foreach (var prod in grupo)
+                                        {
+                                            <span class="badge text-bg-light border text-dark d-inline-flex align-items-center gap-2 p-2">
+                                                <span><strong>@prod.nombre</strong> <small class="text-secondary">(@prod.unidad)</small></span>
+                                                <button type="button" class="btn btn-sm btn-link p-0 text-primary text-decoration-none"
+                                                        onclick="document.getElementById('catProdId').value='@prod.id'; document.getElementById('catProdNombre').value='@prod.nombre'; document.getElementById('catProdCategoria').value='@prod.categoria'; document.getElementById('catProdUnidad').value='@prod.unidad'; document.getElementById('catFormTitulo').textContent='✏️ Editando producto #' + '@prod.id'; document.getElementById('catProdNombre').focus();">
+                                                    ✏️
+                                                </button>
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const catalogo = @Html.Raw(catalogoJson);
+
+            function poblarProductos(fila, nombrePreferido) {
+                const selCat = fila.querySelector('.js-select-categoria');
+                const inpCatNueva = fila.querySelector('.js-input-categoria-nueva');
+                const hidCat = fila.querySelector('.js-hidden-categoria');
+                const selProd = fila.querySelector('.js-select-producto');
+                const inpProdNuevo = fila.querySelector('.js-input-producto-nuevo');
+                const hidProd = fila.querySelector('.js-hidden-producto');
+                const selUni = fila.querySelector('.js-select-unidad');
+
+                const esCatNueva = selCat.value === '__nueva__';
+                inpCatNueva.classList.toggle('d-none', !esCatNueva);
+                inpCatNueva.required = esCatNueva;
+                const catActiva = esCatNueva ? inpCatNueva.value.trim() : selCat.value;
+                hidCat.value = catActiva;
+
+                const productosCat = catalogo.filter(p => p.categoria === selCat.value);
+                selProd.innerHTML = '';
+
+                if (!esCatNueva && productosCat.length > 0) {
+                    const optVacio = document.createElement('option');
+                    optVacio.value = '';
+                    optVacio.textContent = '— Selecciona producto —';
+                    selProd.appendChild(optVacio);
+
+                    productosCat.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.nombre;
+                        opt.dataset.unidad = p.unidad;
+                        opt.textContent = p.nombre + ' (' + p.unidad + ')';
+                        if (nombrePreferido && p.nombre.toLowerCase() === nombrePreferido.toLowerCase()) {
+                            opt.selected = true;
+                        }
+                        selProd.appendChild(opt);
+                    });
+                }
+
+                const optNuevo = document.createElement('option');
+                optNuevo.value = '__nuevo__';
+                optNuevo.textContent = '➕ Agregar nuevo producto a esta categoría...';
+                if (esCatNueva || productosCat.length === 0) {
+                    optNuevo.selected = true;
+                }
+                selProd.appendChild(optNuevo);
+
+                sincronizarProducto(fila);
+            }
+
+            function sincronizarProducto(fila) {
+                const selCat = fila.querySelector('.js-select-categoria');
+                const inpCatNueva = fila.querySelector('.js-input-categoria-nueva');
+                const hidCat = fila.querySelector('.js-hidden-categoria');
+                const selProd = fila.querySelector('.js-select-producto');
+                const inpProdNuevo = fila.querySelector('.js-input-producto-nuevo');
+                const hidProd = fila.querySelector('.js-hidden-producto');
+                const selUni = fila.querySelector('.js-select-unidad');
+
+                hidCat.value = selCat.value === '__nueva__' ? inpCatNueva.value.trim() : selCat.value;
+
+                const esProdNuevo = selProd.value === '__nuevo__';
+                inpProdNuevo.classList.toggle('d-none', !esProdNuevo);
+                inpProdNuevo.required = esProdNuevo;
+
+                if (esProdNuevo) {
+                    hidProd.value = inpProdNuevo.value.trim();
+                } else {
+                    hidProd.value = selProd.value;
+                    const opt = selProd.selectedOptions[0];
+                    if (opt && opt.dataset.unidad) {
+                        selUni.value = opt.dataset.unidad;
+                    }
+                }
+            }
+
+            function renumerarFilas(tbody) {
+                tbody.querySelectorAll('.js-fila-item').forEach((fila, idx) => {
+                    fila.querySelectorAll('[name]').forEach(el => {
+                        el.name = el.name.replace(/items\[\d+\]/, 'items[' + idx + ']');
+                    });
+                });
+            }
+
+            function inicializarFila(fila) {
+                const selCat = fila.querySelector('.js-select-categoria');
+                const inpCatNueva = fila.querySelector('.js-input-categoria-nueva');
+                const selProd = fila.querySelector('.js-select-producto');
+                const inpProdNuevo = fila.querySelector('.js-input-producto-nuevo');
+
+                selCat.addEventListener('change', () => poblarProductos(fila));
+                inpCatNueva.addEventListener('input', () => sincronizarProducto(fila));
+                selProd.addEventListener('change', () => sincronizarProducto(fila));
+                inpProdNuevo.addEventListener('input', () => sincronizarProducto(fila));
+
+                poblarProductos(fila);
+            }
+
+            document.querySelectorAll('.js-tarjeta-pendiente').forEach(tarjeta => {
+                const tbody = tarjeta.querySelector('.js-filas-desglose');
+                const btnSeparar = tarjeta.querySelector('.js-btn-separar');
+                const form = tarjeta.querySelector('.js-form-confirmar');
+
+                tbody.querySelectorAll('.js-fila-item').forEach(inicializarFila);
+
+                btnSeparar.addEventListener('click', () => {
+                    const primera = tbody.querySelector('.js-fila-item');
+                    const clon = primera.cloneNode(true);
+                    clon.querySelector('.js-input-cantidad').value = '1';
+                    clon.querySelector('.js-input-categoria-nueva').value = '';
+                    clon.querySelector('.js-input-producto-nuevo').value = '';
+                    tbody.appendChild(clon);
+                    renumerarFilas(tbody);
+                    inicializarFila(clon);
+                });
+
+                tbody.addEventListener('click', e => {
+                    const btn = e.target.closest('.js-quitar-item');
+                    if (!btn) return;
+                    if (tbody.querySelectorAll('.js-fila-item').length <= 1) return;
+                    btn.closest('.js-fila-item').remove();
+                    renumerarFilas(tbody);
+                });
+
+                form.addEventListener('submit', e => {
+                    let valido = true;
+                    tbody.querySelectorAll('.js-fila-item').forEach(fila => {
+                        sincronizarProducto(fila);
+                        const prod = fila.querySelector('.js-hidden-producto').value;
+                        const cat = fila.querySelector('.js-hidden-categoria').value;
+                        if (!prod || !cat) valido = false;
+                    });
+                    if (!valido) {
+                        e.preventDefault();
+                        alert('Selecciona el producto (o escribe el nombre del nuevo producto) en cada fila antes de dar el visto bueno.');
+                    }
+                });
+            });
+        })();
+    </script>
 }

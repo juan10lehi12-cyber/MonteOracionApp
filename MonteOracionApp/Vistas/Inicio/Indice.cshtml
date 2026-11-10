@@ -204,7 +204,7 @@
 </div>
 
 <!-- =======================================================================
-     3. FRANJA INFERIOR: Áreas de Servicio (Izquierda) + Acompañamiento y Oración (Derecha)
+     3. FRANJA INFERIOR: Áreas de Actividades (Izquierda) + Acompañamiento y Oración (Derecha)
      ======================================================================= -->
 <div class="row g-4 mb-2 align-items-stretch">
     <div class="col-lg-8">
@@ -212,9 +212,9 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 border-bottom pb-3 mb-3">
                 <div>
                     <div class="eyebrow">VIDA Y SERVICIO EN COMUNIDAD</div>
-                    <h2 class="h4 mb-0">Áreas de Servicio</h2>
+                    <h2 class="h4 mb-0">Áreas de Actividades</h2>
                 </div>
-                <a class="btn btn-outline-primary btn-sm" asp-controller="Home" asp-action="Ministerios">Conocer áreas de servicio →</a>
+                <a class="btn btn-outline-primary btn-sm" asp-controller="Home" asp-action="Ministerios">Conocer áreas de actividades →</a>
             </div>
             <div class="row g-3">
                 <div class="col-sm-6">
@@ -231,7 +231,7 @@
                 </div>
                 <div class="col-sm-6">
                     <div class="p-3 rounded-3 bg-light border h-100">
-                        <strong class="d-block mb-1">📦 Voluntariado y Almacén Solidario</strong>
+                        <strong class="d-block mb-1">📦 Voluntariado para los necesitados</strong>
                         <p class="small text-secondary mb-0">Organización y entrega de víveres y apoyo a familias vulnerables de nuestra comunidad.</p>
                     </div>
                 </div>
@@ -251,9 +251,9 @@
             <h3 class="h4 text-white mt-1 mb-2">¿Necesitas consejería o presentar una petición de oración?</h3>
             <p class="small text-white opacity-90 mb-4">Nuestra comunidad ora por tu familia y te acompaña en todo momento. Escríbenos con confianza o visítanos en nuestros cultos.</p>
             <div class="d-flex flex-wrap gap-2 mt-auto">
-                @if (whatsapp != null)
+                @if (true)
                 {
-                    <a class="btn btn-light btn-sm fw-semibold" href="@whatsapp" target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>
+                    <a class="btn btn-light btn-sm fw-semibold" asp-controller="Home" asp-action="Contacto" asp-route-motivo="@TipoMotivoContacto.PeticionOracion">📝 Enviar formulario</a>
                 }
                 <a class="btn btn-outline-light btn-sm" asp-controller="Home" asp-action="Horarios">Ver horarios de culto</a>
             </div>

@@ -16,10 +16,17 @@ public class AccountController(SignInManager<IdentityUser> acceso, UserManager<I
     public async Task<IActionResult> Login(FormularioAcceso formulario)
     {
         if (!ModelState.IsValid) return View(formulario);
-        var usuario = await usuarios.FindByEmailAsync(formulario.correo.Trim());
-        var activo = usuario != null && await db.PerfilesPersonal.AnyAsync(x => x.id_usuario == usuario.Id && x.activo) && (await usuarios.IsInRoleAsync(usuario, Roles.Administrador) || await usuarios.IsInRoleAsync(usuario, Roles.Personal));
+        var input = formulario.usuario.Trim();
+        var usuario = await usuarios.FindByNameAsync(input) ?? await usuarios.FindByEmailAsync(input);
+        var tieneRol = usuario != null && (
+            await usuarios.IsInRoleAsync(usuario, Roles.Administrador) ||
+            await usuarios.IsInRoleAsync(usuario, Roles.Recepcion) ||
+            await usuarios.IsInRoleAsync(usuario, Roles.Almacen) ||
+            await usuarios.IsInRoleAsync(usuario, Roles.Personal));
+        var activo = usuario != null && await db.PerfilesPersonal.AnyAsync(x => x.id_usuario == usuario.Id && x.activo) && tieneRol;
         var resultado = activo ? await acceso.PasswordSignInAsync(usuario!, formulario.clave, false, lockoutOnFailure: true) : Microsoft.AspNetCore.Identity.SignInResult.Failed;
-        if (!resultado.Succeeded) { ModelState.AddModelError("", "No se pudo iniciar sesión. Revisa tus datos o consulta al administrador si tu cuenta está desactivada."); return View(formulario); }
+        if (resultado.IsLockedOut) { ModelState.AddModelError("", "Tu cuenta está bloqueada temporalmente por 15 minutos debido a demasiados intentos fallidos. Intenta más tarde o consulta al administrador."); return View(formulario); }
+        if (!resultado.Succeeded) { ModelState.AddModelError("", "No se pudo iniciar sesión. Revisa tu usuario y contraseña, o consulta al administrador si tu cuenta está desactivada."); return View(formulario); }
         if (Url.IsLocalUrl(formulario.url_retorno)) return LocalRedirect(formulario.url_retorno!);
         return RedirectToAction("Index", "Dashboard");
     }
@@ -28,7 +35,7 @@ public class AccountController(SignInManager<IdentityUser> acceso, UserManager<I
 
     [Authorize, HttpGet] public IActionResult Password() => View(new FormularioClave());
 
-    [Authorize, HttpPost]
+    [Authorize, HttpPost, EnableRateLimiting("forms")]
     public async Task<IActionResult> Password(FormularioClave formulario)
     {
         if (!ModelState.IsValid) return View(formulario);

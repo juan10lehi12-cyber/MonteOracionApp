@@ -24,6 +24,7 @@ public class DashboardController(ContextoBaseDatos db) : Controller
 
         ViewBag.Pending = await db.Donaciones.CountAsync(x => x.estado == EstadoDonacion.Pendiente);
         ViewBag.PendingStock = await db.Lotes.CountAsync(x => x.revision_pendiente);
+        ViewBag.PendingMessages = await db.MensajesContacto.CountAsync(x => x.estado == EstadoMensajeContacto.Pendiente);
         ViewBag.DineroGeneral = await db.Donaciones
             .Where(x => x.estado == EstadoDonacion.Aprobada && x.tipo == TipoDonacion.Dinero && x.id_evento == null)
             .SumAsync(x => x.monto) ?? 0m;

@@ -10,7 +10,7 @@
     var nombreMostrar = !string.IsNullOrWhiteSpace(nombreReal)
         ? nombreReal
         : (User.FindFirstValue("staff_name") ?? User.Identity.Name);
-    var rolesTexto = string.Join(" · ", User.FindAll(ClaimTypes.Role).Select(x => x.Value));
+    var rolesTexto = string.Join(" · ", User.FindAll(ClaimTypes.Role).Select(x => Roles.EtiquetaRol(x.Value)));
     <div class="d-flex flex-wrap align-items-center gap-2 ps-lg-2 border-start-lg">
         <span class="px-2 py-1 text-end lh-sm">
             <strong class="d-block small">@nombreMostrar</strong>

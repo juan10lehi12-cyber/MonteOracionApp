@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Identity;
 namespace MonteOracionApp.Modelos;
 
 [Table("tb_iglesia")]
@@ -17,6 +18,10 @@ public class ConfiguracionIglesia
     public string? contacto { get; set; }
     [StringLength(600), Display(Name = "Horarios y reuniones")]
     public string? horarios { get; set; }
+    [StringLength(450)]
+    public string? id_usuario { get; set; }
+    [ForeignKey(nameof(id_usuario))]
+    public IdentityUser? usuario { get; set; }
 }
 
 [Table("tb_medio_pago")]
@@ -33,4 +38,8 @@ public class MedioPago
     public string? tipo_contenido_qr { get; set; }
     [Display(Name = "Disponible para donar")]
     public bool activo { get; set; } = true;
+    [StringLength(450)]
+    public string? id_usuario { get; set; }
+    [ForeignKey(nameof(id_usuario))]
+    public IdentityUser? usuario { get; set; }
 }

@@ -120,138 +120,27 @@ if (receive) {
         } else memberClear();
     }
 
-    /* --- Filas de bienes --- */
+    /* --- Filas de bienes (Recepción express sin fricción) --- */
     const container = receive.querySelector('[data-goods-container]');
-    const unitOptions = ['kg', 'litro', 'unidad', 'g', 'lata', 'bolsa', 'paquete', 'caja'];
-    const goodsRowHtml = index => `<div class="row g-2 mb-3 panel goods-row" data-goods-row>
-<input type="hidden" name="Items.Index" value="${index}" />
-<div class="col-md-6 position-relative"><label class="form-label">Bien</label>
-<input type="hidden" name="Items[${index}].ProductId" class="js-product-id" />
-<input type="text" class="form-control" data-product-search placeholder="Escribe arroz, jabón… y elige o crea" autocomplete="off" />
-<div class="list-group position-absolute shadow" data-product-list hidden style="z-index:10;width:100%"></div>
-<div class="mt-1 small" data-product-chip hidden>✓ <span data-product-name class="fw-semibold"></span> <button type="button" class="btn btn-sm btn-link p-0" data-product-clear>cambiar</button></div>
-<div class="mt-2 small text-warning d-none" data-product-tip></div>
-<div class="mt-2 d-none" data-new-product-block>
-<div class="input-group input-group-sm mb-1"><span class="input-group-text">Nombre</span><input name="Items[${index}].NewProductName" class="form-control form-control-sm" data-new-product-name autocomplete="off" /></div>
-<div class="d-flex gap-2 align-items-center mb-1"><select class="form-select form-select-sm" data-new-unit-select style="width:auto"><option value="">Unidad…</option>${unitOptions.map(u => `<option>${u}</option>`).join('')}<option value="otro">otro…</option></select><input name="Items[${index}].NewProductUnit" class="form-control form-control-sm d-none" style="width:140px" data-new-unit-text placeholder="kg / lata / bolsa" maxlength="40" autocomplete="off" /></div>
-</div>
-</div>
-<div class="col-md-3"><label class="form-label">Cantidad</label><input name="Items[${index}].Quantity" data-qty class="form-control" type="number" min="0.01" step="0.01" /></div>
-<div class="col-12 text-end"><button type="button" class="btn btn-sm btn-outline-danger" data-goods-remove>Quitar fila</button></div>
-</div>`;
+    const goodsRowHtml = index => `<div class="row g-2 mb-3 panel p-3 border goods-row" data-goods-row>
+        <input type="hidden" name="Items.Index" value="${index}" />
+        <div class="col-md-10">
+            <label class="form-label fw-semibold">¿Qué entregó el donante? (Descripción del bien o bulto)</label>
+            <input name="Items[${index}].Description" class="form-control form-control-lg" placeholder="Ej: 1 saco de arroz, 1 caja con víveres variados, 20 sillas, Guitarra..." required autocomplete="off" />
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="button" class="btn btn-outline-danger w-100" data-goods-remove>✕ Quitar</button>
+        </div>
+    </div>`;
 
     function setupGoodsRow(row) {
-        let typed = '';
-        let creating = false;
-        const search = row.querySelector('[data-product-search]');
-        const list = row.querySelector('[data-product-list]');
-        const idInput = row.querySelector('.js-product-id');
-        const chip = row.querySelector('[data-product-chip]');
-        const chipName = row.querySelector('[data-product-name]');
-        const tip = row.querySelector('[data-product-tip]');
-        const createBlock = row.querySelector('[data-new-product-block]');
-        const nameInput = row.querySelector('[data-new-product-name]');
-        const unitSelect = row.querySelector('[data-new-unit-select]');
-        const unitText = row.querySelector('[data-new-unit-text]');
-        const qty = row.querySelector('[data-qty]');
-
-        const setTip = text => { tip.textContent = text || ''; tip.classList.toggle('d-none', !text); };
-        const productSelect = product => {
-            idInput.value = product.id;
-            chipName.textContent = `${product.name} · ${product.unit}`;
-            chip.hidden = false;
-            search.disabled = true;
-            list.hidden = true;
-            hideCreate();
-        };
-        const productClear = () => {
-            idInput.value = '';
-            chip.hidden = true;
-            search.disabled = false;
-            search.focus();
-            hideCreate();
-        };
-        const showCreate = (name, suggestion) => {
-            creating = true;
-            idInput.value = '';
-            chip.hidden = true;
-            search.disabled = false;
-            createBlock.classList.remove('d-none');
-            nameInput.value = nameInput.value || name;
-            if (suggestion) setTip(suggestion);
-            else setTip(`Se creará «${nameInput.value.trim()}» con la unidad que elijas.`);
-            unitSelect.focus();
-        };
-        const hideCreate = () => {
-            creating = false;
-            createBlock.classList.add('d-none');
-            setTip('');
-        };
-        /* Productos ya elegidos en otras filas de esta misma recepción. */
-        const duplicateRow = () => Array.from(container.querySelectorAll('[data-goods-row]'))
-            .find(other => other !== row && other.querySelector('.js-product-id').value === idInput.value
-                && other.querySelector('.js-product-id').value !== '');
-
-        search.addEventListener('input', () => {
-            if (idInput.value) { idInput.value = ''; chip.hidden = true; search.disabled = false; hideCreate(); }
-            typed = search.value.trim();
-            if (!typed) { list.hidden = true; return; }
-            const q = norm(typed);
-            const matches = products.filter(product => norm(product.name).includes(q)).slice(0, 8);
-            list.innerHTML = matches.map(product =>
-                `<button type="button" class="list-group-item list-group-item-action py-1" data-product-option="${product.id}">${product.name} · ${product.unit}</button>`).join('')
-                + `<button type="button" class="list-group-item list-group-item-action py-1 text-primary" data-product-create>➕ Crear «${typed}» como producto nuevo</button>`;
-            list.hidden = false;
-        });
-        list.addEventListener('click', event => {
-            const option = event.target.closest('[data-product-option], [data-product-create]');
-            if (!option) return;
-            list.hidden = true;
-            if (option.hasAttribute('data-product-create')) {
-                const name = typed;
-                const suggestion = products.find(product => similar(product.name, name) && norm(product.name) !== norm(name));
-                if (suggestion) {
-                    setTip(`¿Quizás querías «${suggestion.name} · ${suggestion.unit}»? `);
-                    const use = document.createElement('button');
-                    use.type = 'button'; use.className = 'btn btn-sm btn-link p-0'; use.textContent = 'Usar ese';
-                    use.addEventListener('click', () => { setTip(''); productSelect(suggestion); });
-                    const anyway = document.createElement('button');
-                    anyway.type = 'button'; anyway.className = 'btn btn-sm btn-link p-0'; anyway.textContent = 'Crear de todas formas';
-                    anyway.addEventListener('click', () => { setTip(''); showCreate(name); });
-                    tip.append(use, ' · ', anyway);
-                    tip.classList.remove('d-none');
-                } else showCreate(name);
+        row.querySelector('[data-goods-remove]')?.addEventListener('click', () => {
+            if (container.querySelectorAll('[data-goods-row]').length > 1) {
+                row.remove();
             } else {
-                const product = products.find(x => String(x.id) === option.getAttribute('data-product-option'));
-                const duplicated = Array.from(container.querySelectorAll('[data-goods-row]'))
-                    .find(other => other !== row && other.querySelector('.js-product-id').value === String(product.id));
-                if (duplicated) {
-                    setTip(`«${product.name}» ya está en esta recepción: ajusta la cantidad allá.`);
-                    search.value = '';
-                    duplicated.querySelector('[data-qty]')?.focus();
-                    duplicated.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                } else productSelect(product);
+                alert('Debe haber al menos un ítem o bulto en la recepción.');
             }
         });
-        search.addEventListener('blur', () => setTimeout(() => { list.hidden = true; }, 150));
-        row.querySelector('[data-product-clear]')?.addEventListener('click', productClear);
-        unitSelect.addEventListener('change', () => {
-            if (unitSelect.value === 'otro') {
-                unitText.classList.remove('d-none');
-                unitText.value = '';
-                unitText.focus();
-            } else {
-                unitText.classList.remove('d-none');
-                unitText.value = unitSelect.value;
-                unitText.classList.add('d-none');
-            }
-            unitSelect.blur();
-        });
-        row.querySelector('[data-goods-remove]')?.addEventListener('click', () => row.remove());
-        if (idInput.value) {
-            const product = products.find(x => String(x.id) === idInput.value);
-            if (product) productSelect(product);
-        }
     }
 
     receive.querySelectorAll('[data-goods-row]').forEach(setupGoodsRow);
@@ -261,11 +150,17 @@ if (receive) {
         const next = 1 + Math.max(-1, ...Array.from(container.querySelectorAll('[name="Items.Index"]')).map(x => Number(x.value)));
         container.insertAdjacentHTML('beforeend', goodsRowHtml(next));
         setupGoodsRow(container.lastElementChild);
-        container.lastElementChild.querySelector('[data-product-search]').focus();
+        container.lastElementChild.querySelector('input[name$=".Description"]')?.focus();
     });
 }
 
-document.querySelectorAll('.workspace-sidebar a').forEach(link => { if (new URL(link.href).pathname === location.pathname) { link.classList.add("is-active"); link.setAttribute("aria-current", "page"); } });
+document.querySelectorAll('.workspace-sidebar a').forEach(link => {
+    const linkPath = new URL(link.href).pathname;
+    if (linkPath === location.pathname || (linkPath !== '/Dashboard' && location.pathname.startsWith(linkPath + '/'))) {
+        link.classList.add("is-active");
+        link.setAttribute("aria-current", "page");
+    }
+});
 document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', async () => {
     const target = document.getElementById(button.dataset.copy);
     if (!target) return;
@@ -482,7 +377,7 @@ if (unifyModal) {
 
         function resolveTabFromUrl() {
             const hashOrParam = (location.hash || '').replace('#', '') || new URLSearchParams(location.search).get('tab');
-            if (hashOrParam === 'finalizados' || hashOrParam === 'proximos') {
+            if (hashOrParam === 'finalizados' || hashOrParam === 'proximos' || hashOrParam === 'calendario') {
                 activateEventTab(`tab-${hashOrParam}`, false);
             }
         }

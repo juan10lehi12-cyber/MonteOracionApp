@@ -71,10 +71,10 @@
                     }
                 </ul>
             }
-            @if ((User.IsInRole(Roles.Administrador) || User.IsInRole(Roles.Personal)) && Model.tipo == TipoDonacion.Bienes && Model.estado == EstadoDonacion.Aprobada)
+            @if (Roles.EsEquipo(User) && Model.tipo == TipoDonacion.Bienes && Model.estado == EstadoDonacion.Aprobada)
             {
                 <form method="post" asp-action="ReplaceItemPhoto" asp-route-id="@Model.id" enctype="multipart/form-data" class="mt-3 pt-3 border-top">
-                    <input type="hidden" name="version" value="@Convert.ToBase64String(Model.version)" />
+                    
                     <label for="photo">Foto del bien (opcional, agrégala o reemplázala; JPG o PNG, máximo 5 MB)</label>
                     <input id="photo" name="photo" type="file" accept=".jpg,.jpeg,.png" required class="form-control mb-3" />
                     <button class="btn btn-outline-primary btn-sm">Guardar nueva foto</button>
@@ -105,7 +105,7 @@
             <section class="panel">
                 <h2 class="h5">Revisión administrativa</h2>
                 <form method="post" asp-action="Decide" asp-route-id="@Model.id" data-confirm="¿Registrar esta decisión? Quedará guardada en el historial.">
-                    <input type="hidden" name="version" value="@Convert.ToBase64String(Model.version)" />
+                    
                     @if (Model.estado == EstadoDonacion.Pendiente)
                     {
                         <p class="small text-secondary">Revisa la captura y verifica el ingreso en Yape, Plin o la cuenta bancaria antes de aprobar.</p>

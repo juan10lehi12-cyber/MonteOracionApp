@@ -1,0 +1,132 @@
+@model MensajeContacto
+@{
+    ViewData["Title"] = "Mensaje #" + Model.id;
+    var staffNames = ViewBag.StaffNames as Dictionary<string, string> ?? [];
+    var wa = Model.UrlWhatsApp;
+}
+
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">BANDEJA DE MENSAJES</div>
+        <h1>Mensaje de @Model.nombre</h1>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge fs-6 @(Model.estado switch {
+            EstadoMensajeContacto.Pendiente => "text-bg-warning",
+            EstadoMensajeContacto.Atendido => "text-bg-success",
+            _ => "text-bg-secondary"
+        })">
+            @Model.estado
+        </span>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">← Volver a la bandeja</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Columna Izquierda: Información de la persona y el mensaje -->
+    <div class="col-lg-7">
+        <section class="panel mb-4">
+            <h2 class="h4 mb-3">Datos de la persona</h2>
+
+            <dl class="row mb-0">
+                <dt class="col-sm-4 text-secondary">Nombre:</dt>
+                <dd class="col-sm-8 fw-bold">@Model.nombre</dd>
+
+                <dt class="col-sm-4 text-secondary">Teléfono:</dt>
+                <dd class="col-sm-8">
+                    <span class="fs-5 fw-semibold text-primary">@Model.telefono</span>
+                    <div class="d-flex gap-2 mt-2">
+                        <a href="tel:@Model.telefono" class="btn btn-outline-primary btn-sm">
+                            📞 Llamar por teléfono
+                        </a>
+                        @if (wa != null)
+                        {
+                            <a href="@wa" target="_blank" rel="noopener" class="btn btn-success btn-sm">
+                                💬 Abrir chat de WhatsApp
+                            </a>
+                        }
+                    </div>
+                </dd>
+
+                @if (!string.IsNullOrWhiteSpace(Model.correo))
+                {
+                    <dt class="col-sm-4 text-secondary mt-3">Correo electrónico:</dt>
+                    <dd class="col-sm-8 mt-3"><a href="mailto:@Model.correo">@Model.correo</a></dd>
+                }
+
+                <dt class="col-sm-4 text-secondary mt-3">Motivo de contacto:</dt>
+                <dd class="col-sm-8 mt-3">
+                    <span class="badge text-bg-primary-subtle text-primary-emphasis fs-6">
+                        @(Model.motivo switch
+                        {
+                            TipoMotivoContacto.PeticionOracion => "🙏 Petición de oración",
+                            TipoMotivoContacto.Consejeria => "💬 Consejería pastoral",
+                            TipoMotivoContacto.Informacion => "🕒 Información de cultos",
+                            TipoMotivoContacto.Servir => "🤝 Desea apoyar o servir",
+                            _ => "📝 Otro motivo"
+                        })
+                    </span>
+                </dd>
+
+                <dt class="col-sm-4 text-secondary mt-2">Preferencia:</dt>
+                <dd class="col-sm-8 mt-2">
+                    @(Model.preferencia switch
+                    {
+                        PreferenciaContacto.Llamada => "📞 Prefiere llamada telefónica",
+                        PreferenciaContacto.WhatsApp => "💬 Prefiere mensaje de WhatsApp",
+                        _ => "🤝 Le es indiferente (llamada o WhatsApp)"
+                    })
+                </dd>
+
+                <dt class="col-sm-4 text-secondary mt-2">Recibido (Lima):</dt>
+                <dd class="col-sm-8 mt-2">
+                    @Model.fecha_creacion.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm 'h'")
+                </dd>
+            </dl>
+        </section>
+
+        <section class="panel">
+            <h2 class="h5 mb-3">Mensaje o motivo de oración enviado</h2>
+            <div class="p-3 bg-light rounded-3 border preserve-lines fs-6">@Model.mensaje</div>
+        </section>
+    </div>
+
+    <!-- Columna Derecha: Gestión de atención y notas pastorales -->
+    <div class="col-lg-5">
+        <section class="panel">
+            <h2 class="h5 mb-3">Atención pastoral y seguimiento</h2>
+
+            @if (Model.estado == EstadoMensajeContacto.Atendido)
+            {
+                <div class="alert alert-success py-2 px-3 small mb-3">
+                    ✓ Marcado como <strong>Atendido</strong> el @(Model.fecha_atencion?.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy HH:mm") ?? "-")
+                    @if (Model.id_usuario != null && staffNames.TryGetValue(Model.id_usuario, out var staff))
+                    {
+                        <span>por <strong>@staff</strong></span>
+                    }
+                </div>
+            }
+
+            <form method="post" asp-action="CambiarEstado" asp-route-id="@Model.id">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Cambiar estado del mensaje</label>
+                    <select name="nuevoEstado" class="form-select">
+                        <option value="@EstadoMensajeContacto.Pendiente" selected="@(Model.estado == EstadoMensajeContacto.Pendiente)">🟡 Pendiente (esperando atención)</option>
+                        <option value="@EstadoMensajeContacto.Atendido" selected="@(Model.estado == EstadoMensajeContacto.Atendido)">🟢 Atendido / En oración</option>
+                        <option value="@EstadoMensajeContacto.Archivado" selected="@(Model.estado == EstadoMensajeContacto.Archivado)">📁 Archivado</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="notas" class="form-label fw-semibold">Notas de seguimiento pastoral (opcional)</label>
+                    <textarea id="notas" name="notas" rows="4" maxlength="1000" class="form-control" placeholder="Ej.: Se llamó el 05/11, contestó y se oró por su salud. Se le invitó al culto del domingo.">@Model.notas_atencion</textarea>
+                    <small class="text-secondary">Visible solo para el personal interno de la iglesia.</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    💾 Guardar estado y notas
+                </button>
+            </form>
+        </section>
+    </div>
+</div>

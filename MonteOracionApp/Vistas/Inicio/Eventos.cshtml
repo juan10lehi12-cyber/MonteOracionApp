@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "Eventos";
+    ViewData["Title"] = "Eventos y Calendario";
     var church = (ConfiguracionIglesia)ViewBag.Church;
     var podio = ViewBag.Podio as Publicacion;
     var siguientes = ViewBag.Siguientes as List<Publicacion> ?? new List<Publicacion>();
@@ -9,6 +9,18 @@
     var ahora = HoraIglesia.Ahora;
     var finDeSemana = ahora.Date.AddDays(7);
     var culturaEs = new System.Globalization.CultureInfo("es-PE");
+
+    var first = (DateTime)(ViewBag.Month ?? new DateTime(ahora.Year, ahora.Month, 1));
+    var prev = (DateTime)(ViewBag.Prev ?? first.AddMonths(-1));
+    var next = (DateTime)(ViewBag.Next ?? first.AddMonths(1));
+    var byDay = ViewBag.CalendarEvents as Dictionary<DateTime, List<Publicacion>> ?? new Dictionary<DateTime, List<Publicacion>>();
+    var allMonthEvents = ViewBag.AllMonthEvents as List<Publicacion> ?? new List<Publicacion>();
+    var avisosDelMes = ViewBag.AvisosDelMes as List<Publicacion> ?? new List<Publicacion>();
+    int offset = ((int)first.DayOfWeek + 6) % 7;
+    int days = DateTime.DaysInMonth(first.Year, first.Month);
+    int semanas = (int)Math.Ceiling((offset + days) / 7.0);
+    var tituloMes = culturaEs.TextInfo.ToTitleCase(first.ToString("MMMM yyyy", culturaEs));
+    var hoy = HoraIglesia.Hoy;
 }
 
 <nav aria-label="breadcrumb" class="mb-3">
@@ -19,32 +31,35 @@
     </ol>
 </nav>
 
-<!-- NIVEL 1: Título y encabezado principal -->
+<!-- Encabezado principal -->
 <header class="section-heading text-center mx-auto mb-4" style="max-width: 780px;">
     <div class="eyebrow text-uppercase">AGENDA DE NUESTRA COMUNIDAD</div>
-    <h1 class="display-5 fw-bold mb-2">Eventos</h1>
+    <h1 class="display-5 fw-bold mb-2">Eventos y Agenda Mensual</h1>
     <p class="lead text-secondary mb-0">
-        Conoce nuestros próximos eventos especiales y revisa el historial de eventos finalizados en nuestra iglesia.
+        Conoce nuestras actividades programadas, consulta el calendario del mes o revisa el historial de eventos realizados.
     </p>
 </header>
 
-<!-- NIVEL 2: Selector de 2 pestañas (Próximos Eventos y Eventos Finalizados) -->
+<!-- Selector de pestañas -->
 <div class="d-flex justify-content-center mb-4">
     <div class="events-pill-tabs" role="tablist" aria-label="Filtro de eventos">
-        <button type="button" class="event-pill-btn @(activeTab == "proximos" ? "is-active" : "")" data-event-tab="tab-proximos" aria-label="Ver próximos eventos, @totalProximos disponibles">
-            🗓️ Próximos Eventos <span class="badge rounded-pill bg-light text-dark ms-1" aria-hidden="true">@totalProximos</span>
+        <button type="button" class="event-pill-btn @(activeTab == "proximos" ? "is-active" : "")" data-event-tab="tab-proximos" aria-label="Ver próximos eventos">
+            🗓️ Eventos <span class="badge rounded-pill bg-light text-dark ms-1">@totalProximos</span>
         </button>
-        <button type="button" class="event-pill-btn @(activeTab == "finalizados" ? "is-active" : "")" data-event-tab="tab-finalizados" aria-label="Ver eventos finalizados, @finalizados.Count registrados">
-            ✅ Eventos Finalizados <span class="badge rounded-pill bg-light text-dark ms-1" aria-hidden="true">@finalizados.Count</span>
+        <button type="button" class="event-pill-btn @(activeTab == "calendario" ? "is-active" : "")" data-event-tab="tab-calendario" aria-label="Ver calendario mensual">
+            📅 Calendario <span class="badge rounded-pill bg-light text-dark ms-1">@allMonthEvents.Count</span>
+        </button>
+        <button type="button" class="event-pill-btn @(activeTab == "finalizados" ? "is-active" : "")" data-event-tab="tab-finalizados" aria-label="Ver eventos finalizados">
+            ✅ Finalizados <span class="badge rounded-pill bg-light text-dark ms-1">@finalizados.Count</span>
         </button>
     </div>
 </div>
 
-<!-- NIVEL 3: Contenido según la pestaña seleccionada -->
+<!-- Contenido según la pestaña seleccionada -->
 <div class="events-tab-content">
 
     <!-- ===================================================================
-         PESTAÑA 1: PRÓXIMOS EVENTOS
+         PESTAÑA 1: PRÓXIMOS EVENTOS (LISTA & PODIO)
          =================================================================== -->
     <div class="event-tab-pane @(activeTab == "proximos" ? "is-active" : "")" id="tab-proximos">
         @if (podio == null && siguientes.Count == 0)
@@ -52,7 +67,10 @@
             <div class="empty-state text-center py-5">
                 <span class="fs-1 d-block mb-2">🗓️</span>
                 <h2 class="h4 fw-bold">Por ahora no hay nuevos eventos programados</h2>
-                <p class="text-secondary mb-0">Te esperamos en nuestros cultos dominicales y reuniones semanales.</p>
+                <p class="text-secondary mb-3">Te esperamos en nuestros cultos dominicales y reuniones semanales.</p>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.querySelector('[data-event-tab=\'tab-calendario\']').click();">
+                    📅 Ver calendario completo del mes
+                </button>
             </div>
         }
         else
@@ -83,7 +101,7 @@
                                 }
                                 else
                                 {
-                                    <span class="badge text-bg-success fs-6 py-2 px-3">★ PRÓXIMO EVENTO PRINCIPAL</span>
+                                    <span class="badge text-bg-success fs-6 py-2 px-3">★ PRÓXIMO EVENTO DESTACADO</span>
                                 }
                             </div>
                         </div>
@@ -101,47 +119,30 @@
                                 </div>
                             }
 
-                            <p class="text-secondary line-clamp-3 mb-4">@podio.contenido</p>
+                            <p class="text-secondary mb-4 line-clamp-3">@podio.contenido</p>
 
-                            <div class="d-flex flex-wrap gap-2">
-                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#event-@podio.id">
-                                    Ver afiche completo
+                            <div class="d-flex flex-wrap gap-2 pt-2">
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#featured-event-spotlight">
+                                    Ver afiche y detalles
                                 </button>
-                                @if (podio.fecha_inicio_evento.HasValue)
-                                {
-                                    var gCalStart = podio.fecha_inicio_evento.Value.ToString("yyyyMMddTHHmmss");
-                                    var gCalEnd = (podio.fecha_fin_evento ?? podio.fecha_inicio_evento.Value.AddHours(2)).ToString("yyyyMMddTHHmmss");
-                                    var gCalUrl = $"https://calendar.google.com/calendar/render?action=TEMPLATE&text={Uri.EscapeDataString(podio.titulo)}&dates={gCalStart}/{gCalEnd}&details={Uri.EscapeDataString(podio.contenido)}&location={Uri.EscapeDataString(podio.lugar ?? (church.direccion ?? "Iglesia Monte de Oración, Comas, Lima"))}";
-                                    <a class="btn btn-outline-primary" target="_blank" rel="noopener" href="@gCalUrl" title="Guardar en Google Calendar">
-                                        📅 Agregar al calendario
-                                    </a>
-                                }
-                                @if (podio.meta_recaudacion > 0)
-                                {
-                                    <a class="btn btn-outline-success" asp-controller="Donations" asp-action="Create" asp-route-evento="@podio.id">
-                                        Ofrendar / Apoyar
-                                    </a>
-                                }
+                                <a class="btn btn-outline-success fw-semibold" asp-controller="Donations" asp-action="Create" asp-route-evento="@podio.id">
+                                    💚 Ofrendar / Apoyar
+                                </a>
                             </div>
                         </div>
                     </div>
                 </div>
             }
 
-            <!-- FILA INFERIOR: Siguientes eventos programados -->
+            <!-- Siguientes eventos en cuadrícula de tarjetas -->
             @if (siguientes.Count > 0)
             {
-                <div class="d-flex align-items-center gap-3 my-4">
-                    <hr class="flex-grow-1 my-0 text-secondary opacity-25" />
-                    <span class="eyebrow mb-0 text-secondary fw-bold">SIGUIENTES EVENTOS PROGRAMADOS</span>
-                    <hr class="flex-grow-1 my-0 text-secondary opacity-25" />
+                <div class="section-heading mb-3">
+                    <h3 class="h4 fw-bold mb-0">Otros eventos programados</h3>
                 </div>
-
-                <div class="row g-4">
+                <div class="row g-4 mb-4">
                     @foreach (var ev in siguientes)
                     {
-                        var evEsHoy = ev.fecha_inicio_evento.HasValue && ev.fecha_inicio_evento.Value.Date == ahora.Date;
-                        var evEstaSemana = ev.fecha_inicio_evento.HasValue && ev.fecha_inicio_evento.Value.Date >= ahora.Date && ev.fecha_inicio_evento.Value.Date <= finDeSemana;
                         var evImg = ev.clave_imagen != null
                             ? Url.Action("Image", "Publications", new { id = ev.id })
                             : ev.titulo.Contains("Navidad", StringComparison.OrdinalIgnoreCase)
@@ -152,56 +153,22 @@
                             <article class="panel event-card h-100 d-flex flex-column">
                                 <div class="event-cover-wrap">
                                     <img class="event-cover" src="@evImg" alt="@ev.titulo" loading="lazy" />
-                                    @if (ev.fecha_inicio_evento.HasValue)
-                                    {
-                                        <div class="event-date-chip">
-                                            <strong>@ev.fecha_inicio_evento.Value.ToString("dd")</strong>
-                                            <span>@ev.fecha_inicio_evento.Value.ToString("MMM", culturaEs)</span>
-                                        </div>
-                                    }
                                 </div>
-                                <div class="event-badges">
-                                    <span class="badge text-bg-light">@ev.tipo</span>
-                                    @if (evEsHoy)
-                                    {
-                                        <span class="badge text-bg-danger"><span class="pulse-dot"></span> HOY</span>
-                                    }
-                                    else if (evEstaSemana)
-                                    {
-                                        <span class="badge text-bg-warning">ESTA SEMANA</span>
-                                    }
-                                </div>
-                                <h3 class="h5 fw-bold mt-2">@ev.titulo</h3>
+                                <h4 class="h5 fw-bold mt-2 mb-1">@ev.titulo</h4>
                                 @if (ev.fecha_inicio_evento.HasValue)
                                 {
-                                    <p class="event-meta">
-                                        <span class="event-meta-item">🗓️ @ev.fecha_inicio_evento.Value.ToString("ddd dd MMM yyyy · HH:mm 'h'", culturaEs)</span>
-                                        @if (!string.IsNullOrWhiteSpace(ev.lugar))
-                                        {
-                                            <span class="event-meta-item">📍 @ev.lugar</span>
-                                        }
+                                    <p class="small text-secondary mb-2">
+                                        🗓️ @ev.fecha_inicio_evento.Value.ToString("ddd dd MMM yyyy · HH:mm 'h'", culturaEs)
                                     </p>
                                 }
                                 <p class="text-secondary small line-clamp-2 mb-3">@ev.contenido</p>
-                                <div class="d-flex flex-wrap gap-2 mt-auto pt-2">
-                                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#event-@ev.id">
+                                <div class="mt-auto pt-2 d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm flex-grow-1" data-bs-toggle="modal" data-bs-target="#event-@ev.id">
                                         Ver detalles
                                     </button>
-                                    @if (ev.fecha_inicio_evento.HasValue)
-                                    {
-                                        var gCalStart = ev.fecha_inicio_evento.Value.ToString("yyyyMMddTHHmmss");
-                                        var gCalEnd = (ev.fecha_fin_evento ?? ev.fecha_inicio_evento.Value.AddHours(2)).ToString("yyyyMMddTHHmmss");
-                                        var gCalUrl = $"https://calendar.google.com/calendar/render?action=TEMPLATE&text={Uri.EscapeDataString(ev.titulo)}&dates={gCalStart}/{gCalEnd}&details={Uri.EscapeDataString(ev.contenido)}&location={Uri.EscapeDataString(ev.lugar ?? (church.direccion ?? "Iglesia Monte de Oración, Comas, Lima"))}";
-                                        <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" href="@gCalUrl" title="Guardar en Google Calendar">
-                                            📅 Guardar
-                                        </a>
-                                    }
-                                    @if (ev.meta_recaudacion > 0)
-                                    {
-                                        <a class="btn btn-outline-success btn-sm" asp-controller="Donations" asp-action="Create" asp-route-evento="@ev.id">
-                                            Ofrendar
-                                        </a>
-                                    }
+                                    <a class="btn btn-outline-success btn-sm" asp-controller="Donations" asp-action="Create" asp-route-evento="@ev.id">
+                                        Ofrendar
+                                    </a>
                                 </div>
                             </article>
                         </div>
@@ -212,20 +179,176 @@
     </div>
 
     <!-- ===================================================================
-         PESTAÑA 2: EVENTOS FINALIZADOS
+         PESTAÑA 2: CALENDARIO MENSUAL PÚBLICO + AVISOS LATERALES
+         =================================================================== -->
+    <div class="event-tab-pane @(activeTab == "calendario" ? "is-active" : "")" id="tab-calendario">
+        <div class="row g-4">
+            <!-- Columna Izquierda (8 cols): Calendario Mensual Interactivo -->
+            <div class="col-lg-8">
+                <div class="panel p-3 p-md-4 mb-4">
+                    <!-- Cabecera del mes y navegación -->
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-3 border-bottom">
+                        <div>
+                            <div class="eyebrow">AGENDA MENSUAL</div>
+                            <h2 class="h3 fw-bold mb-0 text-primary">@tituloMes</h2>
+                        </div>
+                        <div class="btn-group">
+                            <a asp-action="Eventos" asp-route-tab="calendario" asp-route-year="@prev.Year" asp-route-month="@prev.Month" class="btn btn-outline-secondary btn-sm">
+                                &laquo; @culturaEs.TextInfo.ToTitleCase(prev.ToString("MMM", culturaEs))
+                            </a>
+                            <a asp-action="Eventos" asp-route-tab="calendario" class="btn btn-outline-primary btn-sm">
+                                Mes actual
+                            </a>
+                            <a asp-action="Eventos" asp-route-tab="calendario" asp-route-year="@next.Year" asp-route-month="@next.Month" class="btn btn-outline-secondary btn-sm">
+                                @culturaEs.TextInfo.ToTitleCase(next.ToString("MMM", culturaEs)) &raquo;
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Cuadrícula interactiva -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered calendar-grid align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    @foreach (var d in new[] { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" })
+                                    {
+                                        <th class="text-center small text-secondary bg-light" style="width: 14.28%;">@d</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int semana = 0; semana < semanas; semana++)
+                                {
+                                    <tr>
+                                        @for (int i = 0; i < 7; i++)
+                                        {
+                                            int dia = semana * 7 + i - offset + 1;
+                                            if (dia < 1 || dia > days)
+                                            {
+                                                <td class="calendar-off"></td>
+                                            }
+                                            else
+                                            {
+                                                var fecha = new DateTime(first.Year, first.Month, dia);
+                                                var esHoy = fecha == hoy;
+                                                <td class="@(esHoy ? "bg-warning-subtle" : "")" style="min-height: 95px; vertical-align: top; padding: .35rem;">
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span class="fw-bold small @(esHoy ? "text-primary" : "text-secondary")">@dia</span>
+                                                        @if (esHoy)
+                                                        {
+                                                            <span class="badge text-bg-primary" style="font-size:.65rem;">Hoy</span>
+                                                        }
+                                                    </div>
+                                                    @if (byDay.TryGetValue(fecha, out var lista))
+                                                    {
+                                                        foreach (var e in lista)
+                                                        {
+                                                            <button type="button"
+                                                                    class="calendar-event btn btn-link p-1 text-start d-block w-100 text-decoration-none mb-1 border-0"
+                                                                    style="background: #28594318; color: #183d2c; border-radius: 6px; font-size: 0.75rem;"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#event-@e.id"
+                                                                    title="Clic para ver detalles de @e.titulo">
+                                                                @if (e.fecha_inicio_evento.HasValue)
+                                                                {
+                                                                    <strong class="d-block text-primary" style="font-size: 0.7rem;">🕒 @e.fecha_inicio_evento.Value.ToString("HH:mm")</strong>
+                                                                }
+                                                                <span class="d-inline-block text-truncate w-100 fw-semibold">@e.titulo</span>
+                                                            </button>
+                                                        }
+                                                    }
+                                                </td>
+                                            }
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-3 small text-secondary d-flex flex-wrap align-items-center gap-3">
+                        <span>💡 <em>Haz clic sobre cualquier evento en el calendario para ver sus detalles completos, afiche, mapa y ofrendas.</em></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Derecha (4 cols): Avisos importantes del mes + Cultos habituales -->
+            <div class="col-lg-4">
+                <!-- Panel de Avisos y Comunicados -->
+                <aside class="panel p-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="h5 fw-bold mb-0">📢 Avisos de la Iglesia</h3>
+                        <a asp-controller="Home" asp-action="Avisos" class="small text-decoration-none">Ver todos →</a>
+                    </div>
+
+                    @if (avisosDelMes.Count == 0)
+                    {
+                        <p class="small text-secondary mb-0">No hay avisos recientes publicados por la administración.</p>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column gap-3">
+                            @foreach (var av in avisosDelMes)
+                            {
+                                <article class="p-3 bg-light rounded-3 border">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="badge text-bg-primary" style="font-size: 0.7rem;">Aviso</span>
+                                        <small class="text-secondary" style="font-size: 0.72rem;">@av.fecha_creacion.ToString("dd MMM", culturaEs)</small>
+                                    </div>
+                                    <h4 class="h6 fw-bold mb-1">@av.titulo</h4>
+                                    <p class="small text-secondary mb-2 line-clamp-2">@av.contenido</p>
+                                    <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" style="font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#event-@av.id">
+                                        Leer completo →
+                                    </button>
+                                </article>
+                            }
+                        </div>
+                    }
+                </aside>
+
+                <!-- Recordatorio de cultos habituales -->
+                <div class="panel p-4 border-start border-4 border-primary">
+                    <h3 class="h6 fw-bold mb-2">🕒 Cultos Habituales</h3>
+                    @if (!string.IsNullOrWhiteSpace(church.horarios))
+                    {
+                        <p class="small text-secondary preserve-lines mb-3">@church.horarios</p>
+                    }
+                    else
+                    {
+                        <p class="small text-secondary mb-3">Cultos dominicales: 9:00 a.m. y 6:00 p.m.</p>
+                    }
+                    <a class="btn btn-outline-primary btn-sm w-100" asp-controller="Home" asp-action="Horarios">
+                        🗺️ Ver mapa y cómo llegar
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        @foreach (var ev in allMonthEvents)
+        {
+            <partial name="_EventModal" model="ev" />
+        }
+        @foreach (var av in avisosDelMes)
+        {
+            <partial name="_EventModal" model="av" />
+        }
+    </div>
+
+    <!-- ===================================================================
+         PESTAÑA 3: EVENTOS FINALIZADOS
          =================================================================== -->
     <div class="event-tab-pane @(activeTab == "finalizados" ? "is-active" : "")" id="tab-finalizados">
         @if (finalizados.Count == 0)
         {
             <div class="empty-state text-center py-5">
                 <span class="fs-1 d-block mb-2">✅</span>
-                <h2 class="h4 fw-bold">Aún no hay eventos finalizados registrados</h2>
-                <p class="text-secondary mb-0">Aquí se mostrarán las actividades concluidas de nuestra congregación.</p>
+                <h2 class="h4 fw-bold">No hay eventos finalizados en el registro</h2>
+                <p class="text-secondary mb-0">Los eventos pasados aparecerán en esta sección como memoria de nuestra comunidad.</p>
             </div>
         }
         else
         {
-            <div class="row g-4">
+            <div class="row g-4 mb-4">
                 @foreach (var fin in finalizados)
                 {
                     var finImg = fin.clave_imagen != null
@@ -239,7 +362,7 @@
                             <div class="event-cover-wrap">
                                 <img class="event-cover" src="@finImg" alt="@fin.titulo" loading="lazy" />
                                 <span class="badge text-bg-secondary position-absolute bottom-0 start-0 m-3 px-3 py-1">
-                                    ✅ Evento Finalizado
+                                    ✅ Realizado
                                 </span>
                             </div>
                             <h3 class="h5 fw-bold mt-2 mb-1">@fin.titulo</h3>
@@ -264,7 +387,7 @@
 
 </div>
 
-<!-- Renderizar Modales -->
+<!-- Renderizar Modales de Eventos Destacados -->
 @if (podio != null)
 {
     var imgPodioModal = podio.clave_imagen != null

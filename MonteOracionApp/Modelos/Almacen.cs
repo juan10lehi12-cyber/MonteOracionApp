@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Identity;
 using MonteOracionApp.Servicios;
 namespace MonteOracionApp.Modelos;
 
@@ -9,6 +10,8 @@ public class Producto
     public int id { get; set; }
     [Required, StringLength(160), Display(Name = "Producto")]
     public string nombre { get; set; } = "";
+    [Required, StringLength(80), Display(Name = "Categoría")]
+    public string categoria { get; set; } = "Alimentos y Víveres";
     [Required, StringLength(40), Display(Name = "Unidad base (kg, lata, unidad.)")]
     public string unidad { get; set; } = "unidad";
     public bool activo { get; set; } = true;
@@ -33,12 +36,14 @@ public class Lote
     public bool revision_pendiente { get; set; }
     [MaxLength(450)]
     public string? id_usuario_pendiente { get; set; }
+    [ForeignKey(nameof(id_usuario_pendiente))]
+    public IdentityUser? usuario_pendiente { get; set; }
     public DateTimeOffset? fecha_pendiente { get; set; }
     [MaxLength(450)]
     public string? confirmado_por { get; set; }
+    [ForeignKey(nameof(confirmado_por))]
+    public IdentityUser? usuario_confirmacion { get; set; }
     public DateTimeOffset? fecha_confirmacion { get; set; }
-    [Timestamp]
-    public byte[] version { get; set; } = [];
 }
 
 public enum TipoMovimientoAlmacen { Donacion = 0, Salida = 3, VistoBueno = 9 }
@@ -47,7 +52,6 @@ public enum TipoMovimientoAlmacen { Donacion = 0, Salida = 3, VistoBueno = 9 }
 public class MovimientoAlmacen
 {
     public long id { get; set; }
-    public Guid? id_comando { get; set; }
     public int id_lote { get; set; }
     [ForeignKey(nameof(id_lote))]
     public Lote lote { get; set; } = null!;
@@ -55,6 +59,8 @@ public class MovimientoAlmacen
     public decimal cantidad { get; set; }
     [MaxLength(450)]
     public string id_usuario { get; set; } = "";
+    [ForeignKey(nameof(id_usuario))]
+    public IdentityUser? usuario { get; set; }
     [MaxLength(1000)]
     public string motivo { get; set; } = "";
     [MaxLength(160)]
@@ -69,7 +75,6 @@ public class FormularioSalidaAlmacen
     public string destino { get; set; } = "";
     [StringLength(500), Display(Name = "Detalle (opcional)")]
     public string? detalle { get; set; }
-    public Guid id_comando { get; set; } = Guid.NewGuid();
     public List<LineaSalidaAlmacen> lineas { get; set; } = [];
 }
 
@@ -77,4 +82,13 @@ public class LineaSalidaAlmacen
 {
     public int id_lote { get; set; }
     public decimal? cantidad { get; set; }
+}
+
+public class ItemCatalogacionAlmacen
+{
+    public string? categoria { get; set; }
+    public string? nombre_producto { get; set; }
+    public decimal? cantidad { get; set; }
+    public string? unidad { get; set; }
+    public string? ubicacion { get; set; }
 }
