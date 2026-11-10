@@ -1,0 +1,33 @@
+@{
+    var codigo = (int)(ViewData["Codigo"] ?? 404);
+    ViewData["Title"] = codigo switch
+    {
+        403 => "Acceso denegado",
+        429 => "Demasiadas solicitudes",
+        500 => "Error interno",
+        _ => "Página no encontrada"
+    };
+    var titulo = codigo switch
+    {
+        403 => "No tienes permiso para entrar aquí",
+        429 => "Espera un momento antes de volver a intentarlo",
+        500 => "Ocurrió un error inesperado",
+        _ => "No encontramos esta página"
+    };
+    var detalle = codigo switch
+    {
+        403 => "Tu cuenta no tiene el rol necesario para esta sección.",
+        429 => "Se recibieron demasiadas solicitudes seguidas. Intenta de nuevo en unos minutos.",
+        500 => "El equipo ya recibió el registro del error. Vuelve al inicio o comunícate con la administración.",
+        _ => "Puede que el enlace haya cambiado o que la dirección esté incompleta."
+    };
+}
+<section class="panel narrow text-center">
+    <div class="eyebrow">ERROR @codigo</div>
+    <h1>@titulo</h1>
+    <p class="text-secondary">@detalle</p>
+    <div class="d-flex justify-content-center gap-2 mt-4">
+        <a asp-controller="Home" asp-action="Index" class="btn btn-primary">Volver al inicio</a>
+        <a asp-controller="Home" asp-action="Contacto" class="btn btn-outline-secondary">Contactarnos</a>
+    </div>
+</section>

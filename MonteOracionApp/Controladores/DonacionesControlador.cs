@@ -57,7 +57,7 @@ public class DonationsController(ContextoBaseDatos db, IServicioDonaciones servi
 
     [HttpGet] public IActionResult Submitted() { var codigo = TempData["DonationCode"] as string; return codigo == null ? RedirectToAction(nameof(Create)) : View((object)codigo); }
 
-    [Authorize(Roles = Roles.Equipo)]
+    [Authorize(Roles = Roles.AccesoDonaciones)]
     public async Task<IActionResult> Index(FiltroDonacion filtro)
     {
         filtro.pagina = Math.Clamp(filtro.pagina, 1, 100000);
@@ -91,8 +91,8 @@ public class DonationsController(ContextoBaseDatos db, IServicioDonaciones servi
         {
             var termino = filtro.donante.Trim();
             if (Guid.TryParse(termino, out var codigo)) q = q.Where(x => x.codigo_seguimiento == codigo);
-            else if (int.TryParse(termino.TrimStart('#'), out var numero)) q = q.Where(x => x.id == numero);
-            else q = q.Where(x => (x.nombre_externo != null && x.nombre_externo.Contains(termino)) || (x.congregante != null && (x.congregante.nombres + " " + x.congregante.apellidos).Contains(termino)));
+            else if (int.TryParse(termino.TrimStart('#'), out var numero)) q = q.Where(x => x.id == numero || (x.numero_operacion != null && x.numero_operacion.Contains(termino)));
+            else q = q.Where(x => (x.numero_operacion != null && x.numero_operacion.Contains(termino)) || (x.nombre_externo != null && x.nombre_externo.Contains(termino)) || (x.congregante != null && (x.congregante.nombres + " " + x.congregante.apellidos).Contains(termino)));
         }
         var total = await q.CountAsync();
         var qDineroAprobado = q.Where(x => x.estado == EstadoDonacion.Aprobada && x.tipo == TipoDonacion.Dinero);
@@ -106,9 +106,9 @@ public class DonationsController(ContextoBaseDatos db, IServicioDonaciones servi
         return View(new ListaDonaciones(filas, filtro, total, dineroTotal, dineroGeneral, dineroEventos));
     }
 
-    [Authorize(Roles = Roles.Equipo), HttpGet] public async Task<IActionResult> Receive() { await CargarCatalogos(); return View(new FormularioRecepcionDonacion()); }
+    [Authorize(Roles = Roles.AccesoDonaciones), HttpGet] public async Task<IActionResult> Receive() { await CargarCatalogos(); return View(new FormularioRecepcionDonacion()); }
 
-    [Authorize(Roles = Roles.Equipo), HttpPost, RequestSizeLimit(6 * 1024 * 1024)]
+    [Authorize(Roles = Roles.AccesoDonaciones), HttpPost, RequestSizeLimit(6 * 1024 * 1024)]
     public async Task<IActionResult> Receive(FormularioRecepcionDonacion formulario)
     {
         if (!ModelState.IsValid) { await CargarCatalogos(); return View(formulario); }
@@ -116,7 +116,7 @@ public class DonationsController(ContextoBaseDatos db, IServicioDonaciones servi
         catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); await CargarCatalogos(); return View(formulario); }
     }
 
-    [Authorize(Roles = Roles.Equipo)]
+    [Authorize(Roles = Roles.AccesoDonaciones)]
     public async Task<IActionResult> Details(int id)
     {
         var d = await db.Donaciones.Include(x => x.congregante).Include(x => x.evento).Include(x => x.bienes).Include(x => x.decisiones).AsSplitQuery().AsNoTracking().SingleOrDefaultAsync(x => x.id == id);
@@ -129,38 +129,36 @@ public class DonationsController(ContextoBaseDatos db, IServicioDonaciones servi
     public async Task<IActionResult> Receipt(int id)
     {
         var d = await db.Donaciones.AsNoTracking().SingleOrDefaultAsync(x => x.id == id);
-        if (d?.clave_comprobante == null) return NotFound();
+        if (d == null) return NotFound();
+        if (!Roles.PuedeDonaciones(User) && d.tipo != TipoDonacion.Bienes) return Forbid();
+        if (d.clave_comprobante == null || !almacenamiento.Existe(d.clave_comprobante)) return NotFound();
         Response.Headers.CacheControl = "no-store";
         return File(almacenamiento.Abrir(d.clave_comprobante), d.tipo_contenido_comprobante!);
     }
 
-    [Authorize(Roles = Roles.Almacen), HttpPost, RequestSizeLimit(6 * 1024 * 1024)]
-    public async Task<IActionResult> ReplaceItemPhoto(int id, IFormFile? photo, string? version)
+    [Authorize(Roles = Roles.Equipo), HttpPost, RequestSizeLimit(6 * 1024 * 1024)]
+    public async Task<IActionResult> ReplaceItemPhoto(int id, IFormFile? photo)
     {
         try
         {
             if (photo == null) throw new InvalidOperationException("Selecciona una foto JPG o PNG.");
-            if (string.IsNullOrEmpty(version)) throw new InvalidOperationException("Actualiza la página e inténtalo de nuevo.");
-            await servicio.ReemplazarFotoBienAsync(id, photo, Convert.FromBase64String(version), IdUsuario);
+            await servicio.ReemplazarFotoBienAsync(id, photo, IdUsuario);
             TempData["Success"] = "Foto del bien actualizada.";
         }
         catch (InvalidOperationException ex) { TempData["Error"] = ex.Message; }
-        catch (FormatException) { TempData["Error"] = "Actualiza la página e inténtalo de nuevo."; }
         return RedirectToAction(nameof(Details), new { id });
     }
 
     [Authorize(Roles = Roles.Administrador), HttpPost]
-    public async Task<IActionResult> Decide(int id, EstadoDonacion status, string? reason, string? version, bool confirmReceived, int? congregantId)
+    public async Task<IActionResult> Decide(int id, EstadoDonacion status, string? reason, bool confirmReceived, int? congregantId)
     {
         try
         {
-            if (string.IsNullOrEmpty(version)) throw new InvalidOperationException("Actualiza la página e inténtalo de nuevo.");
             if (status == EstadoDonacion.Aprobada && !confirmReceived) throw new InvalidOperationException("Confirma la recepción efectiva antes de aprobar.");
-            await servicio.DecidirAsync(id, status, reason, IdUsuario, Convert.FromBase64String(version ?? ""), congregantId);
+            await servicio.DecidirAsync(id, status, reason, IdUsuario, congregantId);
             TempData["Success"] = "Decisión registrada.";
         }
         catch (InvalidOperationException ex) { TempData["Error"] = ex.Message; }
-        catch (FormatException) { TempData["Error"] = "Actualiza la página e inténtalo de nuevo."; }
         return RedirectToAction(nameof(Details), new { id });
     }
 }

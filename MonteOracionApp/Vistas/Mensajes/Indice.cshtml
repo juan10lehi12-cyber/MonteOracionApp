@@ -1,0 +1,173 @@
+@model List<MensajeContacto>
+@{
+    ViewData["Title"] = "Bandeja de mensajes y peticiones";
+    var filtro = (FiltroMensajeContacto)ViewBag.Filtro;
+    var staffNames = ViewBag.StaffNames as Dictionary<string, string> ?? [];
+}
+
+<div class="section-heading">
+    <div>
+        <div class="eyebrow">BANDEJA PASTORAL Y CONTACTO</div>
+        <h1>Mensajes y peticiones de oración</h1>
+        <p class="mb-0">Revisa las solicitudes recibidas desde el formulario web, coordina la atención y comunícate con cada persona.</p>
+    </div>
+</div>
+
+<!-- Tarjetas de métricas -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <a asp-action="Index" asp-route-estado="@EstadoMensajeContacto.Pendiente" class="panel metric text-decoration-none text-dark d-block">
+            <span>🟡 Pendientes de atención</span>
+            <strong class="text-warning-emphasis">@ViewBag.PendientesCount</strong>
+            <small class="text-secondary">Peticiones que esperan llamada o respuesta</small>
+        </a>
+    </div>
+    <div class="col-sm-4">
+        <a asp-action="Index" asp-route-estado="@EstadoMensajeContacto.Atendido" class="panel metric text-decoration-none text-dark d-block">
+            <span>🟢 Atendidos / En oración</span>
+            <strong class="text-success">@ViewBag.AtendidosCount</strong>
+            <small class="text-secondary">Contactados por el equipo pastoral</small>
+        </a>
+    </div>
+    <div class="col-sm-4">
+        <a asp-action="Index" asp-route-estado="@EstadoMensajeContacto.Archivado" class="panel metric text-decoration-none text-dark d-block">
+            <span>📁 Archivados</span>
+            <strong class="text-secondary">@ViewBag.ArchivadosCount</strong>
+            <small class="text-secondary">Casos cerrados o consultas antiguas</small>
+        </a>
+    </div>
+</div>
+
+<!-- Filtros de búsqueda -->
+<div class="panel mb-4">
+    <form method="get" asp-action="Index" class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Estado</label>
+            <select name="estado" class="form-select form-select-sm">
+                <option value="">— Todos los estados —</option>
+                <option value="@EstadoMensajeContacto.Pendiente" selected="@(filtro.estado == EstadoMensajeContacto.Pendiente)">🟡 Pendientes</option>
+                <option value="@EstadoMensajeContacto.Atendido" selected="@(filtro.estado == EstadoMensajeContacto.Atendido)">🟢 Atendidos</option>
+                <option value="@EstadoMensajeContacto.Archivado" selected="@(filtro.estado == EstadoMensajeContacto.Archivado)">📁 Archivados</option>
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label small fw-semibold">Motivo</label>
+            <select name="motivo" class="form-select form-select-sm">
+                <option value="">— Todos los motivos —</option>
+                <option value="@TipoMotivoContacto.PeticionOracion" selected="@(filtro.motivo == TipoMotivoContacto.PeticionOracion)">🙏 Petición de oración</option>
+                <option value="@TipoMotivoContacto.Consejeria" selected="@(filtro.motivo == TipoMotivoContacto.Consejeria)">💬 Consejería pastoral</option>
+                <option value="@TipoMotivoContacto.Informacion" selected="@(filtro.motivo == TipoMotivoContacto.Informacion)">🕒 Información de cultos</option>
+                <option value="@TipoMotivoContacto.Servir" selected="@(filtro.motivo == TipoMotivoContacto.Servir)">🤝 Deseo servir</option>
+                <option value="@TipoMotivoContacto.Otro" selected="@(filtro.motivo == TipoMotivoContacto.Otro)">📝 Otro motivo</option>
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label small fw-semibold">Buscar por nombre, teléfono o texto</label>
+            <input type="text" name="buscar" value="@filtro.buscar" class="form-control form-control-sm" placeholder="Ej. Carlos o 987..." />
+        </div>
+
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Filtrar</button>
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm" title="Limpiar filtros">✕</a>
+        </div>
+    </form>
+</div>
+
+<!-- Tabla de resultados -->
+@if (Model.Count == 0)
+{
+    <div class="empty-state">No se encontraron mensajes con los filtros seleccionados.</div>
+}
+else
+{
+    <div class="panel table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 140px;">Fecha (Lima)</th>
+                    <th>Persona / Contacto</th>
+                    <th>Motivo & Preferencia</th>
+                    <th>Mensaje</th>
+                    <th>Estado</th>
+                    <th style="width: 170px;" class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Model)
+                {
+                    var wa = m.UrlWhatsApp;
+                    <tr class="@(m.estado == EstadoMensajeContacto.Pendiente ? "table-warning bg-opacity-25" : "")">
+                        <td class="small">
+                            <strong>@m.fecha_creacion.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy")</strong><br />
+                            <span class="text-secondary">@m.fecha_creacion.ToOffset(TimeSpan.FromHours(-5)).ToString("HH:mm 'h'")</span>
+                        </td>
+                        <td>
+                            <strong class="d-block">@m.nombre</strong>
+                            <a href="tel:@m.telefono" class="small text-decoration-none">📞 @m.telefono</a>
+                            @if (!string.IsNullOrWhiteSpace(m.correo))
+                            {
+                                <br /><span class="small text-secondary">✉️ @m.correo</span>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge text-bg-light border mb-1">
+                                @(m.motivo switch
+                                {
+                                    TipoMotivoContacto.PeticionOracion => "🙏 Oración",
+                                    TipoMotivoContacto.Consejeria => "💬 Consejería",
+                                    TipoMotivoContacto.Informacion => "🕒 Información",
+                                    TipoMotivoContacto.Servir => "🤝 Desea servir",
+                                    _ => "📝 Otro"
+                                })
+                            </span>
+                            <div class="small text-secondary">
+                                @(m.preferencia switch
+                                {
+                                    PreferenciaContacto.Llamada => "Prefiere: 📞 Llamada",
+                                    PreferenciaContacto.WhatsApp => "Prefiere: 💬 WhatsApp",
+                                    _ => "Prefiere: Llamada/WA"
+                                })
+                            </div>
+                        </td>
+                        <td>
+                            <div class="small text-break" style="max-width: 320px; max-height: 4.5em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
+                                @m.mensaje
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge @(m.estado switch {
+                                EstadoMensajeContacto.Pendiente => "text-bg-warning",
+                                EstadoMensajeContacto.Atendido => "text-bg-success",
+                                _ => "text-bg-secondary"
+                            })">
+                                @m.estado
+                            </span>
+                            @if (m.estado == EstadoMensajeContacto.Atendido && m.id_usuario != null && staffNames.TryGetValue(m.id_usuario, out var staff))
+                            {
+                                <div class="small text-secondary mt-1">Por: @staff</div>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex flex-column gap-1 align-items-end">
+                                <a asp-action="Details" asp-route-id="@m.id" class="btn btn-outline-primary btn-sm w-100">
+                                    Ver detalle →
+                                </a>
+                                <div class="btn-group btn-group-sm w-100">
+                                    <a href="tel:@m.telefono" class="btn btn-outline-secondary" title="Llamar por teléfono">📞</a>
+                                    @if (wa != null)
+                                    {
+                                        <a href="@wa" target="_blank" rel="noopener" class="btn btn-outline-success" title="Escribir por WhatsApp">💬 WA</a>
+                                    }
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <partial name="_Paginacion" />
+}

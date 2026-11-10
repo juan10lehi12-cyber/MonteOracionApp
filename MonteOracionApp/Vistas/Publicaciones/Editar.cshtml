@@ -1,5 +1,5 @@
 @model Publicacion
-@{ ViewData["Title"] = Model.id == 0 ? "Nueva Publicación" : "Editar Publicación"; }
+@{ ViewData["Title"] = Model.id == 0 ? "Nueva Publicación" : (Model.cancelado ? "Detalle de Evento Cancelado" : "Editar Publicación"); }
 
 <div class="section-heading">
     <div>
@@ -9,65 +9,121 @@
     <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver a publicaciones</a>
 </div>
 
-<form method="post" enctype="multipart/form-data" class="panel form-panel" style="max-width:760px">
+@if (Model.cancelado)
+{
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+        <span class="fs-4">⚠️</span>
+        <div>
+            <strong>Este evento se encuentra cancelado.</strong>
+            Su información se conserva en modo de solo lectura para la integridad histórica de la congregación y no puede ser modificada.
+        </div>
+    </div>
+}
+
+<form method="post" enctype="multipart/form-data" class="panel form-panel" style="max-width:780px">
     <div asp-validation-summary="All" class="text-danger mb-3"></div>
     <input type="hidden" asp-for="id" />
-    <div class="row g-3">
-        <div class="col-md-4">
-            <label asp-for="tipo" class="form-label fw-semibold">Tipo de publicación</label>
-            <select asp-for="tipo" class="form-select" id="selectTipoPublicacion">
-                <option value="0">🗓️ Evento</option>
-                <option value="1">📢 Aviso</option>
-            </select>
-        </div>
-        <div class="col-md-8">
-            <label asp-for="titulo" class="form-label fw-semibold">Título</label>
-            <input asp-for="titulo" class="form-control" required />
-        </div>
-        <div class="col-12">
-            <label asp-for="contenido" class="form-label fw-semibold">Contenido / Descripción</label>
-            <textarea asp-for="contenido" class="form-control" rows="4" required></textarea>
-        </div>
 
-        <!-- Campos exclusivos para Eventos (se ocultan automáticamente cuando se elige Aviso) -->
-        <div class="col-12" id="camposExclusivosEvento">
-            <div class="p-3 rounded-3 bg-light border">
-                <strong class="d-block small text-secondary text-uppercase mb-2">🗓️ Datos exclusivos del Evento</strong>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label asp-for="fecha_inicio_evento" class="form-label">Inicio del Evento</label>
-                        <input asp-for="fecha_inicio_evento" type="datetime-local" class="form-control" />
-                    </div>
-                    <div class="col-md-6">
-                        <label asp-for="fecha_fin_evento" class="form-label">Fin del Evento</label>
-                        <input asp-for="fecha_fin_evento" type="datetime-local" class="form-control" />
-                    </div>
-                    <div class="col-md-6">
-                        <label asp-for="lugar" class="form-label">Lugar del Evento</label>
-                        <input asp-for="lugar" class="form-control" placeholder="Ej.: Templo principal · Av. Los Ángeles 123, Comas" />
-                    </div>
-                    <div class="col-md-6">
-                        <label asp-for="meta_recaudacion" class="form-label">Meta de Recaudación (S/ opcional)</label>
-                        <input asp-for="meta_recaudacion" type="number" step="0.01" min="0" class="form-control" placeholder="Ej.: 1500.00" />
+    <fieldset @(Model.cancelado ? "disabled" : "")>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label asp-for="tipo" class="form-label fw-semibold">Tipo de publicación</label>
+                <select asp-for="tipo" class="form-select" id="selectTipoPublicacion">
+                    <option value="0">🗓️ Evento</option>
+                    <option value="1">📢 Aviso</option>
+                </select>
+            </div>
+            <div class="col-md-8">
+                <label asp-for="titulo" class="form-label fw-semibold">Título</label>
+                <input asp-for="titulo" class="form-control" maxlength="160" placeholder="Ej.: Culto Especial de Avivamiento y Acción de Gracias" required />
+                <span asp-validation-for="titulo" class="text-danger small"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="contenido" class="form-label fw-semibold">Contenido / Descripción</label>
+                <textarea asp-for="contenido" class="form-control" rows="4" maxlength="6000" placeholder="Describe los detalles de la actividad, predicador invitado, programa, pasajes bíblicos o indicaciones..." required></textarea>
+                <span asp-validation-for="contenido" class="text-danger small"></span>
+            </div>
+
+            <!-- Campos exclusivos para Eventos (se ocultan automáticamente cuando se elige Aviso) -->
+            <div class="col-12" id="camposExclusivosEvento">
+                <div class="p-3 rounded-3 bg-light border">
+                    <strong class="d-block small text-secondary text-uppercase mb-2">🗓️ Datos exclusivos del Evento</strong>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="fecha_inicio_evento" class="form-label fw-semibold">Inicio del Evento</label>
+                            <input asp-for="fecha_inicio_evento" id="fechaInicioEvento" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" class="form-control" />
+                            <span asp-validation-for="fecha_inicio_evento" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="fecha_fin_evento" class="form-label fw-semibold">Fin del Evento</label>
+                            <input asp-for="fecha_fin_evento" id="fechaFinEvento" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" class="form-control" />
+                            <span asp-validation-for="fecha_fin_evento" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="lugar" class="form-label fw-semibold">Lugar del Evento</label>
+                            <input asp-for="lugar" list="lugaresComunes" maxlength="250" class="form-control" placeholder="Ej.: Templo Principal · Av. Los Ángeles 123" />
+                            <datalist id="lugaresComunes">
+                                <option value="Templo Principal"></option>
+                                <option value="Salón Anexo / Auditorio"></option>
+                                <option value="Explanada Exterior"></option>
+                                <option value="Transmisión Virtual (YouTube / Facebook Live)"></option>
+                            </datalist>
+                            <span asp-validation-for="lugar" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="meta_recaudacion" class="form-label fw-semibold">Meta de Recaudación (S/ opcional)</label>
+                            <input asp-for="meta_recaudacion" type="number" step="0.01" min="0" class="form-control" placeholder="Ej.: 1500.00" />
+                            <span class="form-text small text-secondary">Si se define, habilita una barra de progreso de donaciones en el portal web.</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-md-6">
-            <label class="form-label fw-semibold" id="labelImagenPublicacion">Imagen del afiche (JPG o PNG)</label>
-            <input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png" />
-        </div>
-        <div class="col-md-6 d-flex align-items-end">
-            <div class="form-check mb-2">
-                <input asp-for="publicado" class="form-check-input" />
-                <label asp-for="publicado" class="form-check-label fw-semibold">Publicar en el portal web</label>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold" id="labelImagenPublicacion">Imagen del afiche (JPG o PNG)</label>
+                <input type="file" name="image" id="inputImagenPublicacion" class="form-control" accept=".jpg,.jpeg,.png" />
+                <span class="form-text small text-secondary d-block">Formatos admitidos: JPG o PNG. Tamaño máximo recomendado: 5 MB.</span>
+
+                @if (!string.IsNullOrEmpty(Model.clave_imagen))
+                {
+                    <div class="mt-2 p-2 border rounded bg-white d-flex align-items-center gap-3">
+                        <img src="@Url.Action("Image", "Publications", new { id = Model.id })" alt="Afiche actual" style="max-height: 70px; max-width: 100px; object-fit: cover; border-radius: 4px;" class="border" />
+                        <div class="small">
+                            <strong class="text-success d-block">✓ Afiche actual registrado</strong>
+                            <span class="text-secondary">Selecciona un archivo nuevo solo si deseas reemplazarlo.</span>
+                        </div>
+                    </div>
+                }
+
+                <div id="previewNuevoContenedor" class="mt-2 p-2 border rounded bg-light align-items-center gap-3" style="display:none;">
+                    <img id="previewNuevaImagen" src="#" alt="Previsualización" style="max-height: 70px; max-width: 100px; object-fit: cover; border-radius: 4px;" class="border" />
+                    <div class="small">
+                        <strong class="text-primary d-block">Nueva imagen seleccionada</strong>
+                        <span id="previewNombreArchivo" class="text-secondary"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 d-flex align-items-end">
+                <div class="form-check mb-3">
+                    <input asp-for="publicado" class="form-check-input" />
+                    <label asp-for="publicado" class="form-check-label fw-semibold">Publicar en el portal web</label>
+                    <span class="form-text small text-secondary d-block">Si está marcado, será visible para los feligreses y visitantes en la portada.</span>
+                </div>
             </div>
         </div>
-    </div>
+    </fieldset>
+
     <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
         <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
-        <button class="btn btn-primary">Guardar publicación</button>
+        @if (Model.cancelado)
+        {
+            <button type="button" class="btn btn-secondary" disabled>Evento cancelado (Solo lectura)</button>
+        }
+        else
+        {
+            <button type="submit" class="btn btn-primary">Guardar publicación</button>
+        }
     </div>
 </form>
 
@@ -77,18 +133,71 @@
             const selectTipo = document.getElementById('selectTipoPublicacion');
             const bloqueEvento = document.getElementById('camposExclusivosEvento');
             const labelImagen = document.getElementById('labelImagenPublicacion');
+            const tieneImagenPrevia = @(string.IsNullOrEmpty(Model.clave_imagen) ? "false" : "true");
+
             function actualizarCamposPorTipo() {
                 const esEvento = selectTipo.value === '0' || selectTipo.value === 'Evento';
-                bloqueEvento.style.display = esEvento ? '' : 'none';
+                if (bloqueEvento) bloqueEvento.style.display = esEvento ? '' : 'none';
                 if (labelImagen) {
-                    labelImagen.textContent = esEvento
-                        ? 'Imagen del evento (JPG o PNG)'
-                        : 'Imagen adjunta (opcional para avisos)';
+                    if (esEvento) {
+                        labelImagen.innerHTML = tieneImagenPrevia
+                            ? 'Afiche del evento <span class="text-secondary fw-normal small">(Opcional reemplazar)</span>'
+                            : 'Afiche del evento <span class="text-danger">* (Obligatorio)</span>';
+                    } else {
+                        labelImagen.innerHTML = 'Imagen adjunta <span class="text-secondary fw-normal small">(Opcional para avisos)</span>';
+                    }
                 }
             }
+
             if (selectTipo && bloqueEvento) {
                 selectTipo.addEventListener('change', actualizarCamposPorTipo);
                 actualizarCamposPorTipo();
+            }
+
+            // Previsualización y validación de tamaño de archivo (5 MB)
+            const inputImg = document.getElementById('inputImagenPublicacion');
+            const previewCont = document.getElementById('previewNuevoContenedor');
+            const previewImg = document.getElementById('previewNuevaImagen');
+            const previewNom = document.getElementById('previewNombreArchivo');
+
+            if (inputImg) {
+                inputImg.addEventListener('change', function () {
+                    const file = this.files && this.files[0];
+                    if (!file) {
+                        if (previewCont) previewCont.style.display = 'none';
+                        return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('El archivo seleccionado supera el límite recomendado de 5 MB. Por favor elige una imagen más ligera.');
+                        this.value = '';
+                        if (previewCont) previewCont.style.display = 'none';
+                        return;
+                    }
+                    if (previewCont && previewImg) {
+                        previewImg.src = URL.createObjectURL(file);
+                        previewNom.textContent = file.name + ' (' + (file.size / (1024 * 1024)).toFixed(2) + ' MB)';
+                        previewCont.style.display = 'flex';
+                    }
+                });
+            }
+
+            // Sincronización inteligente de fechas (inicio -> fin)
+            const fechaIni = document.getElementById('fechaInicioEvento');
+            const fechaFin = document.getElementById('fechaFinEvento');
+            if (fechaIni && fechaFin) {
+                fechaIni.addEventListener('change', function () {
+                    if (!this.value) return;
+                    fechaFin.min = this.value;
+                    if (!fechaFin.value) {
+                        try {
+                            const d = new Date(this.value);
+                            d.setHours(d.getHours() + 2);
+                            const pad = (n) => String(n).padStart(2, '0');
+                            const formatted = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                            fechaFin.value = formatted;
+                        } catch (e) {}
+                    }
+                });
             }
         })();
     </script>

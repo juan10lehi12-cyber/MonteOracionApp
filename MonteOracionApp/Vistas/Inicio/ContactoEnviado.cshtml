@@ -1,0 +1,40 @@
+@{
+    ViewData["Title"] = "Mensaje Recibido";
+    var church = ViewBag.Church as ConfiguracionIglesia ?? new ConfiguracionIglesia();
+    var nombre = ViewBag.Nombre as string ?? "Hermano(a)";
+    var telefono = ViewBag.Telefono as string;
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Mensaje enviado</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center my-4">
+    <div class="col-lg-7 text-center">
+        <div class="panel p-5 shadow-sm">
+            <div class="display-3 mb-3">🙏</div>
+            <div class="eyebrow mb-2">SOLICITUD REGISTRADA CON ÉXITO</div>
+            <h1 class="h2 fw-bold mb-3">¡Muchas gracias, @nombre!</h1>
+            <p class="lead text-secondary mb-4">
+                Hemos recibido tu mensaje en nuestra bandeja pastoral. Nuestro equipo estará orando por ti y se comunicará contigo@(string.IsNullOrWhiteSpace(telefono) ? "" : $" al número {telefono}") a la brevedad posible.
+            </p>
+
+            <div class="p-3 bg-light rounded-3 border mb-4 text-start small">
+                <div class="fw-semibold text-primary mb-1">📖 «Venid a mí todos los que estáis trabajados y cargados, y yo os haré descansar.»</div>
+                <div class="text-secondary text-end">— Mateo 11:28</div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 justify-content-center">
+                <a class="btn btn-primary" asp-controller="Home" asp-action="Index">
+                    🏠 Volver al inicio
+                </a>
+                <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="Horarios">
+                    🕒 Ver horarios de culto y ubicación
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

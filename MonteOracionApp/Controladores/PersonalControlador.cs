@@ -21,7 +21,14 @@ public class StaffController(ContextoBaseDatos db, UserManager<IdentityUser> usu
 
         var q = db.PerfilesPersonal.Include(x => x.usuario).AsNoTracking();
         if (!string.IsNullOrWhiteSpace(search))
-            q = q.Where(x => x.nombre_completo.Contains(search) || (x.cargo != null && x.cargo.Contains(search)) || (x.usuario.Email != null && x.usuario.Email.Contains(search)));
+        {
+            var term = search.Trim();
+            q = q.Where(x => x.nombre_completo.Contains(term)
+                             || (x.cargo != null && x.cargo.Contains(term))
+                             || (x.usuario.UserName != null && x.usuario.UserName.Contains(term))
+                             || (x.usuario.Email != null && x.usuario.Email.Contains(term)));
+        }
+
         if (active.HasValue)
             q = q.Where(x => x.activo == active.Value);
 
@@ -41,20 +48,38 @@ public class StaffController(ContextoBaseDatos db, UserManager<IdentityUser> usu
         if (id == null) return View(new FormularioPersonal());
         var p = await db.PerfilesPersonal.Include(x => x.usuario).SingleOrDefaultAsync(x => x.id_usuario == id);
         if (p == null) return NotFound();
+
+        var esCorreoSintetico = p.usuario.Email?.EndsWith("@monteoracion.local") == true;
+        var tieneGeneral = await usuarios.IsInRoleAsync(p.usuario, Roles.Personal);
         return View(new FormularioPersonal
         {
-            id_usuario = id, nombre_completo = p.nombre_completo, cargo = p.cargo, correo = p.usuario.Email!, activo = p.activo,
-            administrador = await usuarios.IsInRoleAsync(p.usuario, Roles.Administrador), personal = await usuarios.IsInRoleAsync(p.usuario, Roles.Personal)
+            id_usuario = id,
+            nombre_completo = p.nombre_completo,
+            cargo = p.cargo,
+            usuario = p.usuario.UserName ?? p.usuario.Email ?? "",
+            correo = esCorreoSintetico ? null : p.usuario.Email,
+            activo = p.activo,
+            administrador = await usuarios.IsInRoleAsync(p.usuario, Roles.Administrador),
+            recepcion = await usuarios.IsInRoleAsync(p.usuario, Roles.Recepcion) || tieneGeneral,
+            almacen = await usuarios.IsInRoleAsync(p.usuario, Roles.Almacen) || tieneGeneral,
+            personal = tieneGeneral
         });
     }
 
     [HttpPost]
     public async Task<IActionResult> Edit(FormularioPersonal formulario)
     {
-        if (!formulario.administrador && !formulario.personal) ModelState.AddModelError("", "Selecciona al menos un rol.");
-        if (formulario.id_usuario == null && string.IsNullOrWhiteSpace(formulario.clave)) ModelState.AddModelError("clave", "La contraseña inicial es obligatoria.");
+        if (!formulario.administrador && !formulario.recepcion && !formulario.almacen && !formulario.personal) ModelState.AddModelError("", "Selecciona al menos un rol para el usuario.");
+        if (string.IsNullOrWhiteSpace(formulario.usuario)) ModelState.AddModelError(nameof(formulario.usuario), "El nombre de usuario es obligatorio.");
+        if (formulario.id_usuario == null && string.IsNullOrWhiteSpace(formulario.clave)) ModelState.AddModelError(nameof(formulario.clave), "La contraseña inicial es obligatoria.");
         if (formulario.id_usuario == User.FindFirstValue(ClaimTypes.NameIdentifier) && (!formulario.activo || !formulario.administrador)) ModelState.AddModelError("", "Conserva tu acceso de administrador; otro administrador puede cambiarlo.");
         if (!ModelState.IsValid) return View(formulario);
+
+        var userNameLimpio = formulario.usuario.Trim().ToLowerInvariant();
+        var emailLimpio = !string.IsNullOrWhiteSpace(formulario.correo)
+            ? formulario.correo.Trim().ToLowerInvariant()
+            : $"{userNameLimpio}@monteoracion.local";
+
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         try
         {
@@ -62,29 +87,74 @@ public class StaffController(ContextoBaseDatos db, UserManager<IdentityUser> usu
             PerfilPersonal perfil;
             if (formulario.id_usuario == null)
             {
-                usuario = new IdentityUser { UserName = formulario.correo.Trim(), Email = formulario.correo.Trim(), EmailConfirmed = true };
+                var usuarioExistente = await usuarios.FindByNameAsync(userNameLimpio);
+                if (usuarioExistente != null)
+                {
+                    ModelState.AddModelError(nameof(formulario.usuario), $"El usuario «{userNameLimpio}» ya existe. Elige otro nombre de usuario.");
+                    return View(formulario);
+                }
+
+                var emailExistente = await usuarios.FindByEmailAsync(emailLimpio);
+                if (emailExistente != null)
+                {
+                    emailLimpio = $"{userNameLimpio}.{Guid.NewGuid().ToString("N")[..4]}@monteoracion.local";
+                }
+
+                usuario = new IdentityUser { UserName = userNameLimpio, Email = emailLimpio, EmailConfirmed = true };
                 Asegurar(await usuarios.CreateAsync(usuario, formulario.clave!));
-                perfil = new PerfilPersonal { id_usuario = usuario.Id }; db.PerfilesPersonal.Add(perfil);
+                perfil = new PerfilPersonal { id_usuario = usuario.Id };
+                db.PerfilesPersonal.Add(perfil);
             }
             else
             {
-                perfil = await db.PerfilesPersonal.Include(x => x.usuario).SingleAsync(x => x.id_usuario == formulario.id_usuario); usuario = perfil.usuario;
-                Asegurar(await usuarios.SetEmailAsync(usuario, formulario.correo.Trim())); Asegurar(await usuarios.SetUserNameAsync(usuario, formulario.correo.Trim()));
-                if (!string.IsNullOrWhiteSpace(formulario.clave)) Asegurar(await usuarios.ResetPasswordAsync(usuario, await usuarios.GeneratePasswordResetTokenAsync(usuario), formulario.clave));
+                perfil = await db.PerfilesPersonal.Include(x => x.usuario).SingleAsync(x => x.id_usuario == formulario.id_usuario);
+                usuario = perfil.usuario;
+
+                var existenteConEseNombre = await usuarios.FindByNameAsync(userNameLimpio);
+                if (existenteConEseNombre != null && existenteConEseNombre.Id != usuario.Id)
+                {
+                    ModelState.AddModelError(nameof(formulario.usuario), $"El nombre de usuario «{userNameLimpio}» ya está en uso por otra persona.");
+                    return View(formulario);
+                }
+
+                var existenteConEseEmail = await usuarios.FindByEmailAsync(emailLimpio);
+                if (existenteConEseEmail != null && existenteConEseEmail.Id != usuario.Id)
+                {
+                    emailLimpio = $"{userNameLimpio}.{Guid.NewGuid().ToString("N")[..4]}@monteoracion.local";
+                }
+
+                Asegurar(await usuarios.SetUserNameAsync(usuario, userNameLimpio));
+                Asegurar(await usuarios.SetEmailAsync(usuario, emailLimpio));
+
+                if (!string.IsNullOrWhiteSpace(formulario.clave))
+                    Asegurar(await usuarios.ResetPasswordAsync(usuario, await usuarios.GeneratePasswordResetTokenAsync(usuario), formulario.clave));
             }
+
+            var rolesManager = HttpContext.RequestServices.GetRequiredService<RoleManager<IdentityRole>>();
+            foreach (var nombreRol in Roles.Todos)
+                if (!await rolesManager.RoleExistsAsync(nombreRol))
+                    Asegurar(await rolesManager.CreateAsync(new IdentityRole(nombreRol)));
+
             var rolesAnteriores = await usuarios.GetRolesAsync(usuario);
             if (rolesAnteriores.Count > 0) Asegurar(await usuarios.RemoveFromRolesAsync(usuario, rolesAnteriores));
             var seleccionados = new List<string>();
             if (formulario.administrador) seleccionados.Add(Roles.Administrador);
-            if (formulario.personal) seleccionados.Add(Roles.Personal);
+            if (formulario.recepcion) seleccionados.Add(Roles.Recepcion);
+            if (formulario.almacen) seleccionados.Add(Roles.Almacen);
+            if (seleccionados.Count == 0 && formulario.personal) seleccionados.Add(Roles.Personal);
             Asegurar(await usuarios.AddToRolesAsync(usuario, seleccionados));
-            perfil.nombre_completo = formulario.nombre_completo.Trim(); perfil.cargo = formulario.cargo?.Trim(); perfil.activo = formulario.activo;
-            var claimsAnteriores = (await usuarios.GetClaimsAsync(usuario)).Where(x => x.Type == "staff_name").ToList();
-            if (claimsAnteriores.Count > 0) Asegurar(await usuarios.RemoveClaimsAsync(usuario, claimsAnteriores));
-            Asegurar(await usuarios.AddClaimAsync(usuario, new Claim("staff_name", perfil.nombre_completo)));
+
+            perfil.nombre_completo = formulario.nombre_completo.Trim();
+            perfil.cargo = formulario.cargo?.Trim();
+            perfil.activo = formulario.activo;
+
             Asegurar(await usuarios.UpdateSecurityStampAsync(usuario));
-            await db.GuardarOperacionAsync(); await tx.CommitAsync();
-            TempData["Success"] = "Personal actualizado. Los cambios de permisos se aplican al renovar la sesión."; return RedirectToAction(nameof(Index));
+
+            await db.GuardarOperacionAsync();
+            await tx.CommitAsync();
+
+            TempData["Success"] = $"Usuario «{userNameLimpio}» guardado correctamente.";
+            return RedirectToAction(nameof(Index));
         }
         catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); return View(formulario); }
     }

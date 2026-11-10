@@ -6,7 +6,7 @@ using MonteOracionApp.Modelos;
 using MonteOracionApp.Servicios;
 namespace MonteOracionApp.Controladores;
 
-[Authorize(Roles = Roles.Administrador)]
+[Authorize(Roles = Roles.AccesoMiembros)]
 public class CongregantsController(ContextoBaseDatos db) : Controller
 {
     public async Task<IActionResult> Index(string? search, bool? active, int page = 1)
@@ -33,14 +33,14 @@ public class CongregantsController(ContextoBaseDatos db) : Controller
     [HttpPost]
     public async Task<IActionResult> Edit(int id, [Bind("nombres,apellidos,telefono,dni,fecha_nacimiento,direccion")] Congregante formulario)
     {
-        if (string.IsNullOrWhiteSpace(formulario.dni)) ModelState.AddModelError("dni", "El DNI es obligatorio para habilitar la consulta.");
+        if (string.IsNullOrWhiteSpace(formulario.dni)) ModelState.AddModelError("dni", "Ingresa el DNI del miembro.");
         if (formulario.dni != null && await db.Congregantes.AnyAsync(x => x.id != id && x.dni == formulario.dni)) ModelState.AddModelError("dni", "Este DNI ya está registrado.");
-        if (formulario.fecha_nacimiento.HasValue && (formulario.fecha_nacimiento.Value.Date > DateTime.Today.AddYears(-1) || formulario.fecha_nacimiento.Value.Date < DateTime.Today.AddYears(-120)))
+        if (formulario.fecha_nacimiento.HasValue && (formulario.fecha_nacimiento.Value.Date > DateTime.Today || formulario.fecha_nacimiento.Value.Date < DateTime.Today.AddYears(-120)))
             ModelState.AddModelError("fecha_nacimiento", "Revisa la fecha de nacimiento.");
         if (!ModelState.IsValid) { formulario.id = id; return View(formulario); }
         var c = id == 0 ? new Congregante() : await db.Congregantes.FindAsync(id);
         if (c == null) return NotFound();
-        c.nombres = formulario.nombres.Trim(); c.apellidos = formulario.apellidos.Trim(); c.telefono = formulario.telefono?.Trim(); c.dni = formulario.dni;
+        c.nombres = formulario.nombres.Trim(); c.apellidos = formulario.apellidos.Trim(); c.telefono = formulario.telefono?.Trim(); c.dni = string.IsNullOrWhiteSpace(formulario.dni) ? null : formulario.dni.Trim();
         c.fecha_nacimiento = formulario.fecha_nacimiento?.Date; c.direccion = formulario.direccion?.Trim();
         if (id == 0) db.Congregantes.Add(c);
         try { await db.GuardarOperacionAsync(); }
@@ -48,7 +48,7 @@ public class CongregantsController(ContextoBaseDatos db) : Controller
         TempData["Success"] = "Miembro guardado."; return RedirectToAction(nameof(Index));
     }
 
-    [HttpPost]
+    [Authorize(Roles = Roles.Administrador), HttpPost]
     public async Task<IActionResult> SetActive(int id, bool active)
     {
         var c = await db.Congregantes.FindAsync(id); if (c == null) return NotFound();

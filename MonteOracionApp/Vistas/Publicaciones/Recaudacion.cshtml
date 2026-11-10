@@ -1,19 +1,21 @@
 @model List<Publicacion>
 @{
-    ViewData["Title"] = "Recaudación y Bienes por Evento";
+    ViewData["Title"] = "Recaudación por Evento";
     var raised = ViewBag.Raised as Dictionary<int, decimal> ?? new();
     var goodsByEvent = ViewBag.GoodsByEvent as Dictionary<int, int> ?? new();
-    var generalMoney = (decimal)(ViewBag.General ?? 0m);
-    var totalEventMoney = raised.Values.Sum();
+    var totalTodos = (decimal)(ViewBag.TotalTodos ?? 0m);
+    var totalProximos = (decimal)(ViewBag.TotalProximos ?? 0m);
+    var totalFinalizados = (decimal)(ViewBag.TotalFinalizados ?? 0m);
     var filtroActual = (string?)(ViewBag.Filtro) ?? "";
+    var queryActual = (string?)(ViewBag.Query) ?? "";
     var ahora = HoraIglesia.Ahora;
 }
 
 <div class="section-heading">
     <div>
         <div class="eyebrow">GESTIÓN ADMINISTRATIVA</div>
-        <h1>Recaudación y Bienes por Evento</h1>
-        <p class="mb-0">Seguimiento de metas, dinero recaudado y víveres acumulados en almacén para cada evento.</p>
+        <h1>Recaudación por Evento</h1>
+        <p class="mb-0">Seguimiento financiero, metas y víveres recaudados exclusivamente para eventos de la iglesia.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
         <a asp-action="Index" class="btn btn-outline-secondary">← Volver a publicaciones</a>
@@ -21,44 +23,68 @@
     </div>
 </div>
 
-<!-- Resumen General arriba -->
+<!-- Resumen de recaudación exclusiva de eventos -->
 <div class="row g-3 mb-3">
     <div class="col-md-4">
-        <div class="panel py-2 px-3 h-100 border-start border-4 border-primary">
-            <small class="text-secondary d-block">⛪ Ingreso General para la Iglesia (Aprobado)</small>
-            <strong class="fs-4 text-primary">S/ @generalMoney.ToString("N2")</strong>
+        <div class="panel py-3 px-3 h-100 border-start border-4 border-primary">
+            <small class="text-secondary d-block fw-semibold">💰 Total Recaudado (Todos los eventos)</small>
+            <strong class="fs-4 text-primary">S/ @totalTodos.ToString("N2")</strong>
+            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Acumulado histórico de todos los eventos</small>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="panel py-2 px-3 h-100 border-start border-4 border-success">
-            <small class="text-secondary d-block">🗓️ Total Recaudado en Eventos (Aprobado)</small>
-            <strong class="fs-4 text-success">S/ @totalEventMoney.ToString("N2")</strong>
+        <div class="panel py-3 px-3 h-100 border-start border-4 border-success">
+            <small class="text-secondary d-block fw-semibold">🗓️ Próximos Eventos</small>
+            <strong class="fs-4 text-success">S/ @totalProximos.ToString("N2")</strong>
+            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Fondos recaudados para eventos en curso / futuros</small>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="panel py-2 px-3 h-100 bg-light">
-            <small class="text-secondary d-block">💰 Total General + Eventos</small>
-            <strong class="fs-4 text-success">S/ @((generalMoney + totalEventMoney).ToString("N2"))</strong>
+        <div class="panel py-3 px-3 h-100 border-start border-4 border-secondary">
+            <small class="text-secondary d-block fw-semibold">✅ Eventos Finalizados</small>
+            <strong class="fs-4 text-secondary">S/ @totalFinalizados.ToString("N2")</strong>
+            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Total recaudado en actividades concluidas</small>
         </div>
     </div>
 </div>
 
-<!-- Pestañas para separar Próximos Eventos de Eventos Finalizados -->
-<div class="d-flex flex-wrap gap-2 mb-3">
-    <a class="btn btn-sm @(string.IsNullOrEmpty(filtroActual) ? "btn-primary" : "btn-outline-secondary")" asp-action="Recaudacion">
-        📋 Todos los eventos
-    </a>
-    <a class="btn btn-sm @(filtroActual.Equals("proximos", StringComparison.OrdinalIgnoreCase) ? "btn-primary" : "btn-outline-secondary")" asp-action="Recaudacion" asp-route-filtro="proximos">
-        🗓️ Próximos eventos
-    </a>
-    <a class="btn btn-sm @(filtroActual.Equals("finalizados", StringComparison.OrdinalIgnoreCase) ? "btn-primary" : "btn-outline-secondary")" asp-action="Recaudacion" asp-route-filtro="finalizados">
-        ✅ Eventos finalizados
-    </a>
+<!-- Barra de Filtros y Búsqueda -->
+<div class="panel p-3 mb-4">
+    <form method="get" class="row g-2 align-items-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0">🔍</span>
+                <input type="text" name="q" value="@queryActual" class="form-control border-start-0" placeholder="Buscar por título o lugar..." />
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-4">
+            <select name="filtro" class="form-select" onchange="this.form.submit()">
+                <option value="" selected="@(string.IsNullOrEmpty(filtroActual))">📋 Todos los eventos</option>
+                <option value="proximos" selected="@(filtroActual.Equals("proximos", StringComparison.OrdinalIgnoreCase))">🗓️ Próximos eventos</option>
+                <option value="finalizados" selected="@(filtroActual.Equals("finalizados", StringComparison.OrdinalIgnoreCase))">✅ Eventos finalizados</option>
+            </select>
+        </div>
+        <div class="col-auto d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Buscar</button>
+            @if (!string.IsNullOrEmpty(queryActual) || !string.IsNullOrEmpty(filtroActual))
+            {
+                <a asp-action="Recaudacion" class="btn btn-outline-secondary">Limpiar</a>
+            }
+        </div>
+    </form>
 </div>
 
 @if (!Model.Any())
 {
-    <div class="empty-state">No hay eventos registrados en esta categoría.</div>
+    <div class="empty-state text-center py-5">
+        <span class="fs-1 d-block mb-2">📋</span>
+        <h2 class="h5 fw-bold">No se encontraron eventos</h2>
+        <p class="text-secondary mb-3">No hay eventos que coincidan con los filtros o la búsqueda ingresada.</p>
+        @if (!string.IsNullOrEmpty(queryActual) || !string.IsNullOrEmpty(filtroActual))
+        {
+            <a asp-action="Recaudacion" class="btn btn-outline-primary btn-sm">Restablecer filtros</a>
+        }
+    </div>
 }
 else
 {
@@ -77,6 +103,10 @@ else
                             <div>
                                 <h2 class="h5 mb-0 fw-bold">🗓️ @p.titulo</h2>
                                 <small class="text-secondary">@(p.fecha_inicio_evento?.ToString("dd/MM/yyyy HH:mm") ?? "Sin fecha")</small>
+                                @if (!string.IsNullOrWhiteSpace(p.lugar))
+                                {
+                                    <small class="text-secondary d-block">📍 @p.lugar</small>
+                                }
                             </div>
                             <div class="d-flex gap-1">
                                 @if (p.cancelado)
@@ -110,7 +140,7 @@ else
                             <div class="text-end small text-secondary mt-1">@pct% alcanzado</div>
                         }
                         <div class="mt-2 pt-2 border-top small d-flex justify-content-between align-items-center">
-                            <span class="text-secondary">📦 Víveres / Bienes en almacén para este evento:</span>
+                            <span class="text-secondary">📦 Víveres / Bienes en almacén:</span>
                             <strong class="@(lotesBienes > 0 ? "text-primary" : "text-secondary")">@lotesBienes lote(s) disponibles</strong>
                         </div>
                     </div>

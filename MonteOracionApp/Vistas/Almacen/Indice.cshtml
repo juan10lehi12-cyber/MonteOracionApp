@@ -1,241 +1,487 @@
 @model List<Lote>
 @{
     ViewData["Title"] = "Existencias de almacén";
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
     ViewBag.Page = (int)(ViewBag.Page ?? 1);
     var total = (int)(ViewBag.Total ?? 0);
     var products = ViewBag.Products as List<Producto> ?? [];
+    var categorias = ViewBag.Categorias as List<string> ?? [];
     var eventosFiltro = ViewBag.EventosFiltro as List<Publicacion> ?? [];
-    var destinoActual = (string?)(ViewBag.Destino) ?? "";
+    var conteoPorEvento = ViewBag.ConteoPorEvento as Dictionary<int, int> ?? new();
+    var destinoActual = (string?)(ViewBag.Destino) ?? "general";
+    var categoriaActual = (string?)(ViewBag.Categoria) ?? "";
+    var categoriasConConteo = ViewBag.CategoriasConConteo as Dictionary<string, int> ?? new();
     var lotesGeneral = (int)(ViewBag.LotesGeneral ?? 0);
     var lotesEventos = (int)(ViewBag.LotesEventos ?? 0);
-    var lotesDisponibles = (int)(ViewBag.LotesDisponibles ?? 0);
-    var esFiltroGeneral = destinoActual.Equals("general", StringComparison.OrdinalIgnoreCase);
-    var esFiltroEventos = destinoActual.Equals("eventos", StringComparison.OrdinalIgnoreCase) || int.TryParse(destinoActual, out _);
+    var conStockPestana = (int)(ViewBag.ConStockPestana ?? 0);
+    var agotadosPestana = (int)(ViewBag.AgotadosPestana ?? 0);
+    var esPestanaGeneral = destinoActual.Equals("general", StringComparison.OrdinalIgnoreCase);
+    var esPestanaEventos = !esPestanaGeneral;
     var eventoSeleccionado = int.TryParse(destinoActual, out var idEvSel)
         ? eventosFiltro.FirstOrDefault(x => x.id == idEvSel)
         : null;
+    var pendingCount = (int)(ViewBag.PendingCount ?? 0);
 }
+
 <div class="section-heading">
     <div>
         <div class="eyebrow">GESTIÓN DE ALMACÉN</div>
-        <h1>Existencias</h1>
-        <p class="mb-0">Inventario actual confirmado en almacén. Filtra por almacén general o por los víveres acumulados para un evento.</p>
+        <h1>Existencias en Stock</h1>
+        <p class="mb-0">Control separado del <strong>Almacén General de la Iglesia</strong> y de los <strong>Bienes Reservados por Evento</strong>, organizados por categoría.</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        <a class="btn btn-primary" asp-action="Exit">📤 Registrar salida</a>
-        <a class="btn btn-outline-primary" asp-controller="Donations" asp-action="Receive">➕ Registrar donación</a>
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#catalogoModal">
+            🗂️ Catálogo de productos
+        </button>
+        <a class="btn btn-outline-secondary" asp-action="Pending">
+            📥 Visto bueno @(pendingCount > 0 ? $"({pendingCount})" : "")
+        </a>
+        <a class="btn btn-primary" asp-action="Exit" asp-route-evento="@(eventoSeleccionado?.id)">
+            📤 Registrar salida
+        </a>
     </div>
 </div>
 
-@if (ViewBag.PendingCount is int pc && pc > 0)
+@if (pendingCount > 0)
 {
-    <div class="alert alert-warning d-flex justify-content-between align-items-center">
-        <span>Hay <strong>@pc entrada(s) pendientes de visto bueno</strong> antes de sumarse al inventario.</span>
-        <a class="btn btn-sm btn-warning fw-semibold" asp-action="Pending">Revisar entradas →</a>
+    <div class="alert alert-warning d-flex justify-content-between align-items-center mb-3">
+        <span>⚠️ Hay <strong>@pendingCount entrega(s) en puerta pendientes de visto bueno</strong> antes de sumarse al stock.</span>
+        <a class="btn btn-sm btn-warning fw-semibold" asp-action="Pending">Clasificar y dar visto bueno →</a>
     </div>
 }
 
-<!-- 1. Barra de filtro compacta con Destino (Iglesia o Evento) -->
-<form method="get" class="panel p-3 mb-3">
-    <div class="row g-2 align-items-end">
-        <div class="col-md-3">
-            <label for="search" class="small fw-semibold">Buscar producto o ubicación</label>
-            <input id="search" name="search" value="@ViewBag.Search" class="form-control form-control-sm" placeholder="Ej. Arroz, Estante A-1..." />
-        </div>
-        <div class="col-md-3">
-            <label for="destino" class="small fw-semibold">Destino (Almacén o Evento)</label>
-            <select id="destino" name="destino" class="form-select form-select-sm">
-                <option value="" selected="@string.IsNullOrEmpty(destinoActual)">Todos los destinos</option>
-                <option value="general" selected="@esFiltroGeneral">⛪ General (Almacén iglesia)</option>
-                <option value="eventos" selected="@destinoActual.Equals("eventos", StringComparison.OrdinalIgnoreCase)">🗓️ Todos los eventos</option>
-                @if (eventosFiltro.Count > 0)
-                {
-                    <optgroup label="Eventos específicos">
-                        @foreach (var ev in eventosFiltro)
-                        {
-                            <option value="@ev.id" selected="@(destinoActual == ev.id.ToString())">
-                                🗓️ @ev.titulo @(ev.fecha_inicio_evento.HasValue ? $"({ev.fecha_inicio_evento.Value:dd/MM/yyyy})" : "")
-                            </option>
-                        }
-                    </optgroup>
-                }
-            </select>
-        </div>
-        <div class="col-md-2">
-            <div class="form-check mb-1">
-                <input class="form-check-input" type="checkbox" id="availableOnly" name="availableOnly" value="true" checked="@ViewBag.AvailableOnly" />
-                <label class="form-check-label small fw-semibold" for="availableOnly">Solo disponibles</label>
-            </div>
-        </div>
-        <div class="col-md-4 d-flex flex-wrap justify-content-md-end gap-1">
-            <button type="submit" class="btn btn-primary btn-sm px-3">Filtrar</button>
-            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Limpiar</a>
-            <a class="btn btn-outline-secondary btn-sm" asp-action="Movements">📋 Movimientos</a>
-            @if (User.IsInRole(Roles.Administrador) && products.Count > 0)
-            {
-                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#unifyModal">🔧 Unificar</button>
-            }
-        </div>
-    </div>
-</form>
-
-<!-- 2. Cuadros de Resumen dinámicos según el filtro seleccionado (igual que en Donaciones) -->
+<!-- 1. PESTAÑAS PRINCIPALES: SEPARACIÓN ESTRICTA IGLESIA VS EVENTOS -->
 <div class="row g-3 mb-3">
-    @if (esFiltroGeneral)
-    {
-        <div class="col-md-6 col-lg-5">
-            <div class="panel py-2 px-3 h-100 border-start border-4 border-primary">
-                <small class="text-secondary d-block">⛪ Lotes disponibles en Almacén General</small>
-                <strong class="fs-4 text-primary">@lotesGeneral producto(s) con stock</strong>
+    <div class="col-md-6">
+        <a href="@Url.Action("Index", new { destino = "general", availableOnly = ViewBag.AvailableOnly })"
+           class="panel p-3 d-flex justify-content-between align-items-center text-decoration-none h-100 @(esPestanaGeneral ? "border-primary border-2 shadow-sm bg-primary-subtle" : "border text-reset")">
+            <div>
+                <span class="badge @(esPestanaGeneral ? "text-bg-primary" : "text-bg-secondary") mb-1">CUENTA 1 · IGLESIA</span>
+                <h2 class="h5 fw-bold mb-0 text-dark">⛪ Almacén General de la Iglesia</h2>
+                <small class="text-secondary">Stock propio para ayuda social, comedor y uso del templo</small>
             </div>
-        </div>
-    }
-    else if (esFiltroEventos)
-    {
-        <div class="col-md-8 col-lg-7">
-            <div class="panel py-2 px-3 h-100 border-start border-4 border-success d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <div>
-                    <small class="text-secondary d-block">
-                        🗓️ @(eventoSeleccionado != null ? $"Bienes acumulados para: {eventoSeleccionado.titulo}" : "Lotes acumulados para Eventos")
-                    </small>
-                    <strong class="fs-4 text-success">@lotesEventos lote(s) con stock</strong>
-                </div>
-                @if (eventoSeleccionado != null && lotesEventos > 0)
+            <div class="text-end ms-3">
+                <strong class="fs-3 text-primary d-block lh-1">@lotesGeneral</strong>
+                <small class="text-secondary">con stock</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6">
+        <a href="@Url.Action("Index", new { destino = "eventos", availableOnly = ViewBag.AvailableOnly })"
+           class="panel p-3 d-flex justify-content-between align-items-center text-decoration-none h-100 @(esPestanaEventos ? "border-success border-2 shadow-sm bg-success-subtle" : "border text-reset")">
+            <div>
+                <span class="badge @(esPestanaEventos ? "text-bg-success" : "text-bg-secondary") mb-1">CUENTA 2 · EVENTOS</span>
+                <h2 class="h5 fw-bold mb-0 text-dark">🗓️ Bienes Reservados para Eventos</h2>
+                <small class="text-secondary">Donaciones acumuladas exclusivamente para actividades</small>
+            </div>
+            <div class="text-end ms-3">
+                <strong class="fs-3 text-success d-block lh-1">@lotesEventos</strong>
+                <small class="text-secondary">con stock</small>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Si está en la pestaña de Eventos, mostrar barra para elegir un Evento específico y despacharlo -->
+@if (esPestanaEventos)
+{
+    <div class="panel p-3 mb-3 border-start border-4 border-success bg-light">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="small fw-bold text-uppercase text-secondary me-1">🗓️ Filtrar por evento:</span>
+                <a href="@Url.Action("Index", new { destino = "eventos", categoria = categoriaActual, availableOnly = ViewBag.AvailableOnly })"
+                   class="btn btn-sm @(eventoSeleccionado == null ? "btn-success" : "btn-outline-secondary")">
+                    Todos los eventos (@lotesEventos)
+                </a>
+                @foreach (var ev in eventosFiltro)
                 {
-                    <a class="btn btn-success btn-sm fw-semibold" asp-action="Exit" asp-route-evento="@eventoSeleccionado.id">
-                        📤 Retirar todo lo acumulado de este evento →
+                    var cantEv = conteoPorEvento.GetValueOrDefault(ev.id, 0);
+                    var activoEv = eventoSeleccionado?.id == ev.id;
+                    <a href="@Url.Action("Index", new { destino = ev.id.ToString(), categoria = categoriaActual, availableOnly = ViewBag.AvailableOnly })"
+                       class="btn btn-sm @(activoEv ? "btn-success" : "btn-outline-secondary")">
+                        @ev.titulo <span class="badge rounded-pill bg-white text-dark ms-1">@cantEv</span>
                     </a>
                 }
             </div>
+            @if (eventoSeleccionado != null && conStockPestana > 0)
+            {
+                <a class="btn btn-success btn-sm fw-semibold" asp-action="Exit" asp-route-evento="@eventoSeleccionado.id">
+                    📤 Despachar bienes de «@eventoSeleccionado.titulo» →
+                </a>
+            }
         </div>
-    }
-    else
-    {
-        <div class="col-md-4">
-            <div class="panel py-2 px-3 h-100 border-start border-4 border-primary">
-                <small class="text-secondary d-block">⛪ Stock General (Almacén Iglesia)</small>
-                <strong class="fs-5">@lotesGeneral lote(s) disponibles</strong>
+    </div>
+}
+
+<!-- 2. FILTRADOR POR CATEGORÍAS (Píldoras rápidas) -->
+<div class="panel p-3 mb-4">
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-3 pb-3 border-bottom">
+        <span class="small fw-bold text-uppercase text-secondary me-1">🗂️ Categoría:</span>
+        <a href="@Url.Action("Index", new { search = ViewBag.Search, destino = destinoActual, availableOnly = ViewBag.AvailableOnly })"
+           class="btn btn-sm @(string.IsNullOrEmpty(categoriaActual) ? "btn-dark" : "btn-outline-secondary")">
+            📋 Todas (@conStockPestana)
+        </a>
+        @foreach (var cat in categorias)
+        {
+            var cantCat = categoriasConConteo.GetValueOrDefault(cat, 0);
+            var ico = cat switch {
+                "Alimentos y Víveres" => "🍚",
+                "Mobiliario y Enseres" => "🪑",
+                "Instrumentos y Sonido" => "🎸",
+                "Ropa y Abrigo" => "👕",
+                "Aseo y Limpieza" => "🧴",
+                _ => "📦"
+            };
+            var esActiva = categoriaActual == cat;
+            <a href="@Url.Action("Index", new { search = ViewBag.Search, destino = destinoActual, categoria = cat, availableOnly = ViewBag.AvailableOnly })"
+               class="btn btn-sm @(esActiva ? "btn-primary" : "btn-outline-secondary")">
+                @ico @cat <span class="badge rounded-pill bg-light text-dark ms-1">@cantCat</span>
+            </a>
+        }
+    </div>
+
+    <!-- Buscador rápido -->
+    <form method="get" class="row g-2 align-items-center">
+        <input type="hidden" name="destino" value="@destinoActual" />
+        <input type="hidden" name="categoria" value="@categoriaActual" />
+        <div class="col-md-6">
+            <input id="search" name="search" value="@ViewBag.Search" class="form-control form-control-sm" placeholder="🔍 Buscar por nombre de producto (ej. Arroz, Leche, Micrófono) o ubicación..." />
+        </div>
+        <div class="col-md-3">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="availableOnly" name="availableOnly" value="true" checked="@ViewBag.AvailableOnly" onchange="this.form.submit()" />
+                <label class="form-check-label small fw-semibold" for="availableOnly">Ocultar agotados (@agotadosPestana)</label>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="panel py-2 px-3 h-100 border-start border-4 border-success">
-                <small class="text-secondary d-block">🗓️ Stock Acumulado para Eventos</small>
-                <strong class="fs-5">@lotesEventos lote(s) disponibles</strong>
-            </div>
+        <div class="col-md-3 d-flex justify-content-md-end gap-1">
+            <button type="submit" class="btn btn-primary btn-sm px-3">Buscar</button>
+            @if (!string.IsNullOrEmpty(ViewBag.Search as string) || !string.IsNullOrEmpty(categoriaActual) || ViewBag.AvailableOnly == true)
+            {
+                <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-destino="@destinoActual">Limpiar filtro</a>
+            }
         </div>
-        <div class="col-md-4">
-            <div class="panel py-2 px-3 h-100 bg-light">
-                <small class="text-secondary d-block">📦 Total Lotes con Stock Disponible</small>
-                <strong class="fs-5 text-success">@lotesDisponibles lote(s)</strong>
-            </div>
-        </div>
-    }
+    </form>
 </div>
 
-<!-- 3. Tabla paginada de 10 en 10 -->
-<div class="d-flex justify-content-between align-items-center mb-2">
-    <span class="small text-secondary">Mostrando <strong>@Model.Count</strong> de <strong>@total</strong> registros en total</span>
+<!-- 3. TABLA DE EXISTENCIAS -->
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <span class="small text-secondary">
+        Mostrando <strong>@Model.Count</strong> de <strong>@total</strong> productos en
+        <strong>@(esPestanaGeneral ? "⛪ Almacén General de la Iglesia" : (eventoSeleccionado != null ? $"🗓️ Evento: {eventoSeleccionado.titulo}" : "🗓️ Bienes de Eventos"))</strong>
+    </span>
+    <a class="small fw-semibold text-decoration-none" asp-action="Movements" asp-route-destino="@destinoActual">
+        📜 Ver historial de entradas y salidas de esta cuenta →
+    </a>
 </div>
 
-<div class="panel table-responsive">
-    <table class="table align-middle mb-0">
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>Destino asignado</th>
-                <th>Ubicación en almacén</th>
-                <th>Estado</th>
-                <th class="text-end">Cantidad actual</th>
+<div class="panel table-responsive p-0 border">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light" style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+            <tr style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">
+                <th class="ps-3 py-3" style="min-width: 220px;">Producto / Categoría</th>
+                @if (esPestanaEventos)
+                {
+                    <th class="py-3">Evento asignado</th>
+                }
+                <th class="py-3">Ubicación</th>
+                <th class="py-3">Último ingreso</th>
+                <th class="py-3 text-end pe-3" style="width: 175px; min-width: 175px;">Stock acumulado</th>
+                <th class="pe-3 py-3 text-end" style="min-width: 160px;">Acciones</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var l in Model)
             {
                 var disponible = l.cantidad_actual > 0;
+                var pocoStock = disponible && l.cantidad_actual < 10;
                 var evLote = l.donacion_bien?.donacion?.evento;
-                <tr class="@(disponible ? "" : "opacity-75")">
-                    <td><strong>@l.producto.nombre</strong></td>
-                    <td>
-                        @if (evLote != null)
+                <tr class="@(disponible ? "" : "text-secondary opacity-75")">
+                    <td class="ps-3 py-2">
+                        <div class="fw-bold text-dark fs-6">@l.producto.nombre</div>
+                        <div class="small" style="color: #64748b; font-size: 0.82rem;">@l.producto.categoria</div>
+                    </td>
+                    @if (esPestanaEventos)
+                    {
+                        <td>
+                            @if (evLote != null)
+                            {
+                                <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle">🗓️ @evLote.titulo</span>
+                            }
+                            else
+                            {
+                                <span class="badge text-bg-secondary">Sin evento</span>
+                            }
+                        </td>
+                    }
+                    <td class="small" style="color: #475569;">
+                        📍 @(string.IsNullOrWhiteSpace(l.ubicacion) ? "Almacén Central" : l.ubicacion)
+                    </td>
+                    <td class="small text-nowrap">
+                        @if (l.fecha_confirmacion != null)
                         {
-                            <span class="badge text-bg-primary-subtle text-primary-emphasis">🗓️ @evLote.titulo</span>
+                            <span class="text-secondary">@l.fecha_confirmacion.Value.ToOffset(TimeSpan.FromHours(-5)).ToString("dd/MM/yyyy")</span>
                         }
                         else
                         {
-                            <span class="badge text-bg-light border text-dark">⛪ General (Iglesia)</span>
+                            <span class="text-muted small fst-italic" style="color: #94a3b8; font-size: 0.8rem;">Sin registro</span>
                         }
                     </td>
-                    <td>@(string.IsNullOrWhiteSpace(l.ubicacion) ? "Sin ubicación" : l.ubicacion)</td>
-                    <td>
-                        @if (disponible)
+                    <td class="text-end text-nowrap pe-3" style="width: 175px;">
+                        @if (!disponible)
                         {
-                            <span class="badge text-bg-success-subtle text-success-emphasis">Disponible</span>
+                            <div class="d-inline-flex flex-column align-items-end">
+                                <div class="d-flex align-items-baseline justify-content-end" style="font-variant-numeric: tabular-nums;">
+                                    <span class="fs-5 fw-bold text-muted">0</span>
+                                    <span class="text-secondary fw-semibold small ms-1" style="min-width: 3.2rem; text-align: left;">@l.producto.unidad</span>
+                                </div>
+                                <span class="badge text-bg-secondary-subtle text-secondary border px-2 py-0" style="font-size: 0.68rem;">Agotado</span>
+                            </div>
                         }
                         else
                         {
-                            <span class="badge text-bg-secondary">Agotado</span>
+                            <div class="d-inline-flex flex-column align-items-end">
+                                <div class="d-flex align-items-baseline justify-content-end" style="font-variant-numeric: tabular-nums;">
+                                    <span class="fs-5 fw-bold @(pocoStock ? "text-warning-emphasis" : "text-success")">
+                                        @l.cantidad_actual.ToString("0.##", inv)
+                                    </span>
+                                    <span class="text-secondary fw-semibold small ms-1" style="min-width: 3.2rem; text-align: left;">
+                                        @l.producto.unidad
+                                    </span>
+                                </div>
+                                @if (pocoStock)
+                                {
+                                    <span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle mt-1" style="font-size: 0.68rem; padding: 0.15rem 0.45rem;">
+                                        ⚠️ Poco stock
+                                    </span>
+                                }
+                            </div>
                         }
                     </td>
-                    <td class="text-end">
-                        <strong>@l.cantidad_actual.ToString("0.##")</strong> <small class="text-secondary">@l.producto.unidad</small>
+                    <td class="pe-3 text-end text-nowrap">
+                        <div class="d-inline-flex align-items-center gap-1 justify-content-end">
+                            @if (disponible)
+                            {
+                                <a class="btn btn-sm btn-primary px-3 fw-semibold shadow-xs"
+                                   asp-action="Exit"
+                                   asp-route-lote="@l.id"
+                                   title="Registrar salida de este producto">
+                                    📤 Retirar
+                                </a>
+                            }
+                            <button type="button"
+                                    class="btn btn-sm btn-light border text-secondary px-2 js-btn-editar-lote"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editarLoteModal"
+                                    data-id="@l.id"
+                                    data-nombre="@l.producto.nombre"
+                                    data-categoria="@l.producto.categoria"
+                                    data-unidad="@l.producto.unidad"
+                                    data-ubicacion="@(string.IsNullOrWhiteSpace(l.ubicacion) ? "Almacén Central" : l.ubicacion)"
+                                    data-cantidad="@l.cantidad_actual.ToString("0.##", inv)"
+                                    title="Editar producto o cuadrar stock físico">
+                                ✏️ <span class="small d-none d-lg-inline">Editar</span>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             }
         </tbody>
     </table>
-    @if (Model.Count == 0)
-    {
-        <p class="text-secondary mb-0">No hay existencias para mostrar con este filtro.</p>
-    }
 </div>
-<partial name="_Pagination" />
 
-@if (User.IsInRole(Roles.Administrador) && products.Count > 0)
+@if (Model.Count == 0)
 {
-    <div class="modal fade" id="unifyModal" tabindex="-1" aria-labelledby="unifyModalLabel" aria-hidden="true" data-unify-modal>
-        <div class="modal-dialog modal-lg">
-            <form method="post" asp-action="ProductUnify" class="modal-content">
+    <div class="panel text-center py-4 mt-2">
+        <p class="text-secondary mb-0">
+            No se encontraron productos en <strong>@(esPestanaGeneral ? "⛪ Almacén General de la Iglesia" : "🗓️ Bienes de Eventos")</strong> con este filtro.
+        </p>
+    </div>
+}
+
+<partial name="_Paginacion" />
+
+<!-- Modal 1: Editar / Cuadrar Existencia (Reemplaza cualquier confusión de stock o nombre) -->
+<div class="modal fade" id="editarLoteModal" tabindex="-1" aria-labelledby="editarLoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-action="EditLot">
+                <input type="hidden" name="id" id="editLoteId" />
+                <input type="hidden" name="returnDestino" value="@destinoActual" />
                 <div class="modal-header">
-                    <h2 class="modal-title h5" id="unifyModalLabel">Unificar o corregir nombre de productos</h2>
+                    <h2 class="modal-title h5 mb-0" id="editarLoteModalLabel">✏️ Editar producto o cuadrar stock físico</h2>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="small text-secondary">Busca los productos mal escritos o repetidos, márcalos y escribe el nombre correcto con el que deben quedar. Sus existencias y donaciones se sumarán automáticamente.</p>
-                    <div class="row g-3 mb-3">
+                    <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="unifyTarget" class="form-label fw-semibold">1. Producto base (opcional)</label>
-                            <select id="unifyTarget" name="targetId" class="form-select" data-unify-target>
-                                <option value="0">— Usar el primero que marque abajo —</option>
-                                @foreach (var p in products)
+                            <label class="form-label small fw-semibold">Categoría</label>
+                            <select name="category" id="editLoteCategoria" class="form-select form-select-sm" onchange="document.getElementById('editNuevaCatWrap').classList.toggle('d-none', this.value !== '__nueva__');">
+                                @foreach (var c in categorias)
                                 {
-                                    <option value="@p.id" data-name="@p.nombre">@p.nombre · @p.unidad</option>
+                                    <option value="@c">@c</option>
                                 }
+                                <option value="__nueva__">➕ Nueva categoría...</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label for="unifyCorrectName" class="form-label fw-semibold">2. Nombre correcto definitivo</label>
-                            <input id="unifyCorrectName" name="correctName" maxlength="160" class="form-control" data-unify-name placeholder="Ej.: Arroz" autocomplete="off" />
+                        <div class="col-md-6 d-none" id="editNuevaCatWrap">
+                            <label class="form-label small fw-semibold">Nombre de nueva categoría</label>
+                            <input type="text" name="newCategory" class="form-control form-control-sm" maxlength="80" placeholder="Escribe la categoría..." />
                         </div>
-                    </div>
-                    <div class="mb-2">
-                        <label for="unifySearch" class="form-label fw-semibold">3. Buscar y marcar los nombres mal escritos o repetidos</label>
-                        <input id="unifySearch" type="text" class="form-control mb-2" data-unify-search placeholder="Escribe para buscar… p. ej. arroz" autocomplete="off" />
-                        <div class="border rounded p-2" style="max-height:240px;overflow-y:auto" data-unify-list>
-                            @foreach (var p in products)
-                            {
-                                <label class="form-check py-1" data-unify-item="@p.nombre">
-                                    <input type="checkbox" name="duplicateIds" value="@p.id" class="form-check-input" data-unify-check data-name="@p.nombre" />
-                                    <span class="form-check-label">@p.nombre <small class="text-secondary">(@p.unidad)</small></span>
-                                </label>
-                            }
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Ubicación en almacén</label>
+                            <input type="text" name="location" id="editLoteUbicacion" class="form-control form-control-sm" maxlength="160" required />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-semibold">Nombre oficial del producto</label>
+                            <input type="text" name="productName" id="editLoteNombre" class="form-control form-control-sm" maxlength="160" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Unidad</label>
+                            <select name="unit" id="editLoteUnidad" class="form-select form-select-sm">
+                                <option value="kg">kg</option>
+                                <option value="unidad">unidad</option>
+                                <option value="lata">lata</option>
+                                <option value="litro">litro</option>
+                                <option value="paquete">paquete</option>
+                                <option value="saco">saco</option>
+                                <option value="caja">caja</option>
+                                <option value="tableta">tableta</option>
+                                <option value="par">par</option>
+                            </select>
+                        </div>
+                        <div class="col-12 pt-2 border-top">
+                            <label class="form-label small fw-bold text-primary">⚖️ Cuadre de cantidad física en estante</label>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-5">
+                                    <input type="number" name="quantity" id="editLoteCantidad" class="form-control fw-bold" min="0" step="0.01" required />
+                                </div>
+                                <div class="col-md-7">
+                                    <small class="text-secondary d-block" style="font-size: 0.75rem;">
+                                        Si al contar el almacén hay menos (merma/rotura) o más, corrige el número aquí y quedará registrado en el historial.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12" id="editMotivoWrap">
+                            <label class="form-label small fw-semibold">Motivo del ajuste (si cambiaste la cantidad)</label>
+                            <input type="text" name="reason" id="editLoteMotivo" class="form-control form-control-sm" maxlength="500" placeholder="Ej.: Conteo físico de almacén / bolsa dañada" />
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Unificar en nombre correcto</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Guardar cambios</button>
                 </div>
             </form>
         </div>
     </div>
+</div>
+
+<!-- Modal 2: Catálogo de Productos por Categoría -->
+<div class="modal fade" id="catalogoModal" tabindex="-1" aria-labelledby="catalogoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5 mb-0" id="catalogoModalLabel">🗂️ Catálogo de Categorías y Productos</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-secondary mb-3">
+                    Aquí defines qué categorías y productos aparecen en los desplegables cuando el almacenero da el visto bueno.
+                </p>
+
+                <form method="post" asp-action="SaveCatalogProduct" class="p-3 rounded-3 bg-light border mb-3">
+                    <input type="hidden" name="origenVista" value="Index" />
+                    <input type="hidden" name="id" id="catProdId" value="" />
+                    <strong class="d-block small text-uppercase text-secondary mb-2" id="catFormTitulo">➕ Agregar nuevo producto al desplegable</strong>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold mb-1">Categoría</label>
+                            <select name="categoria" id="catProdCategoria" class="form-select form-select-sm" onchange="document.getElementById('catNuevaWrap').classList.toggle('d-none', this.value !== '__nueva__');">
+                                @foreach (var c in categorias)
+                                {
+                                    <option value="@c">@c</option>
+                                }
+                                <option value="__nueva__">➕ Nueva categoría...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-none" id="catNuevaWrap">
+                            <label class="form-label small fw-semibold mb-1">Nombre de nueva categoría</label>
+                            <input type="text" name="nuevaCategoria" class="form-control form-control-sm" maxlength="80" placeholder="Ej.: Útiles Escolares" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold mb-1">Nombre del producto</label>
+                            <input type="text" name="nombre" id="catProdNombre" class="form-control form-control-sm" maxlength="160" placeholder="Ej.: Arroz, Leche, Micrófono..." required />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold mb-1">Unidad</label>
+                            <select name="unidad" id="catProdUnidad" class="form-select form-select-sm">
+                                <option value="kg">kg</option>
+                                <option value="unidad">unidad</option>
+                                <option value="lata">lata</option>
+                                <option value="litro">litro</option>
+                                <option value="paquete">paquete</option>
+                                <option value="saco">saco</option>
+                                <option value="caja">caja</option>
+                                <option value="tableta">tableta</option>
+                                <option value="par">par</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary btn-sm w-100">Guardar</button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="accordion" id="acordeonCatalogo">
+                    @{ var idxCat = 0; }
+                    @foreach (var grupo in products.GroupBy(x => x.categoria).OrderBy(g => g.Key))
+                    {
+                        idxCat++;
+                        <div class="accordion-item">
+                            <h3 class="accordion-header">
+                                <button class="accordion-button @(idxCat == 1 ? "" : "collapsed") py-2 small fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#cat-collapse-@idxCat">
+                                    @grupo.Key <span class="badge text-bg-secondary ms-2">@grupo.Count()</span>
+                                </button>
+                            </h3>
+                            <div id="cat-collapse-@idxCat" class="accordion-collapse collapse @(idxCat == 1 ? "show" : "")" data-bs-parent="#acordeonCatalogo">
+                                <div class="accordion-body p-2">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        @foreach (var prod in grupo)
+                                        {
+                                            <span class="badge text-bg-light border text-dark d-inline-flex align-items-center gap-2 p-2">
+                                                <span><strong>@prod.nombre</strong> <small class="text-secondary">(@prod.unidad)</small></span>
+                                                <button type="button" class="btn btn-sm btn-link p-0 text-primary text-decoration-none"
+                                                        onclick="document.getElementById('catProdId').value='@prod.id'; document.getElementById('catProdNombre').value='@prod.nombre'; document.getElementById('catProdCategoria').value='@prod.categoria'; document.getElementById('catProdUnidad').value='@prod.unidad'; document.getElementById('catFormTitulo').textContent='✏️ Editando: ' + '@prod.nombre'; document.getElementById('catProdNombre').focus();">
+                                                    ✏️
+                                                </button>
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            document.querySelectorAll('.js-btn-editar-lote').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.getElementById('editLoteId').value = btn.dataset.id;
+                    document.getElementById('editLoteNombre').value = btn.dataset.nombre;
+                    document.getElementById('editLoteCategoria').value = btn.dataset.categoria;
+                    document.getElementById('editLoteUnidad').value = btn.dataset.unidad;
+                    document.getElementById('editLoteUbicacion').value = btn.dataset.ubicacion;
+                    document.getElementById('editLoteCantidad').value = btn.dataset.cantidad;
+                    document.getElementById('editLoteMotivo').value = '';
+                });
+            });
+        })();
+    </script>
 }

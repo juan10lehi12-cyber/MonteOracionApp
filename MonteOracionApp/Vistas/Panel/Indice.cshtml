@@ -4,6 +4,7 @@
     var cargoPersonal = ViewBag.CargoPersonal as string;
     var pending = (int)(ViewBag.Pending ?? 0);
     var pendingStock = (int)(ViewBag.PendingStock ?? 0);
+    var pendingMessages = (int)(ViewBag.PendingMessages ?? 0);
     var dineroGeneral = (decimal)(ViewBag.DineroGeneral ?? 0m);
     var dineroEventos = (decimal)(ViewBag.DineroEventos ?? 0m);
     var stockDisponible = (int)(ViewBag.StockDisponible ?? 0);
@@ -11,133 +12,362 @@
     var listaEventos = ViewBag.ListaProximosEventos as IReadOnlyList<Publicacion> ?? Array.Empty<Publicacion>();
     var recaudadoPorEvento = ViewBag.RecaudadoPorEvento as Dictionary<int, decimal> ?? new Dictionary<int, decimal>();
     var lotesPorEvento = ViewBag.LotesPorEvento as Dictionary<int, int> ?? new Dictionary<int, int>();
+
+    var esAdmin = User.IsInRole(Roles.Administrador);
+    var puedeDonaciones = Roles.PuedeDonaciones(User);
+    var puedeMensajes = Roles.PuedeMensajes(User);
+    var puedeMiembros = Roles.PuedeMiembros(User);
+    var puedeAlmacen = Roles.PuedeAlmacen(User);
 }
-<div class="section-heading">
-    <div>
-        <div class="eyebrow">PANEL DE GESTIÓN INTERNA</div>
-        <h1 class="mb-1">Hola, @nombrePersonal</h1>
-        <p class="mb-0 text-secondary">
-            @if (!string.IsNullOrWhiteSpace(cargoPersonal))
+
+<style>
+    .dash-card {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        transition: box-shadow 0.15s ease-in-out;
+    }
+    .dash-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+    .dash-card-alert {
+        background-color: #fffbeb !important;
+        border: 1px solid #fde68a !important;
+        border-left: 4px solid #f59e0b !important;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(245, 158, 11, 0.08);
+    }
+    .quick-action-link {
+        display: flex;
+        align-items: center;
+        padding: 0.85rem 1rem;
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.15s ease-in-out;
+    }
+    .quick-action-link:hover {
+        background-color: #f8fafc;
+        border-color: #cbd5e1;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
+        color: inherit;
+    }
+    .quick-icon-box {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+</style>
+
+<!-- ENCABEZADO PERSONALIZADO SEGÚN EL ROL -->
+<div class="mb-4">
+    <div class="text-uppercase small fw-bold" style="color: #64748b; letter-spacing: 0.1em; font-size: 0.72rem;">
+        PANEL DE GESTIÓN INTERNA
+    </div>
+    <h1 class="mb-1 fw-bold" style="color: #0f172a; letter-spacing: -0.03em; font-size: 2rem;">
+        Hola, @nombrePersonal
+    </h1>
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+        @if (!string.IsNullOrWhiteSpace(cargoPersonal))
+        {
+            <span class="badge rounded-pill border px-3 py-1" style="background-color: #f1f5f9; color: #334155; font-weight: 500; font-size: 0.8rem; border-color: #cbd5e1 !important;">
+                Cargo: @cargoPersonal
+            </span>
+        }
+        <span class="text-secondary small" style="color: #64748b;">
+            @if (esAdmin)
             {
-                <span class="badge bg-light text-dark border me-2">Cargo: @cargoPersonal</span>
+                <span>Dirección general: supervisión completa de donaciones, almacén, eventos y congregación.</span>
             }
-            Resumen operativo de donaciones, almacén y actividades de la iglesia.
-        </p>
+            else if (puedeDonaciones && !puedeAlmacen)
+            {
+                <span>Módulo de Recepción: registro de donaciones presenciales, atención de mensajes y padrón de miembros.</span>
+            }
+            else if (puedeAlmacen && !puedeDonaciones)
+            {
+                <span>Módulo de Almacén: visto bueno de entradas, control de stock e inventario de salidas.</span>
+            }
+            else
+            {
+                <span>Resumen operativo de tus áreas asignadas en la iglesia.</span>
+            }
+        </span>
     </div>
 </div>
 
-<!-- 1. Tareas pendientes de atención inmediata (dinámicas según haya pendientes o esté todo al día) -->
+<!-- 1. TARJETAS DE PENDIENTES SEGÚN EL ROL DEL USUARIO -->
 <div class="row g-3 mb-4">
-    <div class="col-md-6">
-        <div class="panel metric border-start border-4 @(pending > 0 ? "border-warning" : "border-success")">
-            <div class="d-flex justify-content-between align-items-center">
-                <span>⏳ Donaciones por verificar</span>
-                @if (pending > 0)
-                {
-                    <span class="badge bg-warning text-dark">⚠️ Atención pendiente</span>
-                }
-                else
-                {
-                    <span class="badge bg-success-subtle text-success border border-success-subtle">✅ Todo al día</span>
-                }
-            </div>
-            <strong class="@(pending > 0 ? "text-warning-emphasis" : "text-success")">@pending</strong>
-            @if (pending > 0)
-            {
-                <a class="fw-semibold" asp-controller="Donations" asp-action="Index" asp-route-estado="0">⚠️ Ir a Verificar donaciones →</a>
-            }
-            else
-            {
-                <a class="text-secondary small text-decoration-none" asp-controller="Donations" asp-action="Index">Ver historial de donaciones →</a>
-            }
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="panel metric border-start border-4 @(pendingStock > 0 ? "border-warning" : "border-success")">
-            <div class="d-flex justify-content-between align-items-center">
-                <span>📦 Entradas por dar visto bueno en almacén</span>
-                @if (pendingStock > 0)
-                {
-                    <span class="badge bg-warning text-dark">⚠️ Atención pendiente</span>
-                }
-                else
-                {
-                    <span class="badge bg-success-subtle text-success border border-success-subtle">✅ Todo al día</span>
-                }
-            </div>
-            <strong class="@(pendingStock > 0 ? "text-warning-emphasis" : "text-success")">@pendingStock</strong>
-            @if (pendingStock > 0)
-            {
-                <a class="fw-semibold" asp-controller="Inventory" asp-action="Pending">⚠️ Ir a Visto bueno de entradas →</a>
-            }
-            else
-            {
-                <a class="text-secondary small text-decoration-none" asp-controller="Inventory" asp-action="Pending">Ver visto bueno de entradas →</a>
-            }
-        </div>
-    </div>
-</div>
-
-<!-- 2. Resumen general de la iglesia (Dinero General, Dinero Eventos, Stock en Almacén y Eventos) -->
-<div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
-        <div class="panel py-3 px-3 h-100 border-start border-4 border-primary">
-            <small class="text-secondary d-block">⛪ Ingreso General (Aprobado)</small>
-            <strong class="fs-4 text-primary d-block my-1">S/ @dineroGeneral.ToString("N2")</strong>
-            <a class="small text-decoration-none" asp-controller="Donations" asp-action="Index" asp-route-destino="general">Ver aportes generales →</a>
-        </div>
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        <div class="panel py-3 px-3 h-100 border-start border-4 border-success">
-            <small class="text-secondary d-block">🗓️ Recaudado en Eventos</small>
-            <strong class="fs-4 text-success d-block my-1">S/ @dineroEventos.ToString("N2")</strong>
-            <a class="small text-decoration-none" asp-controller="Donations" asp-action="Index" asp-route-destino="eventos">Ver aportes de eventos →</a>
-        </div>
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        <div class="panel py-3 px-3 h-100">
-            <small class="text-secondary d-block">📦 Almacén con Visto Bueno</small>
-            <strong class="fs-4 d-block my-1">@stockDisponible lote(s)</strong>
-            <a class="small text-decoration-none" asp-controller="Inventory" asp-action="Index" asp-route-availableOnly="true">Ver existencias →</a>
-        </div>
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        <div class="panel py-3 px-3 h-100">
-            <small class="text-secondary d-block">🗓️ Eventos Próximos Activos</small>
-            <strong class="fs-4 d-block my-1">@proximosEventos evento(s)</strong>
-            @if (User.IsInRole(Roles.Administrador))
-            {
-                <a class="small text-decoration-none" asp-controller="Publications" asp-action="Recaudacion" asp-route-filtro="proximos">Ver recaudación →</a>
-            }
-            else
-            {
-                <span class="small text-secondary">Vigentes en agenda</span>
-            }
-        </div>
-    </div>
-</div>
-
-<!-- 3. Acciones rápidas y Próximos eventos activos -->
-<div class="row g-4">
-    <div class="col-lg-5">
-        <div class="panel h-100 d-flex flex-column justify-content-between">
-            <div>
-                <h2 class="h5 mb-1">⚡ Operaciones frecuentes</h2>
-                <p class="text-secondary small mb-3">Accesos directos para las tareas diarias del equipo.</p>
-                <div class="d-grid gap-2">
-                    <a class="btn btn-brand text-start d-flex justify-content-between align-items-center py-2 px-3" asp-controller="Donations" asp-action="Receive">
-                        <span>➕ <strong>Registrar donación presencial</strong><small class="d-block opacity-75">Efectivo o víveres (iglesia o evento)</small></span>
-                        <span>→</span>
-                    </a>
-                    <a class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center py-2 px-3" asp-controller="Inventory" asp-action="Exit">
-                        <span>📤 <strong>Registrar salida de almacén</strong><small class="d-block text-secondary">Uso general o despacho acumulado por evento</small></span>
-                        <span>→</span>
-                    </a>
-                    @if (User.IsInRole(Roles.Administrador))
+    @if (puedeDonaciones)
+    {
+        <div class="col-md-4">
+            <div class="p-3 h-100 d-flex flex-column justify-content-between @(pending > 0 ? "dash-card-alert" : "dash-card")">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-semibold text-secondary">⏳ Donaciones por verificar</span>
+                        @if (pending > 0)
+                        {
+                            <span class="badge border" style="background-color: #fef3c7; color: #92400e; border-color: #fde68a !important; font-size: 0.75rem; font-weight: 600;">⚠️ @pending por revisar</span>
+                        }
+                        else
+                        {
+                            <span class="badge" style="background-color: #f1f5f9; color: #64748b; font-size: 0.75rem; font-weight: 500;">✓ Al día</span>
+                        }
+                    </div>
+                    <strong class="fs-2 d-block my-1 @(pending > 0 ? "text-warning-emphasis" : "text-dark")" style="font-variant-numeric: tabular-nums;">
+                        @pending
+                    </strong>
+                </div>
+                <div class="pt-2">
+                    @if (pending > 0)
                     {
-                        <a class="btn btn-outline-secondary text-start d-flex justify-content-between align-items-center py-2 px-3" asp-controller="Publications" asp-action="Edit">
-                            <span>🗓️ <strong>Nueva publicación o evento</strong><small class="d-block text-secondary">Publicar evento o aviso para la comunidad</small></span>
-                            <span>→</span>
+                        <a class="small fw-semibold text-warning-emphasis text-decoration-none" asp-controller="Donations" asp-action="Index" asp-route-estado="0">Verificar donaciones →</a>
+                    }
+                    else
+                    {
+                        <a class="small text-secondary text-decoration-none" asp-controller="Donations" asp-action="Index">Ver historial de donaciones →</a>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (puedeAlmacen)
+    {
+        <div class="col-md-4">
+            <div class="p-3 h-100 d-flex flex-column justify-content-between @(pendingStock > 0 ? "dash-card-alert" : "dash-card")">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-semibold text-secondary">📦 Entradas por visto bueno</span>
+                        @if (pendingStock > 0)
+                        {
+                            <span class="badge border" style="background-color: #fef3c7; color: #92400e; border-color: #fde68a !important; font-size: 0.75rem; font-weight: 600;">⚠️ @pendingStock por clasificar</span>
+                        }
+                        else
+                        {
+                            <span class="badge" style="background-color: #f1f5f9; color: #64748b; font-size: 0.75rem; font-weight: 500;">✓ Al día</span>
+                        }
+                    </div>
+                    <strong class="fs-2 d-block my-1 @(pendingStock > 0 ? "text-warning-emphasis" : "text-dark")" style="font-variant-numeric: tabular-nums;">
+                        @pendingStock
+                    </strong>
+                </div>
+                <div class="pt-2">
+                    @if (pendingStock > 0)
+                    {
+                        <a class="small fw-semibold text-warning-emphasis text-decoration-none" asp-controller="Inventory" asp-action="Pending">Dar visto bueno en almacén →</a>
+                    }
+                    else
+                    {
+                        <a class="small text-secondary text-decoration-none" asp-controller="Inventory" asp-action="Pending">Ver entradas de almacén →</a>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (puedeMensajes)
+    {
+        <div class="col-md-4">
+            <div class="p-3 h-100 d-flex flex-column justify-content-between @(pendingMessages > 0 ? "dash-card-alert" : "dash-card")">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-semibold text-secondary">✉️ Mensajes de contacto</span>
+                        @if (pendingMessages > 0)
+                        {
+                            <span class="badge border" style="background-color: #fef3c7; color: #92400e; border-color: #fde68a !important; font-size: 0.75rem; font-weight: 600;">⚠️ @pendingMessages nuevo(s)</span>
+                        }
+                        else
+                        {
+                            <span class="badge" style="background-color: #f1f5f9; color: #64748b; font-size: 0.75rem; font-weight: 500;">✓ Al día</span>
+                        }
+                    </div>
+                    <strong class="fs-2 d-block my-1 @(pendingMessages > 0 ? "text-warning-emphasis" : "text-dark")" style="font-variant-numeric: tabular-nums;">
+                        @pendingMessages
+                    </strong>
+                </div>
+                <div class="pt-2">
+                    @if (pendingMessages > 0)
+                    {
+                        <a class="small fw-semibold text-warning-emphasis text-decoration-none" asp-controller="Messages" asp-action="Index" asp-route-estado="0">Responder mensajes →</a>
+                    }
+                    else
+                    {
+                        <a class="small text-secondary text-decoration-none" asp-controller="Messages" asp-action="Index">Ver todos los mensajes →</a>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- 2. SEGUNDA FILA DE MÉTRICAS (Filtrada según permisos para no exponer dinero al almacenero) -->
+<div class="row g-3 mb-4">
+    @if (puedeDonaciones)
+    {
+        <div class="col-sm-6 col-xl-3">
+            <div class="dash-card p-3 h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <small class="text-secondary fw-semibold d-block">⛪ Ingreso General (Aprobado)</small>
+                    <strong class="fs-3 d-block my-1 fw-bold" style="color: #285943; font-variant-numeric: tabular-nums;">
+                        S/ @dineroGeneral.ToString("N2")
+                    </strong>
+                </div>
+                <a class="small text-secondary text-decoration-none mt-2" asp-controller="Donations" asp-action="Index" asp-route-destino="general">Ver aportes generales →</a>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="dash-card p-3 h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <small class="text-secondary fw-semibold d-block">🗓️ Recaudado en Eventos</small>
+                    <strong class="fs-3 d-block my-1 fw-bold" style="color: #15803d; font-variant-numeric: tabular-nums;">
+                        S/ @dineroEventos.ToString("N2")
+                    </strong>
+                </div>
+                <a class="small text-secondary text-decoration-none mt-2" asp-controller="Donations" asp-action="Index" asp-route-destino="eventos">Ver aportes de eventos →</a>
+            </div>
+        </div>
+    }
+
+    @if (puedeAlmacen)
+    {
+        <div class="col-sm-6 col-xl-3">
+            <div class="dash-card p-3 h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <small class="text-secondary fw-semibold d-block">📦 Almacén con Visto Bueno</small>
+                    <strong class="fs-3 d-block my-1 fw-bold" style="color: #0f172a; font-variant-numeric: tabular-nums;">
+                        @stockDisponible <span class="fs-6 fw-normal text-secondary">lote(s)</span>
+                    </strong>
+                </div>
+                <a class="small text-secondary text-decoration-none mt-2" asp-controller="Inventory" asp-action="Index" asp-route-availableOnly="true">Ver existencias →</a>
+            </div>
+        </div>
+    }
+
+    <div class="col-sm-6 col-xl-3">
+        <div class="dash-card p-3 h-100 d-flex flex-column justify-content-between">
+            <div>
+                <small class="text-secondary fw-semibold d-block">🗓️ Eventos Próximos Activos</small>
+                <strong class="fs-3 d-block my-1 fw-bold" style="color: #0f172a; font-variant-numeric: tabular-nums;">
+                    @proximosEventos <span class="fs-6 fw-normal text-secondary">evento(s)</span>
+                </strong>
+            </div>
+            @if (esAdmin)
+            {
+                <a class="small text-secondary text-decoration-none mt-2" asp-controller="Publications" asp-action="Recaudacion" asp-route-filtro="proximos">Ver recaudación →</a>
+            }
+            else
+            {
+                <span class="small text-muted mt-2">Vigentes en agenda</span>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- 3. ACCIONES RÁPIDAS Y PRÓXIMOS EVENTOS ACTIVOS -->
+<div class="row g-4">
+    <!-- OPERACIONES FRECUENTES SEGÚN EL ROL -->
+    <div class="col-lg-5">
+        <div class="dash-card p-4 h-100 d-flex flex-column justify-content-between">
+            <div>
+                <h2 class="h5 mb-1 fw-bold" style="color: #0f172a;">⚡ Operaciones frecuentes</h2>
+                <p class="text-secondary small mb-3">Accesos directos para tus funciones asignadas.</p>
+                <div class="d-grid gap-2">
+                    @if (puedeDonaciones)
+                    {
+                        <!-- Registrar donación presencial -->
+                        <a class="quick-action-link" asp-controller="Donations" asp-action="Receive">
+                            <div class="quick-icon-box" style="background-color: #f3e8ff; color: #7e22ce;">
+                                <span>➕</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong class="d-block text-dark" style="font-size: 0.92rem;">Registrar donación presencial</strong>
+                                <small class="text-secondary" style="font-size: 0.78rem;">Efectivo o víveres en Mesa de Entrada</small>
+                            </div>
+                            <span class="text-muted fw-bold ms-2">→</span>
+                        </a>
+                    }
+
+                    @if (puedeMensajes && !esAdmin)
+                    {
+                        <!-- Bandeja de mensajes para Recepción -->
+                        <a class="quick-action-link" asp-controller="Messages" asp-action="Index">
+                            <div class="quick-icon-box" style="background-color: #dcfce7; color: #15803d;">
+                                <span>✉️</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong class="d-block text-dark" style="font-size: 0.92rem;">Atender mensajes y peticiones</strong>
+                                <small class="text-secondary" style="font-size: 0.78rem;">Responder por teléfono o WhatsApp</small>
+                            </div>
+                            <span class="text-muted fw-bold ms-2">→</span>
+                        </a>
+                    }
+
+                    @if (puedeMiembros && !esAdmin)
+                    {
+                        <!-- Miembros para Recepción -->
+                        <a class="quick-action-link" asp-controller="Congregants" asp-action="Index">
+                            <div class="quick-icon-box" style="background-color: #e0e7ff; color: #4338ca;">
+                                <span>👥</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong class="d-block text-dark" style="font-size: 0.92rem;">Padrón de miembros</strong>
+                                <small class="text-secondary" style="font-size: 0.78rem;">Consultar o inscribir congregantes</small>
+                            </div>
+                            <span class="text-muted fw-bold ms-2">→</span>
+                        </a>
+                    }
+
+                    @if (puedeAlmacen)
+                    {
+                        @if (!esAdmin)
+                        {
+                            <!-- Visto bueno de entradas para Almacenero -->
+                            <a class="quick-action-link" asp-controller="Inventory" asp-action="Pending">
+                                <div class="quick-icon-box" style="background-color: #fef3c7; color: #b45309;">
+                                    <span>📥</span>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <strong class="d-block text-dark" style="font-size: 0.92rem;">Visto bueno de entradas</strong>
+                                    <small class="text-secondary" style="font-size: 0.78rem;">Clasificar y pesar bienes recibidos</small>
+                                </div>
+                                <span class="text-muted fw-bold ms-2">→</span>
+                            </a>
+                        }
+
+                        <!-- Registrar salida de almacén -->
+                        <a class="quick-action-link" asp-controller="Inventory" asp-action="Exit">
+                            <div class="quick-icon-box" style="background-color: #e0f2fe; color: #0284c7;">
+                                <span>📤</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong class="d-block text-dark" style="font-size: 0.92rem;">Registrar salida de almacén</strong>
+                                <small class="text-secondary" style="font-size: 0.78rem;">Uso general o despacho por evento</small>
+                            </div>
+                            <span class="text-muted fw-bold ms-2">→</span>
+                        </a>
+                    }
+
+                    @if (esAdmin)
+                    {
+                        <!-- Nueva publicación o evento (Admin) -->
+                        <a class="quick-action-link" asp-controller="Publications" asp-action="Edit">
+                            <div class="quick-icon-box" style="background-color: #fef3c7; color: #b45309;">
+                                <span>🗓️</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong class="d-block text-dark" style="font-size: 0.92rem;">Nueva publicación o evento</strong>
+                                <small class="text-secondary" style="font-size: 0.78rem;">Publicar evento o aviso parroquial</small>
+                            </div>
+                            <span class="text-muted fw-bold ms-2">→</span>
                         </a>
                     }
                 </div>
@@ -145,14 +375,17 @@
         </div>
     </div>
 
+    <!-- PRÓXIMOS EVENTOS (Muestra dinero solo a quienes tienen permiso de donaciones, y almacén a quienes ven almacén) -->
     <div class="col-lg-7">
-        <div class="panel h-100">
+        <div class="dash-card p-4 h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
-                    <h2 class="h5 mb-0">🗓️ Próximos eventos y su avance</h2>
-                    <small class="text-secondary">Dinero y víveres acumulados por evento activo</small>
+                    <h2 class="h5 mb-0 fw-bold" style="color: #0f172a;">🗓️ Próximos eventos y su avance</h2>
+                    <small class="text-secondary">
+                        @(puedeDonaciones && puedeAlmacen ? "Recaudación monetaria y bienes en almacén" : puedeDonaciones ? "Recaudación monetaria por evento" : "Bienes reservados en almacén por evento")
+                    </small>
                 </div>
-                @if (User.IsInRole(Roles.Administrador))
+                @if (esAdmin)
                 {
                     <a class="btn btn-sm btn-outline-secondary" asp-controller="Publications" asp-action="Recaudacion">Ver todos</a>
                 }
@@ -160,11 +393,11 @@
 
             @if (!listaEventos.Any())
             {
-                <div class="text-center py-4 text-secondary">
+                <div class="text-center py-5 text-secondary">
                     <p class="mb-2">No hay próximos eventos programados en este momento.</p>
-                    @if (User.IsInRole(Roles.Administrador))
+                    @if (esAdmin)
                     {
-                        <a class="btn btn-sm btn-brand" asp-controller="Publications" asp-action="Edit">Crear evento</a>
+                        <a class="btn btn-sm btn-primary" asp-controller="Publications" asp-action="Edit">Crear evento</a>
                     }
                 </div>
             }
@@ -175,11 +408,14 @@
                     {
                         var recaudado = recaudadoPorEvento.GetValueOrDefault(ev.id, 0m);
                         var lotesEvento = lotesPorEvento.GetValueOrDefault(ev.id, 0);
-                        <div class="list-group-item px-0 py-3">
+                        var tieneMeta = ev.meta_recaudacion is > 0;
+                        var porcentaje = tieneMeta ? (int)Math.Clamp(Math.Round((recaudado / ev.meta_recaudacion!.Value) * 100), 0, 100) : 0;
+
+                        <div class="list-group-item px-0 py-3" style="border-bottom: 1px solid #f1f5f9;">
                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
-                                <div>
-                                    <strong class="d-block">@ev.titulo</strong>
-                                    <small class="text-secondary">
+                                <div style="max-width: 260px;">
+                                    <strong class="d-block text-dark" style="font-size: 0.95rem;">@ev.titulo</strong>
+                                    <small class="text-secondary" style="font-size: 0.8rem;">
                                         📅 @(ev.fecha_inicio_evento?.ToString("dd/MM/yyyy HH:mm") ?? "Por definir")
                                         @if (!string.IsNullOrWhiteSpace(ev.lugar))
                                         {
@@ -188,12 +424,48 @@
                                     </small>
                                 </div>
                                 <div class="d-flex flex-wrap gap-2 align-items-center">
-                                    <a class="badge bg-success-subtle text-success border border-success-subtle text-decoration-none" asp-controller="Donations" asp-action="Index" asp-route-destino="evento-@ev.id" title="Ver donaciones de este evento">
-                                        💰 S/ @recaudado.ToString("N2") @(ev.meta_recaudacion is > 0 ? $"/ S/ {ev.meta_recaudacion.Value:N0}" : "")
-                                    </a>
-                                    <a class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none" asp-controller="Inventory" asp-action="Index" asp-route-destino="evento-@ev.id" title="Ver víveres en almacén para este evento">
-                                        📦 @lotesEvento lote(s) en almacén
-                                    </a>
+                                    @if (puedeDonaciones)
+                                    {
+                                        <div class="d-flex flex-column align-items-end" style="min-width: 175px;">
+                                            <div class="d-flex align-items-center gap-1 small" style="font-variant-numeric: tabular-nums;">
+                                                <a class="fw-semibold text-success text-decoration-none" asp-controller="Donations" asp-action="Index" asp-route-destino="@ev.id" title="Ver donaciones de este evento">
+                                                    💰 S/ @recaudado.ToString("N2")
+                                                </a>
+                                                @if (tieneMeta)
+                                                {
+                                                    <span class="text-muted">/ @ev.meta_recaudacion!.Value.ToString("N0")</span>
+                                                    <span class="badge border text-secondary px-1 py-0" style="background-color: #f8fafc; font-size: 0.68rem;">@porcentaje%</span>
+                                                }
+                                            </div>
+                                            @if (tieneMeta)
+                                            {
+                                                <div class="progress w-100 mt-1" style="height: 5px; background-color: #e2e8f0; border-radius: 3px;">
+                                                    <div class="progress-bar bg-success" style="width: @porcentaje%; border-radius: 3px;" role="progressbar" aria-valuenow="@porcentaje" aria-valuemin="0" aria-valuemax="100"></div>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+
+                                    @if (puedeAlmacen)
+                                    {
+                                        @if (lotesEvento > 0)
+                                        {
+                                            <a class="badge text-decoration-none border py-1 px-2"
+                                               style="background-color: #eff6ff; color: #1d4ed8; border-color: #bfdbfe !important; font-size: 0.78rem;"
+                                               asp-controller="Inventory" asp-action="Index" asp-route-destino="@ev.id"
+                                               title="Ver bienes en almacén para este evento">
+                                                📦 @lotesEvento lote(s) en almacén
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge text-secondary border py-1 px-2"
+                                                  style="background-color: #f8fafc; border-color: #e2e8f0; font-weight: 500; font-size: 0.78rem;"
+                                                  title="No hay víveres reservados para este evento">
+                                                Sin víveres reservados
+                                            </span>
+                                        }
+                                    }
                                 </div>
                             </div>
                         </div>

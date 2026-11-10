@@ -5,6 +5,7 @@ public record ArchivoGuardado(string clave, string tipo_contenido);
 public interface IAlmacenamientoArchivos
 {
     Task<ArchivoGuardado> GuardarAsync(IFormFile archivo, bool soloImagen = false, string? categoria = null);
+    bool Existe(string clave);
     Stream Abrir(string clave);
     void Eliminar(string clave);
 }
@@ -17,7 +18,10 @@ public sealed class AlmacenamientoArchivos : IAlmacenamientoArchivos
 
     public AlmacenamientoArchivos(IWebHostEnvironment env, IConfiguration config)
     {
-        raiz = Path.GetFullPath(config["Storage:Path"] ?? Path.Combine(env.ContentRootPath, "Imagenes"));
+        var carpetaConfigurada = config["Storage:Path"];
+        raiz = Path.GetFullPath(string.IsNullOrWhiteSpace(carpetaConfigurada)
+            ? Path.Combine(env.ContentRootPath, "Imagenes")
+            : carpetaConfigurada);
         respaldo = Path.Combine(env.ContentRootPath, "App_Data", "attachments");
         Directory.CreateDirectory(raiz);
         foreach (var sub in Subcarpetas)
@@ -32,8 +36,8 @@ public sealed class AlmacenamientoArchivos : IAlmacenamientoArchivos
         await entrada.CopyToAsync(buffer);
         var datos = buffer.ToArray();
         var extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
-        var png = datos.Length >= 57 && datos.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }) && datos.AsSpan(12, 4).SequenceEqual("IHDR"u8) && datos.AsSpan(datos.Length - 12, 12).SequenceEqual(new byte[] { 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130 });
-        var jpg = datos.Length >= 4 && datos[0] == 255 && datos[1] == 216 && datos[2] == 255 && datos[^2] == 255 && datos[^1] == 217;
+        var png = datos.Length >= 57 && datos.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }) && datos.AsSpan(12, 4).SequenceEqual("IHDR"u8) && (datos.AsSpan(datos.Length - 12, 12).SequenceEqual(new byte[] { 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130 }) || System.Text.Encoding.Latin1.GetString(datos.AsSpan(Math.Max(0, datos.Length - 256))).Contains("IEND"));
+        var jpg = datos.Length >= 4 && datos[0] == 255 && datos[1] == 216 && datos[2] == 255 && (datos[^2] == 255 && datos[^1] == 217 || System.Text.Encoding.Latin1.GetString(datos.AsSpan(Math.Max(0, datos.Length - 512))).IndexOf("\xFF\xD9", StringComparison.Ordinal) >= 0);
         var pdf = datos.Length >= 10 && datos.AsSpan(0, 5).SequenceEqual("%PDF-"u8) && System.Text.Encoding.Latin1.GetString(datos.AsSpan(Math.Max(0, datos.Length - 1024))).Contains("%%EOF");
         string tipo;
         if (png && extension == ".png") tipo = "image/png";
@@ -62,6 +66,13 @@ public sealed class AlmacenamientoArchivos : IAlmacenamientoArchivos
         var rutaRespaldo = Path.Combine(respaldo, clave);
         if (File.Exists(rutaRespaldo)) return rutaRespaldo;
         return rutaRaiz;
+    }
+
+    public bool Existe(string clave)
+    {
+        if (string.IsNullOrWhiteSpace(clave) || clave != Path.GetFileName(clave) || clave.Contains('\\') || clave.Contains('/')) return false;
+        foreach (var sub in Subcarpetas) if (File.Exists(Path.Combine(raiz, sub, clave))) return true;
+        return File.Exists(Path.Combine(raiz, clave)) || File.Exists(Path.Combine(respaldo, clave));
     }
 
     public Stream Abrir(string clave) => File.OpenRead(Resolver(clave));

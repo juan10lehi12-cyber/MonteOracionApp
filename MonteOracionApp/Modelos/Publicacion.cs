@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Identity;
 namespace MonteOracionApp.Modelos;
 
 public enum TipoPublicacion { Evento, Aviso }
@@ -28,4 +29,8 @@ public class Publicacion
     public bool publicado { get; set; }
     public bool cancelado { get; set; }
     public DateTimeOffset fecha_creacion { get; set; } = DateTimeOffset.UtcNow;
+    [StringLength(450)]
+    public string? id_usuario { get; set; }
+    [ForeignKey(nameof(id_usuario))]
+    public IdentityUser? usuario { get; set; }
 }

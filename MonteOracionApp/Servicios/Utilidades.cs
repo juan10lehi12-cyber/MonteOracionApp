@@ -11,9 +11,41 @@ namespace MonteOracionApp.Servicios;
 public static class Roles
 {
     public const string Administrador = "Administrador";
+    public const string Recepcion = "Recepcion";
+    public const string Almacen = "Almacen";
     public const string Personal = "Personal";
-    public const string Equipo = Administrador + "," + Personal;
-    public const string Almacen = Equipo;
+
+    public static readonly string[] Todos = [Administrador, Recepcion, Almacen, Personal];
+
+    public const string Equipo = Administrador + "," + Recepcion + "," + Almacen + "," + Personal;
+    public const string AccesoDonaciones = Administrador + "," + Recepcion + "," + Personal;
+    public const string AccesoMensajes = Administrador + "," + Recepcion + "," + Personal;
+    public const string AccesoMiembros = Administrador + "," + Recepcion + "," + Personal;
+    public const string AccesoAlmacen = Administrador + "," + Almacen + "," + Personal;
+
+    public static bool EsEquipo(System.Security.Claims.ClaimsPrincipal u) =>
+        u.IsInRole(Administrador) || u.IsInRole(Recepcion) || u.IsInRole(Almacen) || u.IsInRole(Personal);
+
+    public static bool PuedeDonaciones(System.Security.Claims.ClaimsPrincipal u) =>
+        u.IsInRole(Administrador) || u.IsInRole(Recepcion) || u.IsInRole(Personal);
+
+    public static bool PuedeMensajes(System.Security.Claims.ClaimsPrincipal u) =>
+        u.IsInRole(Administrador) || u.IsInRole(Recepcion) || u.IsInRole(Personal);
+
+    public static bool PuedeMiembros(System.Security.Claims.ClaimsPrincipal u) =>
+        u.IsInRole(Administrador) || u.IsInRole(Recepcion) || u.IsInRole(Personal);
+
+    public static bool PuedeAlmacen(System.Security.Claims.ClaimsPrincipal u) =>
+        u.IsInRole(Administrador) || u.IsInRole(Almacen) || u.IsInRole(Personal);
+
+    public static string EtiquetaRol(string rol) => rol switch
+    {
+        Administrador => "Administrador (Director)",
+        Recepcion => "Recepción",
+        Almacen => "Almacén",
+        Personal => "Personal (General)",
+        _ => rol
+    };
 }
 
 public static class HoraIglesia
@@ -75,7 +107,8 @@ public sealed class ExpansorVistasEspanol : IViewLocationExpander
         ["Publications"] = "Publicaciones",
         ["Congregants"] = "Miembros",
         ["Staff"] = "Personal",
-        ["Settings"] = "Configuracion"
+        ["Settings"] = "Configuracion",
+        ["Messages"] = "Mensajes"
     };
 
     private static readonly Dictionary<string, string> Vistas = new(StringComparer.OrdinalIgnoreCase)
@@ -103,6 +136,9 @@ public sealed class ExpansorVistasEspanol : IViewLocationExpander
         ["Horarios"] = "Horarios",
         ["Events"] = "Eventos",
         ["About"] = "QuienesSomos",
+        ["Contact"] = "Contacto",
+        ["Contacto"] = "Contacto",
+        ["ContactoEnviado"] = "ContactoEnviado",
         ["Ministries"] = "Ministerios",
         ["_Layout"] = "_Diseno",
         ["_LoginPartial"] = "_AccesoParcial",

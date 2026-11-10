@@ -10,6 +10,7 @@
 </div>
 
 <form method="post" class="panel form-panel" style="max-width:760px">
+    <div asp-validation-summary="All" class="text-danger mb-3"></div>
     <div class="mb-3">
         <label class="form-label fw-semibold">Nombre de la Iglesia</label>
         <input asp-for="nombre" class="form-control" required />

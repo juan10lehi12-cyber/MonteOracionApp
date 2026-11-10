@@ -104,7 +104,14 @@
                         }
                     </td>
                     <td class="text-end">
-                        <a asp-action="Edit" asp-route-id="@p.id" class="btn btn-sm btn-outline-primary">Editar</a>
+                        @if (p.cancelado)
+                        {
+                            <a asp-action="Edit" asp-route-id="@p.id" class="btn btn-sm btn-outline-secondary">Ver detalle</a>
+                        }
+                        else
+                        {
+                            <a asp-action="Edit" asp-route-id="@p.id" class="btn btn-sm btn-outline-primary">Editar</a>
+                        }
                         @if (p.tipo == TipoPublicacion.Evento && !p.cancelado && !esFinalizado)
                         {
                             <form asp-action="Cancel" method="post" class="d-inline" data-confirm="¿Seguro que deseas cancelar este evento?">

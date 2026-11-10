@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Identity;
 namespace MonteOracionApp.Modelos;
 
 public enum TipoDonacion { Dinero, Bienes }
@@ -37,10 +38,11 @@ public class Donacion
     public DateTimeOffset fecha_creacion { get; set; } = DateTimeOffset.UtcNow;
     public string? clave_comprobante { get; set; }
     public string? tipo_contenido_comprobante { get; set; }
-    public string? id_usuario_registro { get; set; }
+    [StringLength(450)]
+    public string? id_usuario { get; set; }
+    [ForeignKey(nameof(id_usuario))]
+    public IdentityUser? usuario { get; set; }
     public bool digital { get; set; }
-    [Timestamp]
-    public byte[] version { get; set; } = [];
     public List<DonacionBien> bienes { get; set; } = [];
     public List<DonacionHistorial> decisiones { get; set; } = [];
     [NotMapped]
@@ -79,8 +81,10 @@ public class DonacionHistorial
     [ForeignKey(nameof(id_donacion))]
     public Donacion? donacion { get; set; }
     public EstadoDonacion estado { get; set; }
-    [Required]
+    [Required, StringLength(450)]
     public string id_administrador { get; set; } = "";
+    [ForeignKey(nameof(id_administrador))]
+    public IdentityUser? administrador { get; set; }
     public DateTimeOffset fecha { get; set; } = DateTimeOffset.UtcNow;
     [StringLength(1000)]
     public string? motivo { get; set; }

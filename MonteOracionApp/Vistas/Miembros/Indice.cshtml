@@ -65,10 +65,13 @@
                     <td class="text-end">
                         <a asp-controller="Donations" asp-action="Index" asp-route-donante="@c.nombre_completo" class="btn btn-sm btn-outline-secondary" title="Ver donaciones de este miembro">Donaciones</a>
                         <a asp-action="Edit" asp-route-id="@c.id" class="btn btn-sm btn-outline-primary">Editar</a>
-                        <form asp-action="SetActive" asp-route-id="@c.id" method="post" class="d-inline">
-                            <input type="hidden" name="active" value="@(c.activo ? "false" : "true")" />
-                            <button class="btn btn-sm btn-outline-secondary">@(c.activo ? "Desactivar" : "Reactivar")</button>
-                        </form>
+                        @if (User.IsInRole(Roles.Administrador))
+                        {
+                            <form asp-action="SetActive" asp-route-id="@c.id" method="post" class="d-inline">
+                                <input type="hidden" name="active" value="@(c.activo ? "false" : "true")" />
+                                <button class="btn btn-sm btn-outline-secondary">@(c.activo ? "Desactivar" : "Reactivar")</button>
+                            </form>
+                        }
                     </td>
                 </tr>
             }
